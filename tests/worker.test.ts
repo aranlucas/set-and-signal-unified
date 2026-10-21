@@ -4,6 +4,7 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from '../src/index';
 import { GARMIN_BASE, GARMIN_TOKEN_PATH, obtainToken, readBounded } from '../src/garmin';
+import { consentFormAction } from '../src/auth';
 import { endpointPath, parameterSchema, validateDateRange } from '../src/mcp';
 import { consentPage } from '../src/pages';
 
@@ -33,6 +34,9 @@ async function startConsent() {
   const consent = await dispatch(`/authorize?${params}`);
   expect(consent.status).toBe(200);
   expect(consent.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+  // Browsers enforce form-action on the post-consent redirect, and send `Origin: null` under no-referrer.
+  expect(consent.headers.get('content-security-policy')).toContain("form-action 'self' http://localhost:9876;");
+  expect(consent.headers.get('referrer-policy')).toBe('same-origin');
   const body = await consent.text();
   const handle = body.match(/name="handle" value="([^"]+)"/)?.[1];
   expect(handle).toBeTruthy();
@@ -134,6 +138,10 @@ describe('Cloudflare OAuth and MCP integration', () => {
     const list = await client.listTools();
     expect(list.tools).toHaveLength(24);
     expect(list.tools.some(tool => tool.name === 'get_menstrual_summary')).toBe(false);
+    const activities = list.tools.find(tool => tool.name === 'list_activities')!;
+    expect(activities.inputSchema.required ?? []).not.toContain('startDate');
+    expect(activities.inputSchema.properties?.search).toMatchObject({ description: expect.stringContaining('activity names') });
+    expect(activities.description).not.toContain('31 days');
     const data = await client.callTool({ name: 'get_daily_summary', arguments: { calendarDate: '2026-10-20' } });
     expect(JSON.stringify(data)).toContain('1234');
     expect(JSON.stringify(data)).not.toContain('mock-garmin-access');
@@ -186,6 +194,10 @@ describe('Garmin boundaries', () => {
     expect(parameterSchema({ name: 'limit', in: 'query', schema: { type: 'integer' } }).safeParse(101).success).toBe(false);
     expect(() => validateDateRange({ fromDate: '2026-10-21', toDate: '2026-10-01' })).toThrow();
     expect(() => validateDateRange({ startDate: '2026-10-01', endDate: '2026-10-31' })).not.toThrow();
+    expect(() => validateDateRange({ startDate: '2026-10-01', endDate: '2026-11-01' })).toThrow('31 calendar days');
+    const optionalDate = parameterSchema({ name: 'startDate', in: 'query', schema: { type: 'string', format: 'date' } });
+    expect(optionalDate.safeParse(undefined).success).toBe(true);
+    expect(parameterSchema({ name: 'date', in: 'path', required: true, schema: { type: 'string', format: 'date' } }).safeParse(undefined).success).toBe(false);
     expect(endpointPath('/x/{id}', [{ name: 'id', in: 'path', schema: { type: 'string' } }, { name: 'search', in: 'query', schema: { type: 'string' } }],
       { id: 'a/b', search: 'a&b' })).toBe('/x/a%2Fb?search=a%26b');
   });
@@ -193,6 +205,10 @@ describe('Garmin boundaries', () => {
     await expect(readBounded(new Response('too large'), 3)).rejects.toThrow('too large');
     const mock: typeof fetch = async () => Response.json({ unrecognized: 'not a token' });
     await expect(obtainToken(apiKey, mock)).rejects.toThrow('unrecognized');
+  });
+  it('allows consent forms to redirect only to the validated client', () => {
+    expect(consentFormAction('https://claude.ai/api/mcp/auth_callback?x=1')).toBe("'self' https://claude.ai");
+    expect(consentFormAction('cursor://anysphere.cursor-mcp/oauth/callback')).toBe("'self' cursor:");
   });
   it('escapes untrusted OAuth client information', () => {
     const output = consentPage({ clientId: 'test', clientName: '<script>alert(1)</script>', redirectUri: 'https://example.org',

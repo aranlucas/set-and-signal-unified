@@ -6,13 +6,20 @@ export type AppEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
 export const READ_SCOPE = 'garmin:read';
 export const WOMENS_SCOPE = 'garmin:womens-health';
 
-export function html(body: string, status = 200, headers = new Headers()): Response {
+export function html(body: string, status = 200, headers = new Headers(), formAction = "'self'"): Response {
   headers.set('Content-Type', 'text/html; charset=utf-8');
   headers.set('Cache-Control', 'no-store');
-  headers.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+  headers.set('Content-Security-Policy', `default-src 'none'; style-src 'unsafe-inline'; form-action ${formAction}; base-uri 'none'; frame-ancestors 'none'`);
   headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('Referrer-Policy', 'no-referrer');
+  // Not no-referrer: browsers then send `Origin: null` on form posts, failing the Origin check.
+  headers.set('Referrer-Policy', 'same-origin');
   return new Response(body, { status, headers });
+}
+
+/** Browsers apply form-action to the redirect after a form post, so allow the validated client redirect. */
+export function consentFormAction(redirectUri: string): string {
+  const url = new URL(redirectUri);
+  return `'self' ${url.origin === 'null' ? url.protocol : url.origin}`;
 }
 
 export const authHandler = {
@@ -20,7 +27,7 @@ export const authHandler = {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/') return html(home(env.PUBLIC_URL));
     if (request.method === 'GET' && url.pathname === '/privacy') return html(privacyPage());
-    if (url.pathname === '/health' && request.method === 'GET') return Response.json({ status: 'ok', service: 'garmin-personal-mcp', sdk: '2.3.1' });
+    if (url.pathname === '/health' && request.method === 'GET') return Response.json({ status: 'ok', service: 'garmin-personal-mcp' });
     if (url.pathname !== '/authorize') return new Response('Not found', { status: 404 });
     try {
       const oauth = env.OAUTH_PROVIDER;
@@ -28,7 +35,7 @@ export const authHandler = {
         const authRequest = await oauth.parseAuthRequest(request);
         const details = await oauth.describeConsent(authRequest);
         const consent = await oauth.beginConsent(authRequest);
-        return html(consentPage(details, consent.handle), 200, consent.headers);
+        return html(consentPage(details, consent.handle), 200, consent.headers, consentFormAction(details.redirectUri));
       }
       if (request.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, POST' } });
       if (request.headers.get('Origin') !== new URL(env.PUBLIC_URL).origin) return new Response('Invalid origin', { status: 403 });
