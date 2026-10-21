@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     projects: [
       {
-        plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' } })],
+        plugins: [cloudflareTest({ experimental: { newConfig: true } })],
         test: { name: 'worker', include: ['tests/worker.test.ts'] },
       },
       // Live deployment checks; run explicitly with `npm run smoke`.

@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "Official Garmin Personal API MCP on Cloudflare Workers with OAuth consent",
   "scripts": {
-    "dev": "wrangler dev",
-    "typegen": "wrangler types",
-    "typecheck": "tsc --noEmit",
+    "dev": "cf dev",
+    "typegen": "cf workers types",
+    "typecheck": "cf workers types && tsc --noEmit",
     "test": "vitest run --project worker",
     "check": "npm run typecheck && npm test",
-    "build": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy",
+    "build": "cf build",
+    "deploy": "cf deploy",
     "smoke": "vitest run --project smoke"
   },
   "keywords": [],
@@ -23,6 +23,7 @@
     "@cloudflare/vitest-plugin": "1.4.6",
     "@modelcontextprotocol/client": "2.3.1",
     "@types/node": "26.6.5",
+    "cf": "1.0.0-beta.20",
     "typescript": "7.0.2",
     "vitest": "5.0.5",
     "wrangler": "4.151.3"
