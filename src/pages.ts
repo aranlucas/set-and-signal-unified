@@ -1,6 +1,6 @@
 import type { ConsentDescription } from '@cloudflare/workers-oauth-provider';
 
-export const escape = (value: string): string => value.replace(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`);
+export const escape = (value: string): string => value.replaceAll(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`);
 
 export function page(title: string, body: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)} · Garmin Personal MCP</title><style>
