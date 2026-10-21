@@ -55,7 +55,7 @@ The tools follow Garmin’s published [Personal API schema](https://developer.ga
 | Profile | `get_profile` |
 | Separate consent | `get_menstrual_summary`, `get_menstrual_day` |
 
-Dates use `YYYY-MM-DD`. Date range tools accept at most 31 calendar days per call; split larger requests. Activity lists accept up to 100 items per call. JSON responses are capped at 1 MiB, and original activity downloads at 2 MiB. Downloads return base64 and the upstream media type; Garmin may return a FIT archive. These are local safety limits, not claims about Garmin’s API quotas or history retention.
+Dates use `YYYY-MM-DD`. Daily date range tools accept at most 31 calendar days per call; split larger requests. `list_activities` date filters are not capped because results are paged at up to 100 items per call. JSON responses are capped at 1 MiB, and original activity downloads at 2 MiB. Downloads return base64 and the upstream media type; Garmin may return a FIT archive. These are local safety limits, not claims about Garmin’s API quotas or history retention.
 
 No workout uploads, activity editing, course publishing, or arbitrary HTTP proxy tool is exposed. An activity’s associated workouts can be read. Availability of metrics and historical records depends on your Garmin account, device, and Garmin’s API.
 
