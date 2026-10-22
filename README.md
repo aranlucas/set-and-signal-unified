@@ -78,7 +78,7 @@ npm run deploy
 npm run smoke
 ```
 
-`npm run check` type-checks and runs tests inside the Cloudflare Workers runtime with **local isolated KV** and mocked outbound Garmin calls. `npm run build` runs Wrangler’s packaging dry run. `npm run smoke` checks the live deployment: health, protected MCP access, OAuth discovery, client registration, browser-bound consent, and deny. It creates an expiring smoke-test OAuth client, never a Garmin grant.
+`npm run check` type-checks and runs tests inside the Cloudflare Workers runtime with **local isolated KV** and mocked outbound Garmin calls. `npm run build` runs Wrangler’s packaging dry run. `npm run smoke` checks the live deployment: health, protected MCP access, OAuth discovery, client registration, browser-bound consent, and deny. It creates an expiring smoke-test OAuth client, never a Garmin grant; set `SMOKE_URL` to check another deployment.
 
 For another Cloudflare account, change `account_id` and `PUBLIC_URL` in `wrangler.jsonc`, create your own KV namespace with `npx wrangler kv namespace create garmin-mcp-oauth`, replace the binding ID, and regenerate types. `PUBLIC_URL` must exactly match the Worker’s canonical origin; tokens are bound to `${PUBLIC_URL}/mcp`.
 

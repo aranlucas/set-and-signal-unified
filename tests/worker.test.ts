@@ -3,7 +3,7 @@ import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from '../src/index';
-import { GARMIN_BASE, GARMIN_TOKEN_PATH, obtainToken, readBounded } from '../src/garmin';
+import { GARMIN_BASE, GARMIN_TOKEN_PATH, GarminClient, obtainToken, readBounded } from '../src/garmin';
 import { consentFormAction } from '../src/auth';
 import { endpointPath, parameterSchema, validateDateRange } from '../src/mcp';
 import { consentPage } from '../src/pages';
@@ -205,6 +205,26 @@ describe('Garmin boundaries', () => {
     await expect(readBounded(new Response('too large'), 3)).rejects.toThrow('too large');
     const mock: typeof fetch = async () => Response.json({ unrecognized: 'not a token' });
     await expect(obtainToken(apiKey, mock)).rejects.toThrow('unrecognized');
+  });
+  it('returns activity files as base64 and reuses one Garmin token per request', async () => {
+    const calls: string[] = [];
+    const mock: typeof fetch = async (input, init) => {
+      calls.push(`${init?.method ?? 'GET'} ${String(input).slice(GARMIN_BASE.length)}`);
+      if (String(input).endsWith(GARMIN_TOKEN_PATH)) return Response.json({ access_token: 'tok' });
+      expect(new Headers(init?.headers).get('accept')).toBe('application/octet-stream');
+      return new Response(new Uint8Array([0, 1, 2, 255]), { headers: { 'Content-Type': 'application/zip' } });
+    };
+    const client = new GarminClient(apiKey, mock);
+    const file = { source: 'Garmin Connect', encoding: 'base64', contentType: 'application/zip', data: 'AAEC/w==' };
+    expect(await client.get('/download-service/files/activity/1', true)).toEqual(file);
+    expect(await client.get('/download-service/files/activity/2', true)).toEqual(file);
+    expect(calls).toEqual([`POST ${GARMIN_TOKEN_PATH}`, 'GET /download-service/files/activity/1', 'GET /download-service/files/activity/2']);
+  });
+  it('maps upstream failures to safe messages without echoing bodies', async () => {
+    const limited: typeof fetch = async () => new Response('secret body', { status: 429 });
+    await expect(obtainToken(apiKey, limited)).rejects.toThrow('rate limit');
+    const unreachable: typeof fetch = async () => { throw new TypeError('network down'); };
+    await expect(obtainToken(apiKey, unreachable)).rejects.toThrow('could not be reached');
   });
   it('allows consent forms to redirect only to the validated client', () => {
     expect(consentFormAction('https://claude.ai/api/mcp/auth_callback?x=1')).toBe("'self' https://claude.ai");
