@@ -66,7 +66,7 @@
             {
               "name": "WorkoutWidget",
               "displayName": "Fivefold workout",
-              "description": "Your next 5×5 workout, or live progress while you lift.",
+              "description": "Your next 5\u00d75 workout, or live progress while you lift.",
               "android": {
                 "targetCellWidth": 3,
                 "targetCellHeight": 2,
@@ -85,6 +85,12 @@
     },
     "platforms": [
       "android"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5901bc45-5617-4899-9016-14363384acec"
+      }
+    },
+    "owner": "aranlucas"
   }
 }

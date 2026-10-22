@@ -24,7 +24,7 @@ Mode: Operate. A lifter checks loads between sets and reviews progress after tra
 - History remains a native recycled `LazyColumn.Items` list, including filtered results.
 - Timer ticks remain local to the timer and aligned to its absolute deadline.
 - Add structural regression assertions and an explicit main-thread CPU benchmark (16 ms p95 fresh summary, 8 ms per 1,000 cached reads). Record wall time separately because concurrent builds can delay scheduling; desktop results are development guardrails, not claims of Android frame rate.
-- Run `npm run check`, the performance command, and installed-app e2e tests before marking this release verified. Native startup/frame budgets require measurements, not assumptions.
+- Run `pnpm run check`, the performance command, and installed-app e2e tests before marking this release verified. Native startup/frame budgets require measurements, not assumptions.
 
 ## Next — measured device performance and data recovery
 

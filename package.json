@@ -44,12 +44,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "E2E_TELEMETRY_DISABLED=1 e2e run --target android",
-    "check": "npm run lint && npm run typecheck && npm test && npm run perf",
-    "build:apk": "node scripts/build-apk.mjs",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm test && pnpm run perf",
+    "build:apk": "pnpm eas build --platform android --profile preview --local --output ./artifacts/Fivefold.apk",
     "lint": "eslint . --max-warnings=0",
-    "perf": "tsx scripts/check-performance.ts"
+    "eas": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@25.3.0",
+    "perf": "tsx check-performance.ts"
   },
   "private": true,
+  "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=24"
   }

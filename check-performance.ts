@@ -1,10 +1,10 @@
 import { performance } from "node:perf_hooks";
-import { getProgressOverview } from "../src/domain/progress";
+import { getProgressOverview } from "./src/domain/progress";
 import {
   initialState,
   startSession,
   type Session,
-} from "../src/domain/workout";
+} from "./src/domain/workout";
 
 // Development CPU budgets, separate from release-device frame/startup profiling.
 // Structural regressions (bounded output, cache invalidation, one history pass,
