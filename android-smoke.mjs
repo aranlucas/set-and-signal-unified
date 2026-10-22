@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 const [cli, ...target] = process.argv.slice(2);
 if (!cli || !target.includes("--config") || !target.includes("--session"))
   throw new Error(
-    "Usage: node scripts/android-smoke.mjs <agent-device launcher> <device_open target flags>",
+    "Usage: node android-smoke.mjs <agent-device launcher> <device_open target flags>",
   );
 const output = resolve(
   "artifacts/qa-redesign",

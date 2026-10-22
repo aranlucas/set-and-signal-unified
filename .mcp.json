@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "e2e": {
-      "command": "npx",
+      "command": "pnpm",
       "args": [
+        "exec",
         "e2e",
         "mcp"
       ]

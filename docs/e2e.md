@@ -9,7 +9,7 @@ and the sheets and dialogs that only exist on a device.
 The runner is [`e2e`](https://e2e.tester.army) with its
 [`@e2e-dev/mobile`](https://e2e.tester.army/docs/mobile) engine, which is built
 on [agent-device](https://github.com/callstack/agent-device) — the same device
-driver `scripts/android-smoke.mjs` already used. Tests are TypeScript, use
+driver `android-smoke.mjs` already used. Tests are TypeScript, use
 Playwright-style locators and assertions, and the suite as committed needs no
 model or API key: every step is a locator or an assertion, with no
 `agent.act` / `agent.assert` call.
@@ -19,7 +19,7 @@ model or API key: every step is a locator or an assertion, with no
 The repository carries the full `e2e init` setup:
 
 ```sh
-npx e2e init --engine mobile --gateway openai-compatible \
+pnpm exec e2e init --engine mobile --gateway openai-compatible \
   --endpoint https://freellmapi-production-1175.up.railway.app/v1 \
   --skills .agents/skills,.claude/skills --mcp .mcp.json --install
 ```
@@ -40,15 +40,15 @@ model. It does not start Metro or a web server.
 ## Run
 
 ```sh
-npm run build:apk                    # or build and install however you prefer
-adb install -r artifacts/Fivefold-<version>.apk
-npm run test:e2e                     # E2E_TELEMETRY_DISABLED=1 is set here
+pnpm run build:apk                    # or build and install however you prefer
+adb install -r artifacts/Fivefold.apk
+pnpm run test:e2e                     # E2E_TELEMETRY_DISABLED=1 is set here
 ```
 
 Run one file while iterating:
 
 ```sh
-npx e2e run tests/e2e/settings.e2e.ts
+pnpm exec e2e run tests/e2e/settings.e2e.ts
 ```
 
 `e2e.config.ts` drives whatever build is installed under the package id, so
@@ -120,7 +120,7 @@ Four serial groups and a smoke test, 27 tests total:
 `finishWorkout` and `discardWorkout` helpers. It is not a `.e2e.ts` file, so
 the runner does not collect it.
 
-This now covers every scenario in `scripts/android-smoke.mjs`. The script
+This now covers every scenario in `android-smoke.mjs`. The script
 stays as a smaller agent-device snapshot/click example, not as the test gate.
 
 ## Compose caveats
