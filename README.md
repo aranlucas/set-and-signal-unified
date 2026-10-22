@@ -26,7 +26,7 @@ The plate calculator assumes standard denominations and enough plate pairs; it d
 
 ## Roadmap and quality gates
 
-[The roadmap](docs/roadmap.md) tracks this release and the next improvements. Version 1.2 adds All/A/B history filters, four-week training consistency, explicit latest-lift results, and reasons for next-load changes in the finish preview. Progress uses one cached summary with bounded recent entries. Local storage no longer applies backup-import size limits when reopening a training log, and saving remains readable after the device clock moves backward.
+[The roadmap](docs/roadmap.md) tracks this release and the next improvements. Version 1.2 adds All/A/B history filters, four-week training consistency, explicit latest-lift results, and reasons for next-load changes in the finish preview. Version 1.2.1 restores system Back navigation on Android 15 and adds installed-release regression coverage. Progress uses one cached summary with bounded recent entries. Local storage no longer applies backup-import size limits when reopening a training log, and saving remains readable after the device clock moves backward.
 
 `pnpm run check` includes structural performance regressions and `pnpm run perf`: a 10,000-session CPU benchmark with a 16 ms p95 main-thread CPU budget for a fresh summary and an 8 ms CPU budget for 1,000 cached reads. These are development-machine gates; release-device startup and frame profiling are tracked separately. Native controls and persistence continue to use Expo libraries, with no new runtime dependencies.
 

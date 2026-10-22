@@ -1,34 +1,35 @@
-# Fivefold 1.1.0 release verification
+# Fivefold 1.2.1 release verification
 
-Release acceptance: **22 October 2026**. Signed standalone APK: `artifacts/Fivefold-1.1.0.apk` (76,946,992 bytes, about 77 MB). Android versionCode 2; same signing identity as 1.0.0.
+Verification date: 22 October 2026. Follow-up starts from `origin/main` commit `60c7013`, which includes the 1.2 roadmap release and the pnpm/EAS migration. Version 1.2.1 uses Android versionCode 4. Prior release evidence is preserved in [1.1.0 verification](verification-1.1.0.md).
 
-SHA-256: `dcb9d9909dd88fb727b14f44c81abf944764cc8724cde12fcf9968c96939a7c9`.
+## Navigation regression
 
-## Redesign and review
+The installed 1.2.0 EAS APK reproducibly returned to the Android launcher when system Back was pressed from Settings or saved workout details on Android 15. The new navigation E2E test also failed against that APK. Evidence: `artifacts/roadmap/verification/back-before.log`.
 
-The independent current-design audit, official competitor UI research, source regression review, screenshot review, and responses are in `docs/design/`. The competitor study inspected 16 official assets from StrongLifts, Strong, and Hevy; reference-only assets are not packaged in the APK. Impeccable and Product Design audit guidance informed the native design. The deterministic source detector returned an empty findings array; it does not measure Compose rendering, native contrast, or TalkBack.
+React Native 0.88 registers its AndroidX back callback only when both device and target SDK are at least 36 (`ReactActivity.java` and `AndroidVersion.kt` in the installed package). The app enabled predictive back on API 35, where its JavaScript `BackHandler` was bypassed. The correction sets Expo's `android.predictiveBackGestureEnabled` to `false`, preserving the existing navigation behavior. No custom native module or new runtime dependency is added. Expo documents the [configuration property](https://docs.expo.dev/versions/latest/config/app/#predictivebackgestureenabled); Android documents the [opt-out and callback behavior](https://developer.android.com/guide/navigation/custom-back/predictive-back-gesture#opt-out).
 
-Two full exercise sections remain visible with the rest dock on the Android 15 phone at default font scale. The Android 17 taller phone shows all three counter rows. All five progress records fit before detailed charts. The history alignment and current rep/next set context identified in review were confirmed in the installed release. Active pending counters use +; zero reps display 0/5. Readonly skipped sets use – with a legend.
+## Automated source and performance checks
 
-## Automated checks
+`pnpm run check` passes lint with zero warnings, strict TypeScript, and **130 Vitest tests across eight files**. The 10,000-session development-machine benchmark measured **2.135 ms fresh-summary CPU p95** against a 16 ms budget and **0.101 ms for 1,000 cached calls** against an 8 ms budget. Fresh-summary wall p95 was 2.213 ms. This measures synchronous computation, not native startup or Android frame rate. Evidence: `artifacts/roadmap/verification/check.log`.
 
-- ESLint: zero warnings; strict TypeScript compilation passed.
-- 86 Vitest tests passed across four files. Covers workout transitions, per-lift progression/deloads, skipped versus zero reps, deadline correction, conversions/limits, plate/warmup calculations, week boundaries, backup validation, CSV escaping and real SQLite transaction behavior. Added records tests for mixed units, chronological unsuccessful/skipped history, and zero-weight versus absent records.
-- Build passed minification/resource shrinking, v2/v3 APK signature verification, and 16 KB ZIP alignment. Hermes bundle and all four Android ABIs are embedded; no Metro/Expo Go dependency.
-- Native dependency versions are unchanged from the 20/20 Expo Doctor check for 1.0.0: Expo SDK 58, RN 0.88.0, React 19.3.0, Expo UI 58.0.22. Package/config version is now 1.1.0.
+The E2E suite now contains 35 tests. Compact-phone helper corrections keep swipe paths inside workout content instead of the persistent rest dock and scroll offscreen assertions into view. Assertions remain in place. System Back is checked from all secondary tabs and from saved workout details.
 
-## Installed release checks
+The navigation correction merged separately in [PR #7](https://github.com/aranlucas/stronglifts/pull/7) (`cf3588e`). Its exact committed snapshot passed all 130 unit tests and the Android 15 navigation regression with main’s original helper (16.81 seconds). The scoped Impeccable native technical verdict was **SHIP**. Evidence: `back-isolated-check.log` and `back-isolated-navigation.log` in the verification artifact directory.
 
-- **Android 15 / API 35:** final APK passed the complete A → B → A replay, all 26 A/B work sets, deadlift 1×5, restart persistence, progression, history and progress. Correction explicitly traversed 3 reps, 0 reps, Clear, then 5. Structured result: `artifacts/qa-redesign/emulator-5556/smoke-result.json`.
-- **Android 17 / API 37:** A/B replay passed during the redesign; final signed APK update then preserved its three workout logs, plans, settings and active workout. Final native checks covered rest context across tabs, history detail/back, all five records, 1-rep correction and Undo, ±increment adjustments, weight save and warmup/plate sheet. Evidence: `artifacts/design/android17-final-result.txt`.
-- **Light/dark and large text:** native captures in `artifacts/design/after/`. At font scale 1.5 on Android 15, counters and rep editor remained usable; the last detail exercise and Back/Delete controls scrolled fully above the persistent dock. Selected 1 rep and Undo successfully. Font scale restored to 1.0.
-- **Additional revised UI checks:** grouped rest and appearance sheets, native segmented choices and switches, quick weight adjustments, warmup/plates, and opening/dismissing the backup share sheet. Nothing was sent. Standard back returned from detail to history and from other tabs to Train.
-- Current Android app/React Native error logs are empty on both emulators. Final build log: `artifacts/design/release-build.log`.
+## Release and device gates
 
-## Existing coverage and limits
+- Signed EAS local build: passed. APK `artifacts/Fivefold-1.2.1.apk`, versionCode 4, SHA-256 `37aa23f48f3bd94de38314d30d72b78f9fdc7237624608f49ebb5e7f2ef43571`. SDK 37 signature verification matches the existing signing certificate, 16 KB ZIP alignment passes, all four ABIs are present, and the app is non-debuggable. Evidence: `artifacts/roadmap/verification/build.log`.
+- Android 17 installed release: all six insights scenarios and the navigation regression pass. Evidence: `artifacts/roadmap/verification/e2e-android17-insights.log` and `e2e-android17-back.log`.
+- Android 15 installed release: **35 of 35 tests passed**, with zero failures, skips, flaky results, or interruptions, in **330.40 seconds**. The run used the same signed APK above and completed at 19:06:48 UTC. Evidence: `artifacts/roadmap/verification/e2e-android15-final-2.log`; run ID `01a164fd-27a4-717f-8569-53446bb78505`.
+- Light/dark and enlarged-font captures: passed on the final signed APK. All 14 captures and their checksums are in `artifacts/roadmap/after/`; landscape at 150% text confirms dialog-body scrolling with fixed actions.
+- Independent Impeccable finish review: **`disposition: ship`**, no material fixes. Scope and unverified accessibility/performance boundaries are in [the design review](design/roadmap-review.md).
 
-The detailed 1.0.0 record remains in `docs/verification-1.0.0.md`. That release exercised native JSON folder export/restore, CSV export, notification permission denial/grant and background delivery, partial completion/notes, and fully offline release operation. Those data/export/notification modules were not changed by the redesign; the redesigned sharing entry and tools were re-exercised. This is not a claim that every prior manual scenario was rerun on 1.1.0.
+Earlier runs are retained as diagnostic evidence: the initial run passed 28 of 34, with a combined A/B test reaching its 120-second budget and a Progress selector tapping a static heading. After splitting at the save boundary and selecting the labelled control, 34 of 35 passed; the remaining saved-workout caption was below the viewport. The final correction scrolls to that same caption before asserting it. All original behavioral assertions and the default per-test timeout remain. The complete final run passes on this corrected harness. Logs: `e2e-android15-initial.log`, `e2e-android15.log`, and `e2e-android15-final.log` in the verification artifact directory.
 
-No physical phone or full human TalkBack audit was performed. No iOS build is claimed. Predictive back opt-in remains disabled because the prior Android 15 test found it bypassed the JS handler; the standard back path is verified. Notifications remain subject to Android battery scheduling. Standard plate denominations assume enough pairs; there is no plate inventory manager.
+The compact-phone test and verification increment is [PR #8](https://github.com/aranlucas/stronglifts/pull/8). The emulator was returned to font scale 1.0, system light appearance, and its original rotation settings after verification.
 
-The inherited upstream development-tool audit findings from 1.0.0 remain documented in its verification note. No dependencies were forced to older versions for this visual revision.
+## Scope and remaining work
+
+The release includes All/A/B history filters, four local-calendar weeks, latest lift outcomes, next-load explanations, bounded cached progress aggregation, and durable storage boundary fixes. The [roadmap](roadmap.md) keeps measured physical-device profiling, asynchronous startup, expanded backup/restore E2E, explicit whole-exercise weight corrections, and coalesced note persistence in Next.
+
+No physical-device frame/startup claims, complete human TalkBack audit, iOS build, or new backup/export round-trip verification are asserted here.

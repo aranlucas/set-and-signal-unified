@@ -1,0 +1,36 @@
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-3e4418a6
+      run 01a164d8-9d11-73f8-a811-92745adfc36c · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5556 (1 of 1)
+ ✓ mobile engine for target "android" prepared 12.80s
+ ❯ |android| tests/e2e/navigation.e2e.ts (1 test | 1 failed) 21.96s
+   × system Back returns secondary tabs to Train 21.96s
+     → expect.toBeVisible failed
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |android| tests/e2e/navigation.e2e.ts > system Back returns secondary tabs to Train
+ASSERTION_FAILED: expect.toBeVisible failed
+locator: getByText("Train")
+expected: visible
+observed: no node (match count 0)
+ ❯ tests/e2e/navigation.e2e.ts:13:5
+     11|     await app.back();
+     12|     await expect(screen.getByText("Fivefold")).toBeVisible();
+     13|     await expect(screen.getByText("Train")).toBeVisible();
+       |     ^
+     14|   }
+     15| });
+ ❯ at app.fivefold.lifts
+ ❯ trace .e2e/back-before/results/navigation-system-back-returns-secondary-3d4691fd211a75d6/trace.md
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 0 passed (1)
+      Tests  1 failed | 0 passed (1)
+   Start at  11:21:33
+   Duration  24.56s
+     Traces  .e2e/back-before/results/ (1 page, trace.md in each test's directory)

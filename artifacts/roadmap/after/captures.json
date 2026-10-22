@@ -1,0 +1,101 @@
+{
+  "capturedOn": "2026-10-22",
+  "device": "Pixel_API_35 / emulator-5556",
+  "os": "Android 15 / API 35",
+  "app": "Fivefold 1.2.1 / Android versionCode 4",
+  "apkSha256": "37aa23f48f3bd94de38314d30d72b78f9fdc7237624608f49ebb5e7f2ef43571",
+  "fixture": "Synthetic E2E workouts: completed A and partial B; one additional active A for finish-dialog captures. No personal workout data.",
+  "notes": [
+    "All images are full device viewports. consistency and weight-history images deliberately show scrolled sections; no full-page claim.",
+    "font150 means Android system font scale 1.5. Other captures use1.0.",
+    "Light and dark use system appearance with app set to System.",
+    "Landscape finish captures show the dialog body at its top and bottom, with fixed actions.",
+    "The portrait150% dialog fits completely; landscape exercises body scrolling."
+  ],
+  "captures": [
+    {
+      "file": "consistency-font150.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "4c4eae5cee5dae53bd90ecc7341e57ffaa3f8a9814f4d959036801beeb3e3178"
+    },
+    {
+      "file": "consistency-light.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "902536b07d70138ac28a333887b33eb9f3b287238925757e6b7c9208e0a9f62a"
+    },
+    {
+      "file": "finish-font150.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "8dcedddec48ce6a4b4df45fa4a6a83bd20f0846e1a589b59d910e4fa71e6f008"
+    },
+    {
+      "file": "finish-landscape-font150-bottom.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "d4720772692a64838c9b98d89236cb2b6bf7058ec786e1e77cbdaa629f43b824"
+    },
+    {
+      "file": "finish-landscape-font150-top.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "deccfedc02bb484e735e4c650df7c2bbca80b26435ddd236e5a97f50d429fd74"
+    },
+    {
+      "file": "history-dark.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "d2eec6c806f89d19c10f70e1373d7ae760433f959686d430bf856deb5abdf5ea"
+    },
+    {
+      "file": "history-filter-b-light.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "57c0aff6db5daebd30dde6628273d010527d9712abdd73622379770a1ddd8f72"
+    },
+    {
+      "file": "history-font150.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "f9bd6bf37088ae3d040e29d69e3c67dfb210ae31cba3b7713c56c0054f85ef3d"
+    },
+    {
+      "file": "history-light.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "faee7a25ef5826ce15e7cdb19875448218d6d66c09c1932c3b9dd3e93712e09e"
+    },
+    {
+      "file": "progress-dark.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "f27c85032d9d1876d35d698ec816bfc5473c257a59f8d36a5a721a4b29f665a8"
+    },
+    {
+      "file": "progress-font150.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "5d317ef0e320123ac871253aa94d969b326ea2e341c2e88361f53251a7a6ded4"
+    },
+    {
+      "file": "progress-light.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "65146a94fa84e2a8c631ccc643ce6b492fbc4332d2850ee4d6a82ab4a335ffd4"
+    },
+    {
+      "file": "train-font150.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "3f7627d1e8291b1c3963553f14ab5b1a3f2b1c5118e601ad2a44bfaaafc16f59"
+    },
+    {
+      "file": "weight-history-light.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "d1d166ed0c27cba7eacfa16ccb321bd65261ca7f03c9ece25e7720a725767fe1"
+    }
+  ]
+}

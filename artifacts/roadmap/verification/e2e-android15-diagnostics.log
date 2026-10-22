@@ -1,0 +1,70 @@
+Android 15 final APK verification — initial full run
+Device: emulator-5556 (Pixel_API_35, Android 15, normal font scale 1.0)
+APK: Fivefold 1.2.1 / versionCode 4
+SHA-256: 37aa23f48f3bd94de38314d30d72b78f9fdc7237624608f49ebb5e7f2ef43571
+Command: E2E_DEVICE=emulator-5556 E2E_TELEMETRY_DISABLED=1 pnpm exec e2e run --target android --output .e2e/restart-android15
+Run id: 01a164e1-e5b4-71a3-a672-9f8d488c9cbb
+Started: 2026-10-22T18:31:32.902Z
+Finished: 2026-10-22T18:41:51.277Z
+CLI duration: 618.41 s (10m 18s)
+Exit code: 1
+Tests: 34 discovered, 34 selected, 28 passed, 2 failed, 4 skipped, 0 flaky, 0 interrupted
+Files: 5 passed, 2 failed
+System Back regression: passed; all app.back checks retained.
+
+Failure 1: workout B > runs a full A and B cycle
+Error: ACTION_FAILED — tap timed out before the device answered; its input may have been dispatched
+Test began: 2026-10-22T18:37:20.308Z
+Last tap began: 2026-10-22T18:39:19.582Z (119274 ms after test start)
+Last tap duration: 741 ms; tap ended at elapsed 120015 ms
+Reported test duration including failure capture: 125029 ms
+Runner default test timeout: 120000 ms (node_modules/e2e/dist/config/resolve.js:104)
+No test or config timeout override was present.
+Evidence strongly indicates the 120 s test budget interrupted a progressing tap, rather than a locator miss.
+The failure tree shows Workout B at 4 / 11 sets; the interrupted fourth tap was applied.
+Trace: .e2e/restart-android15/results/workout-b-workout-b-runs-a-full-a-and-b-3be7decc61bf89c6/trace.md
+Failure tree: artifacts/roadmap/verification/android15-failure/workout-b-screen-at-failure.txt
+No failure-time PNG was emitted for this timeout. post-failure-suite-continuing.png is subsequent state, not the failure screen.
+Three dependent tests skipped. No matching Fivefold crash entry found in the device crash buffer.
+Budget changes deferred to parent; no timeout increase or assertion change made.
+
+Failure 2: workout A > shows the completed lift on progress
+Error: ASSERTION_FAILED — No record yet was absent.
+Trace shows getByText("Deadlift").last() tapped the non-interactive lift heading before the Weight history chips were scrolled into view.
+Source confirms the lift heading is not clickable; the labelled View Deadlift progress TextButton selects Deadlift.
+Failure screenshot shows Squat still selected, with Best completed prescription = 20 kg.
+Screenshot: artifacts/roadmap/verification/android15-failure/progress-deadlift-locator-failure.png
+Trace: .e2e/restart-android15/results/workout-a-shows-the-completed-lift-on-8813b6907099b7a1/trace.md
+Applied test-only fix: scroll to getByLabel("View Deadlift progress"), then tap it.
+Existing No record yet assertion and app.back checks retained. Fix has not been rerun per parent instruction.
+One dependent test skipped.
+
+No full retry or focused rerun started. No production/config/package edits or commits by this verifier.
+E2E teardown completed; explicit close of fivefold-emulator-5556 returned SESSION_NOT_FOUND (already closed).
+T3 device panel closed without shutting down emulator-5556; released to parent for navigation and visual checks.
+Full initial stdout retained in artifacts/roadmap/verification/e2e-android15-initial.log.
+Raw runner report and traces remain in .e2e/restart-android15/.
+
+Post-diagnosis test changes (2026-10-22T18:45:28.934560+00:00)
+Parent authorized splitting the combined A/B setup at the saved-A boundary.
+workout-b.e2e.ts now has consecutive completes-workout-A and completes-workout-B tests inside its existing serial describe.
+Every original behavior and assertion remains; each test uses the unchanged 120 s default.
+Progress uses the labelled View Deadlift progress control; original assertions remain.
+Source checks: scoped ESLint passed with zero warnings; git diff --check passed.
+Types: pnpm run typecheck passed.
+Collection: 35 Android tests, all disposition run, including five ordered workout-B members.
+No timeout increases, sleeps, retries, production/config changes, commits, or device actions.
+Ready for full 35-test run after parent hands back emulator-5556.
+
+First 35-test rerun completed: 34 passed, 1 failed, 0 skipped, 0 flaky, exit 1.
+Run: 01a164f5-7f1f-73f5-9385-8546394a22f7
+Time: 2026-10-22T18:52:55.415Z to 2026-10-22T18:59:27.937Z; CLI duration 392.58s.
+Split A and B passed in 49.115s and 23.945s; Progress locator fix passed.
+Failure: workout A > advances to workout B with the next weights, final /· 15 sets$/ caption assertion.
+Source WorkoutScreen.tsx renders the unchanged date · loggedSets sets caption.
+Failure screenshot visibly clips the Last workout card below the viewport; accessibility tree has its heading but no caption.
+Screenshot: artifacts/roadmap/verification/android15-failure/recent-workout-caption-offscreen.png
+Trace: .e2e/restart-android15-final/results/workout-a-advances-to-workout-b-with-the-4354b9baa870eb0d/trace.md
+Full stdout: artifacts/roadmap/verification/e2e-android15-final.log
+Parent authorized exact locator scroll fix and one full rerun. No timeout/assertion/production changes.
+Run captured source base cf3588e with working changes; parent committed test changes as7dc375c and wrapped the second workout-B signature during run. Formatting difference only, no behavior changed.

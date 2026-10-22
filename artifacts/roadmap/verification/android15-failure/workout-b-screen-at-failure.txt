@@ -1,0 +1,122 @@
+#root screen
+ #n41581 group
+  #n41582 group
+   #n41583 group
+    #n41584 group testid="app.fivefold.lifts:id/action_bar_root"
+     #n41585 group testid="android:id/content"
+      #n41586 group
+       #n41587 group
+        #n41588 on0
+         #n41589 group
+          #n41590 group
+          #n41591 group
+          #n41592 group
+          #n41593 text "Workout B"
+          #n41594 group
+          #n41595 text "Undo"
+          #n41596 button
+          #n41597 group
+          #n41598 text "Finish"
+          #n41599 button
+          #n41600 group
+          #n41601 text "Thursday, Oct 22"
+          #n41602 text "4 / 11 sets"
+          #n41603 progressbar
+          #n41604 group
+          #n41605 text "Squat"
+          #n41606 text "5 × 5 reps"
+          #n41607 group
+          #n41608 group "Edit Squat weight"
+          #n41609 text "22.5 kg"
+          #n41610 button
+          #n41611 group
+          #n41612 group "Warm-up & plates for Squat"
+          #n41613 button
+          #n41614 text "SET 1"
+          #n41615 group
+          #n41616 group "Squat, set 1 of 5, 5 of 5 reps. Tap to edit reps"
+          #n41617 text "5"
+          #n41618 button
+          #n41619 text "SET 2"
+          #n41620 group
+          #n41621 group "Squat, set 2 of 5, 5 of 5 reps. Tap to edit reps"
+          #n41622 text "5"
+          #n41623 button
+          #n41624 text "SET 3"
+          #n41625 group
+          #n41626 group "Squat, set 3 of 5, 5 of 5 reps. Tap to edit reps"
+          #n41627 text "5"
+          #n41628 button
+          #n41629 text "SET 4"
+          #n41630 group
+          #n41631 group "Squat, set 4 of 5, 5 of 5 reps. Tap to edit reps"
+          #n41632 text "5"
+          #n41633 button
+          #n41634 text "SET 5"
+          #n41635 group
+          #n41636 group "Squat, set 5 of 5, not logged. Tap to log 5 reps"
+          #n41637 text "+"
+          #n41638 button
+          #n41639 text "Last: 20 kg · 5/5/5/5/5"
+          #n41640 group
+          #n41641 text "Overhead press"
+          #n41642 text "5 × 5 reps"
+          #n41643 group
+          #n41644 group "Edit Overhead press weight"
+          #n41645 text "20 kg"
+          #n41646 button
+          #n41647 group
+          #n41648 group "Warm-up & plates for Overhead press"
+          #n41649 button
+          #n41650 text "SET 1"
+          #n41651 group
+          #n41652 group "Overhead press, set 1 of 5, not logged. Tap to log 5 reps"
+          #n41653 text "+"
+          #n41654 button
+          #n41655 text "SET 2"
+          #n41656 group
+          #n41657 group "Overhead press, set 2 of 5, not logged. Tap to log 5 reps"
+          #n41658 text "+"
+          #n41659 button
+          #n41660 text "SET 3"
+          #n41661 group
+          #n41662 group "Overhead press, set 3 of 5, not logged. Tap to log 5 reps"
+          #n41663 text "+"
+          #n41664 button
+          #n41665 text "SET 4"
+          #n41666 group
+          #n41667 group "Overhead press, set 4 of 5, not logged. Tap to log 5 reps"
+          #n41668 text "+"
+          #n41669 button
+          #n41670 text "SET 5"
+          #n41671 group
+          #n41672 group "Overhead press, set 5 of 5, not logged. Tap to log 5 reps"
+          #n41673 text "+"
+          #n41674 button
+          #n41675 text "No previous session"
+          #n41676 group
+          #n41677 text "Deadlift"
+          #n41678 group
+          #n41679 group "Edit Deadlift weight"
+          #n41680 button
+          #n41681 group
+          #n41682 button
+          #n41683 text "Squat · Set 5/5"
+          #n41684 text "Rest 1:27"
+          #n41685 group
+          #n41686 text "+30s"
+          #n41687 button
+          #n41688 group
+          #n41689 text "Skip"
+          #n41690 button
+          #n41691 progressbar
+          #n41692 group
+          #n41693 group
+          #n41694 group [selected]
+          #n41695 text "Train"
+          #n41696 group
+          #n41697 text "History"
+          #n41698 group
+          #n41699 text "Progress"
+          #n41700 group
+          #n41701 text "Settings"

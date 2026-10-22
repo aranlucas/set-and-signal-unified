@@ -1,16 +1,18 @@
 # Fivefold roadmap
 
-The next release strengthens the existing offline 5×5 loop: understand the last workout, know why the next load changes, and keep logging responsive as history grows. Android, Expo UI, the A/B routine, and durable local storage remain the product foundation.
+The 1.2 release strengthens the existing offline 5×5 loop: understand the last workout, know why the next load changes, and keep logging responsive as history grows. Android, Expo UI, the A/B routine, and durable local storage remain the product foundation.
 
 ## Release 1.2 — training clarity and durable growth
 
-| Milestone | User outcome | Acceptance criteria | Status |
-| --- | --- | --- | --- |
-| Training insights | Find A or B sessions and understand recent consistency | Native All/A/B history filters, useful empty states, four local-calendar weeks, actual latest lift results | In progress |
-| Progression clarity | Understand the next load before saving | Explain increases, skipped lifts, missed attempts, disabled automation, and deloads using the same calculation that saves plans | In progress |
-| Reliable growth | Saved workouts remain readable as the log grows or the clock changes | Local database validation independent of backup import limits; rollback-clock regression; indexed history ordering | In progress |
-| Performance gates | History growth does not multiply work on every set or tab interaction | One cached progress aggregation, at most 10 recent entries per lift, 10,000-session regression fixture, small current-state-only set writes | In progress |
-| Device confidence | New behavior works in the installed release | Deterministic e2e coverage, original workout/recovery/settings regressions, Android release build, screenshots and verification record | Pending |
+| Milestone           | User outcome                                                          | Acceptance criteria                                                                                                                         | Status            |
+| ------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Training insights   | Find A or B sessions and understand recent consistency                | Native All/A/B history filters, useful empty states, four local-calendar weeks, actual latest lift results                                  | Verified in 1.2.1 |
+| Progression clarity | Understand the next load before saving                                | Explain increases, skipped lifts, missed attempts, disabled automation, and deloads using the same calculation that saves plans             | Verified in 1.2.1 |
+| Reliable growth     | Saved workouts remain readable as the log grows or the clock changes  | Local database validation independent of backup import limits; rollback-clock regression; indexed history ordering                          | Verified in 1.2.1 |
+| Performance gates   | History growth does not multiply work on every set or tab interaction | One cached progress aggregation, at most 10 recent entries per lift, 10,000-session regression fixture, small current-state-only set writes | Verified in 1.2.1 |
+| Device confidence   | New behavior works in the installed release                           | Deterministic e2e coverage, original workout/recovery/settings regressions, Android release build, screenshots and verification record      | Verified in 1.2.1 |
+
+The 1.2.1 follow-up restores Android 15 system Back behavior through Expo configuration, adds a failing-before/passing-after navigation regression, and makes installed-app tests work on compact phone viewports. Final device and design evidence is recorded in [release verification](verification.md).
 
 ### Design brief
 
