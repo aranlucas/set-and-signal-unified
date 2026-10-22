@@ -1,6 +1,6 @@
 import { bindings, defineConfig } from "cf/config";
 
-// `--mode development` serves the OAuth flow from the local dev origin.
+// `cf dev` runs in development mode; PUBLIC_URL must match the port pinned in vite.config.ts.
 // Worker Previews (`cf previews deploy`) get their own KV so branch builds never touch production grants.
 export default defineConfig(({ mode, isPreview }) => ({
 	accountId: "d93c650f72e597f96785abba389b0ce4",
@@ -27,7 +27,7 @@ export default defineConfig(({ mode, isPreview }) => ({
 		},
 		env: {
 			PUBLIC_URL: bindings.text(
-				mode === "development" ? "http://localhost:8787" : "https://garmin-mcp.aranlucas.workers.dev",
+				mode === "development" ? "http://localhost:5173" : "https://garmin-mcp.aranlucas.workers.dev",
 			),
 			OAUTH_KV: bindings.kv({
 				id: isPreview ? "a7e7f5ddb41041fdaa2a579d5547b963" : "799457c018b64f86a7b950b907a7118c",

@@ -10,5 +10,5 @@
     "types": ["node", "@cloudflare/vitest-plugin/types"],
     "lib": ["ES2023", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "cloudflare.config.ts", ".cloudflare/types"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "cloudflare.config.ts", "vite.config.ts", ".cloudflare/types"]
 }

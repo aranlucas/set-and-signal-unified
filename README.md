@@ -84,7 +84,7 @@ Pushes deploy through Cloudflare Workers Builds: every build runs `npm run check
 
 For another Cloudflare account, change `accountId` and `PUBLIC_URL` in `cloudflare.config.ts`, create your own KV namespace with `npx cf kv namespaces create`, replace the `OAUTH_KV` ID, and regenerate types. `PUBLIC_URL` must exactly match the Worker’s canonical origin; tokens are bound to `${PUBLIC_URL}/mcp`.
 
-For local interactive development, run `npm run dev -- --mode development`, which sets `PUBLIC_URL` to `http://localhost:8787`. The OAuth library uses `Secure`, `__Host-` consent cookies, so use a localhost-capable browser or an HTTPS development origin for browser testing. The automated tests exercise the complete authorization flow without relying on a browser’s localhost cookie policy.
+For local interactive development, run `npm run dev`. `cf dev` uses Vite in development mode, which sets `PUBLIC_URL` to `http://localhost:5173`; `vite.config.ts` pins that port. The OAuth library uses `Secure`, `__Host-` consent cookies, so use a localhost-capable browser or an HTTPS development origin for browser testing. The automated tests exercise the complete authorization flow without relying on a browser’s localhost cookie policy.
 
 ## Verification and research
 
