@@ -2,5 +2,14 @@ import { cloudflareTest } from '@cloudflare/vitest-plugin';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' } })],
+  test: {
+    projects: [
+      {
+        plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' } })],
+        test: { name: 'worker', include: ['tests/worker.test.ts'] },
+      },
+      // Live deployment checks; run explicitly with `npm run smoke`.
+      { test: { name: 'smoke', include: ['tests/smoke.test.ts'], environment: 'node', testTimeout: 30_000 } },
+    ],
+  },
 });

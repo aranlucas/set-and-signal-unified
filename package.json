@@ -6,11 +6,11 @@
     "dev": "wrangler dev",
     "typegen": "wrangler types",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --project worker",
     "check": "npm run typecheck && npm test",
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "vitest run --project smoke"
   },
   "keywords": [],
   "type": "module",
