@@ -9,7 +9,7 @@ and the sheets and dialogs that only exist on a device.
 The runner is [`e2e`](https://e2e.tester.army) with its
 [`@e2e-dev/mobile`](https://e2e.tester.army/docs/mobile) engine, which is built
 on [agent-device](https://github.com/callstack/agent-device) — the same device
-driver `scripts/android-smoke.mjs` already used. Tests are TypeScript, use
+driver `android-smoke.mjs` already used. Tests are TypeScript, use
 Playwright-style locators and assertions, and the suite as committed needs no
 model or API key: every step is a locator or an assertion, with no
 `agent.act` / `agent.assert` call.
@@ -120,7 +120,7 @@ Four serial groups and a smoke test, 27 tests total:
 `finishWorkout` and `discardWorkout` helpers. It is not a `.e2e.ts` file, so
 the runner does not collect it.
 
-This now covers every scenario in `scripts/android-smoke.mjs`. The script
+This now covers every scenario in `android-smoke.mjs`. The script
 stays as a smaller agent-device snapshot/click example, not as the test gate.
 
 ## Compose caveats

@@ -52,7 +52,7 @@ The persistent signing identity lives at `~/.local/share/fivefold/signing/`, out
 See [official-source research](docs/research.md), [architecture and data rules](docs/architecture.md), and [release verification](docs/verification.md). The QA script at `scripts/android-smoke.mjs` uses the exact `agent-device` launcher and target flags returned by T3 `device_open`. Run it only on a dedicated QA installation: it discards an existing QA workout if needed, logs two full workouts and starts a third.
 
 ```sh
-node scripts/android-smoke.mjs /absolute/path/to/agent-device \
+node android-smoke.mjs /absolute/path/to/agent-device \
   --platform android --serial DEVICE_SERIAL \
   --config /path/from/device_open.json --session SESSION_FROM_DEVICE_OPEN
 ```
