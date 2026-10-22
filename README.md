@@ -6,7 +6,7 @@ A focused, offline 5×5 workout log for Android. Built with **Expo SDK 58**, **R
 
 ## Install
 
-The signed standalone APK is generated at `artifacts/Fivefold-1.1.0.apk`. Transfer it to an Android phone, open it, and allow installation from your chosen file/browser app when Android asks. Android 7.0/API 24 or newer is required. The APK contains ARM32, ARM64, x86, and x86-64 code and does not need Expo Go or Metro. A SHA-256 sidecar is provided beside the APK.
+The signed standalone APK is generated at `artifacts/Fivefold-1.2.0.apk`. Transfer it to an Android phone, open it, and allow installation from your chosen file/browser app when Android asks. Android 7.0/API 24 or newer is required. The APK contains ARM32, ARM64, x86, and x86-64 code and does not need Expo Go or Metro. A SHA-256 sidecar is provided beside the APK.
 
 ## Training
 
@@ -23,6 +23,12 @@ The signed standalone APK is generated at `artifacts/Fivefold-1.1.0.apk`. Transf
 Native bottom navigation and dialogs, a green seeded Material 3 palette, system/light/dark themes, accessible set descriptions and wrapping 48 dp numbered counters, native lazy/recycled history rows, notes, successful-session personal records, a weekly training strip, dated lift-weight charts including misses, prior results, kg/lb, editable bar/weights/increments with quick load adjustments, suggested warmups, standard-plate calculations with explicit impossible-load messages, haptics, screen-awake mode, persistent rest deadlines across tabs with next-set context and +30 seconds/skip, optional local notifications with a silent ongoing workout notification, a home-screen workout widget, JSON backup/restore through Android's native file pickers, CSV export, and optional backup sharing.
 
 The plate calculator assumes standard denominations and enough plate pairs; it does not track gym inventory. Warmups are suggestions, not logged work sets. Rest notifications are scheduled as Android alarm clocks (`USE_EXACT_ALARM`), so battery optimization does not delay them; Android shows an alarm icon while a rest alert is pending, and the in-app deadline remains authoritative. Unit changes round future plans to standard increments and leave original history units intact. The app is independent of StrongLifts.
+
+## Roadmap and quality gates
+
+[The roadmap](docs/roadmap.md) tracks this release and the next improvements. Version 1.2 adds All/A/B history filters, four-week training consistency, explicit latest-lift results, and reasons for next-load changes in the finish preview. Progress uses one cached summary with bounded recent entries. Local storage no longer applies backup-import size limits when reopening a training log, and saving remains readable after the device clock moves backward.
+
+`npm run check` includes structural performance regressions and `npm run perf`: a 10,000-session CPU benchmark with a 16 ms p95 main-thread CPU budget for a fresh summary and an 8 ms CPU budget for 1,000 cached reads. These are development-machine gates; release-device startup and frame profiling are tracked separately. Native controls and persistence continue to use Expo libraries, with no new runtime dependencies.
 
 ## Development
 

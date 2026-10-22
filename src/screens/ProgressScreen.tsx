@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Column,
   Row,
@@ -32,22 +32,28 @@ import {
   LIFTS,
   NAMES,
   formatWeight,
-  weeklyCount,
   type AppState,
   type Lift,
 } from "../domain/workout";
-import { liftRecord } from "../domain/progress";
+import { getProgressOverview, trainingWeeks } from "../domain/progress";
+import { useToday } from "../data/useToday";
 
 export function ProgressScreen({ state }: { state: AppState }) {
   const [selected, setSelected] = useState<Lift>("squat");
   const c = useMaterialColors();
-  const { entries, best } = liftRecord(state, selected);
+  const today = useToday(state.history);
+  const weeks = useMemo(
+    () => trainingWeeks(state.history, today),
+    [state.history, today],
+  );
+  const overview = getProgressOverview(state.history, state.settings.unit);
+  const { entries, best, latest } = overview[selected];
   const chart = entries.slice(-8);
   const maximum = Math.max(1, ...chart.map((e) => e.weight));
   return (
     <Page>
       <StatRow
-        label={`${weeklyCount(state.history)} / 3 workouts this week`}
+        label={`${weeks.at(-1)!.count} / 3 workouts this week`}
         value={`${state.history.length} total`}
       />
       <Row
@@ -59,7 +65,7 @@ export function ProgressScreen({ state }: { state: AppState }) {
       </Row>
       <Panel>
         {LIFTS.map((lift, i) => {
-          const r = liftRecord(state, lift);
+          const r = overview[lift];
           return (
             <Column key={lift} verticalArrangement={{ spacedBy: 6 }}>
               {i ? <Divider /> : null}
@@ -99,6 +105,23 @@ export function ProgressScreen({ state }: { state: AppState }) {
           );
         })}
       </Panel>
+      <SectionTitle>Training consistency</SectionTitle>
+      <Panel>
+        {weeks.map((week, index) => (
+          <StatRow
+            key={week.start}
+            label={
+              index === weeks.length - 1
+                ? "This week"
+                : `Week of ${new Date(week.start).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+            }
+            value={`${week.count} / 3 workouts`}
+          />
+        ))}
+        <Caption>
+          Current week and previous 3 weeks. Each saved workout counts once.
+        </Caption>
+      </Panel>
       <SectionTitle>Weight history</SectionTitle>
       <FlowRow
         modifiers={[selectableGroup()]}
@@ -127,6 +150,12 @@ export function ProgressScreen({ state }: { state: AppState }) {
               : `${formatWeight(best)} ${state.settings.unit}`
           }
         />
+        {latest ? (
+          <Caption>
+            Latest: {formatWeight(latest.weight)} {state.settings.unit} ·{" "}
+            {latest.success ? "All reps completed" : "Missed or skipped reps"}
+          </Caption>
+        ) : null}
         {chart.length ? (
           <>
             <Caption>

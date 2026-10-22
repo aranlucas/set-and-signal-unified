@@ -1,4 +1,5 @@
 import { test } from "@e2e-dev/mobile";
+import { version } from "../../package.json";
 import { describe, expect } from "e2e";
 import { discardWorkout, startWorkout, tap } from "./support";
 
@@ -16,7 +17,7 @@ describe("settings", { serial: true }, () => {
     await expect(screen.getByText("Appearance")).toBeVisible();
     await expect(screen.getByText("Backup & export")).toBeVisible();
     await expect(
-      screen.getByText("Fivefold 1.1.0 · Independent 5×5 training log"),
+      screen.getByText(`Fivefold ${version} · Independent 5×5 training log`),
     ).toBeVisible();
     await expect(screen.getByText("kg")).toBeVisible();
     await expect(screen.getByText("On")).toBeVisible();
@@ -49,9 +50,7 @@ describe("settings", { serial: true }, () => {
   test("edits a planned weight with the numeric field", async ({ screen }) => {
     await tap(screen, screen.getByText("Train"));
     await tap(screen, screen.getByLabel("Edit Squat weight"));
-    await expect(
-      screen.getByText("Total weight, including bar"),
-    ).toBeVisible();
+    await expect(screen.getByText("Total weight, including bar")).toBeVisible();
     await screen.getByRole("textbox").first().fill("60");
     await tap(screen, screen.getByText("Save weight"));
     await expect(screen.getByText("60 kg")).toBeVisible();

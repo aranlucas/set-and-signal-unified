@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fivefold",
     "slug": "fivefold-5x5",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "fivefold",
@@ -10,7 +10,7 @@
     "primaryColor": "#216B53",
     "android": {
       "package": "app.fivefold.lifts",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#163A2C",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -83,6 +83,8 @@
     "experiments": {
       "reactCompiler": true
     },
-    "platforms": ["android"]
+    "platforms": [
+      "android"
+    ]
   }
 }

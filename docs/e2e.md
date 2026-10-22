@@ -53,7 +53,7 @@ npx e2e run tests/e2e/settings.e2e.ts
 
 `e2e.config.ts` drives whatever build is installed under the package id, so
 Metro does not have to be running. With several devices booted it drives one
-of them; pin the device in the config when the choice matters:
+of them; set `E2E_DEVICE=emulator-5556` to pin the target for this repository. The config also supports a literal device identifier:
 
 ```ts
 engine: mobile({ platform: "android", device: "emulator-5556" }),
@@ -95,7 +95,7 @@ deterministic suites never acquire a model, so they pass without the key.
 
 ## What it covers
 
-Four serial groups and a smoke test, 27 tests total:
+Five serial groups and a smoke test, 33 tests total:
 
 - `tests/e2e/workout.e2e.ts` (8): clean install starts A; logging a set runs
   the rest timer, `+30s` and `Skip`; `Undo` restores a set; a logged set
@@ -113,6 +113,7 @@ Four serial groups and a smoke test, 27 tests total:
 - `tests/e2e/recovery.e2e.ts` (6): discarding an active workout; resuming one
   after a restart; switching the next workout A ↔ B; saving a partial workout;
   keeping it in history across a restart; deleting it again.
+- `tests/e2e/insights.e2e.ts` (6): All/A/B history filtering and empty states; successful and skipped-lift progression explanations; four weekly counts; existing records and weight history; partial B loads; persistence after restart.
 - `tests/example.e2e.ts` (1): the installed app launches and exposes Train,
   History, Progress and Settings.
 

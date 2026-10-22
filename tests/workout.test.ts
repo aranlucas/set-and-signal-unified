@@ -16,7 +16,7 @@ import {
   weeklyCount,
   type AppState,
 } from "../src/domain/workout";
-import { parseBackup } from "../src/domain/backup";
+import { parseBackup, validateState } from "../src/domain/backup";
 const NOW = 1792650000000;
 function completed(kind: "A" | "B" = "A") {
   let s = startSession(initialState(), NOW, kind);
@@ -57,6 +57,19 @@ describe("workout lifecycle", () => {
     expect(s.active).toBeNull();
     expect(s.rest).toBeNull();
     expect(finishSession(s, NOW + 30000)).toBe(s);
+  });
+  it.each([NOW - 60000, 0, -1, NaN, Infinity, -Infinity])(
+    "keeps a finished workout restorable when the clock reads %s",
+    (now) => {
+      const s = finishSession(completed(), now);
+      expect(s.history[0].finishedAt).toBe(NOW);
+      expect(parseBackup(JSON.stringify(s))).toEqual(s);
+    },
+  );
+  it("clamps a finish time outside the supported date range", () => {
+    const s = finishSession(completed(), Number.MAX_VALUE);
+    expect(s.history[0].finishedAt).toBe(8.64e15);
+    expect(parseBackup(JSON.stringify(s))).toEqual(s);
   });
   it("alternates B back to A and gives deadlift its larger increment", () => {
     const s = finishSession(completed("B"), NOW + 20000);
@@ -319,6 +332,29 @@ describe("backup validation", () => {
     let s = finishSession(completed(), NOW + 20000);
     s = startSession(s, NOW + 30000);
     expect(parseBackup(JSON.stringify(s))).toEqual(s);
+  });
+  it("validates parsed local state without copying its history", () => {
+    const s = finishSession(completed(), NOW + 20000);
+    expect(validateState(s)).toBe(s);
+  });
+  it("retains the 20,000-workout limit for external backups", () => {
+    const s = finishSession(completed(), NOW + 20000);
+    s.history = Array.from({ length: 20000 }, (_, i) => ({
+      ...s.history[0],
+      id: `workout-${i}`,
+    }));
+    expect(parseBackup(JSON.stringify(s)).history).toHaveLength(20000);
+    s.history.push({ ...s.history[0], id: "workout-20000" });
+    const text = JSON.stringify(s);
+    expect(text.length).toBeLessThan(20_000_000);
+    expect(validateState(s)).toBe(s);
+    expect(() => parseBackup(text)).toThrow("not a supported Fivefold backup");
+  });
+  it("retains the 20 MB size limit for external backups", () => {
+    const s = initialState();
+    const text = JSON.stringify(s).padEnd(20_000_000, " ");
+    expect(parseBackup(text)).toEqual(s);
+    expect(() => parseBackup(`${text} `)).toThrow("too large");
   });
   it.each(["not json", "{}", "[]", "null"])(
     "rejects an invalid backup %s",

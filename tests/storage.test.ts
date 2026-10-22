@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   initialState,
   finishSession,
@@ -40,11 +40,22 @@ function savedWorkout() {
       s = logSet(s, e.lift, i, 5, NOW + 1000);
   return finishSession(s, NOW + 20000);
 }
+function stateWithHistory(count: number, notes = "") {
+  const s = savedWorkout();
+  s.history = Array.from({ length: count }, (_, i) => ({
+    ...s.history[0],
+    id: `workout-${i}`,
+    finishedAt: NOW + count - i,
+    notes,
+  }));
+  return s;
+}
 beforeEach(() => {
   const db = openDatabaseSync("");
   db.execSync("DROP TABLE IF EXISTS app_state; DROP TABLE IF EXISTS workouts;");
   loadState();
 });
+afterEach(() => vi.restoreAllMocks());
 describe("persistent workout storage", () => {
   it("loads a clean installation without a saved row", () => {
     expect(loadState()).toEqual(initialState());
@@ -66,6 +77,32 @@ describe("persistent workout storage", () => {
     const s = savedWorkout();
     saveState(s);
     expect(loadState()).toEqual(s);
+  });
+  it("can reopen a workout finished after the device clock moves backward", () => {
+    const active = logSet(
+      startSession(initialState(), NOW),
+      "squat",
+      0,
+      5,
+      NOW + 1000,
+    );
+    const finished = finishSession(active, NOW - 60000);
+    saveState(finished);
+    const loaded = loadState();
+    expect(loaded).toEqual(finished);
+    expect(loaded.history[0].finishedAt).toBe(NOW);
+  });
+  it("adds an index to existing databases for ordered history reads", () => {
+    const db = openDatabaseSync("");
+    db.execSync("DROP INDEX workouts_finished_at");
+    loadState();
+    const plan = db.getAllSync<{ detail: string }>(
+      "EXPLAIN QUERY PLAN SELECT json FROM workouts ORDER BY finished_at DESC",
+    );
+    expect(plan.some((row) => row.detail.includes("workouts_finished_at"))).toBe(
+      true,
+    );
+    expect(plan.some((row) => row.detail.includes("TEMP B-TREE"))).toBe(false);
   });
   it("does not rewrite old workout rows when a counter changes", () => {
     const s = savedWorkout();
@@ -116,6 +153,12 @@ describe("persistent workout storage", () => {
     saveState(s);
     expect(loadState().history[0].notes).toBe(s.history[0].notes);
   });
+  it("still rejects malformed persisted workout data", () => {
+    const s = savedWorkout();
+    s.history[0].finishedAt = NOW - 1;
+    saveState(s);
+    expect(() => loadState()).toThrow("not a supported Fivefold backup");
+  });
   it("imports the initial prototype storage format without losing history", () => {
     const s = savedWorkout();
     const db = openDatabaseSync("");
@@ -130,19 +173,33 @@ describe("persistent workout storage", () => {
     ).toBe(1);
     expect(loadState()).toEqual(s);
   });
-  it("opens 1,000 workouts and writes a new set without serializing old history", () => {
-    const s = savedWorkout();
-    s.history = Array.from({ length: 1000 }, (_, i) => ({
-      ...s.history[0],
-      id: `workout-${i}`,
-      finishedAt: NOW + i,
-    }));
+  it.each([
+    { name: "20,001 workouts", count: 20001, notes: "" },
+    { name: "over 20 MB of history", count: 9000, notes: "n".repeat(2000) },
+  ])("saves and reopens $name beyond backup import limits", ({ count, notes }) => {
+    const s = stateWithHistory(count, notes);
+    if (notes) expect(JSON.stringify(s).length).toBeGreaterThan(20_000_000);
     saveState(s);
+    expect(loadState()).toEqual(s);
+  });
+  it("opens history without reserializing it and serializes only current state on a set save", () => {
+    const s = stateWithHistory(1000);
+    saveState(s);
+    const stringify = vi.spyOn(JSON, "stringify");
     const loaded = loadState();
+    expect(stringify).not.toHaveBeenCalled();
     expect(loaded.history).toHaveLength(1000);
-    saveState(
-      logSet(startSession(loaded, NOW + 100000), "squat", 0, 5, NOW + 101000),
+    const active = logSet(
+      startSession(loaded, NOW + 100000),
+      "squat",
+      0,
+      5,
+      NOW + 101000,
     );
+    saveState(active);
+    expect(stringify).toHaveBeenCalledTimes(1);
+    expect(stringify.mock.calls[0][0]).toEqual({ ...active, history: [] });
+    stringify.mockRestore();
     expect(loadState().history).toHaveLength(1000);
   });
 });

@@ -27,7 +27,10 @@ export default {
   targets: [
     {
       name: "android",
-      engine: mobile({ platform: "android" }),
+      engine: mobile({
+        platform: "android",
+        ...(process.env.E2E_DEVICE ? { device: process.env.E2E_DEVICE } : {}),
+      }),
       app: { bundleId: "app.fivefold.lifts" },
     },
   ],

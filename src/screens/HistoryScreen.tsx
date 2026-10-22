@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   Column,
   LazyColumn,
@@ -17,6 +17,7 @@ import {
 } from "@expo/ui/jetpack-compose/modifiers";
 import {
   Caption,
+  Choices,
   Divider,
   Heading,
   Page,
@@ -32,16 +33,28 @@ import {
   volume,
   type AppState,
   type Session,
+  type WorkoutKind,
 } from "../domain/workout";
 import { sessionDate } from "./WorkoutScreen";
 
 export function HistoryScreen({
   state,
   onOpen,
+  kind,
+  onKind,
 }: {
   state: AppState;
   onOpen: (s: Session) => void;
+  kind: "All" | WorkoutKind;
+  onKind: (kind: "All" | WorkoutKind) => void;
 }) {
+  const sessions = useMemo(
+    () =>
+      kind === "All"
+        ? state.history
+        : state.history.filter((s) => s.kind === kind),
+    [state.history, kind],
+  );
   const renderItem = useCallback(
     ({ item: s }: { item: Session }) => (
       <Column
@@ -107,6 +120,20 @@ export function HistoryScreen({
       verticalArrangement={{ spacedBy: 12 }}
     >
       <Caption>{state.history.length} saved workouts</Caption>
+      <Choices
+        values={[
+          { value: "All", label: "All" },
+          { value: "A", label: "A" },
+          { value: "B", label: "B" },
+        ]}
+        value={kind}
+        onChange={onKind}
+      />
+      {kind !== "All" ? (
+        <Caption>
+          {sessions.length} workout{sessions.length === 1 ? "" : "s"} {kind}
+        </Caption>
+      ) : null}
       {!state.history.length ? (
         <Panel>
           <Heading>No workouts yet</Heading>
@@ -115,8 +142,14 @@ export function HistoryScreen({
           </Caption>
         </Panel>
       ) : null}
+      {state.history.length > 0 && sessions.length === 0 ? (
+        <Panel>
+          <Heading>No workout {kind} yet</Heading>
+          <Caption>Choose All to see your other workouts.</Caption>
+        </Panel>
+      ) : null}
       <LazyColumn.Items
-        data={state.history}
+        data={sessions}
         keyExtractor={historyKey}
         estimatedItemSize={230}
       >
