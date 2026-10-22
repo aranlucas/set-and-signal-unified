@@ -61,6 +61,18 @@ export function Panel({
     </Card>
   );
 }
+/** Card for edge-to-edge native ListItem rows (no inner padding). */
+export function ListGroup({ children }: { children: ReactNode }) {
+  const c = useMaterialColors();
+  return (
+    <Card
+      modifiers={[fillMaxWidth(), clip(Shapes.RoundedCorner(16))]}
+      colors={{ containerColor: c.surfaceContainerLow }}
+    >
+      <Column modifiers={[fillMaxWidth()]}>{children}</Column>
+    </Card>
+  );
+}
 export function Heading({
   children,
   large = false,

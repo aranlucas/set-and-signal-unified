@@ -5,7 +5,7 @@ import {
   Text,
   TextButton,
   FlowRow,
-  FilledTonalButton,
+  FilterChip,
   useMaterialColors,
 } from "@expo/ui/jetpack-compose";
 import {
@@ -16,6 +16,7 @@ import {
   padding,
   Shapes,
   weight,
+  selectableGroup,
   semantics,
 } from "@expo/ui/jetpack-compose/modifiers";
 import {
@@ -100,21 +101,20 @@ export function ProgressScreen({ state }: { state: AppState }) {
       </Panel>
       <SectionTitle>Weight history</SectionTitle>
       <FlowRow
+        modifiers={[selectableGroup()]}
         horizontalArrangement={{ spacedBy: 8 }}
         verticalArrangement={{ spacedBy: 4 }}
       >
         {LIFTS.map((lift) => (
-          <FilledTonalButton
+          <FilterChip
             key={lift}
+            selected={selected === lift}
             onClick={() => setSelected(lift)}
-            colors={
-              selected === lift
-                ? { containerColor: c.primary, contentColor: c.onPrimary }
-                : undefined
-            }
           >
-            <Text>{NAMES[lift]}</Text>
-          </FilledTonalButton>
+            <FilterChip.Label>
+              <Text>{NAMES[lift]}</Text>
+            </FilterChip.Label>
+          </FilterChip>
         ))}
       </FlowRow>
       <Panel>

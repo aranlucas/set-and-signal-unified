@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "fivefold",
     "userInterfaceStyle": "automatic",
+    "primaryColor": "#216B53",
     "android": {
       "package": "app.fivefold.lifts",
       "versionCode": 2,
@@ -15,10 +16,12 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
+      "predictiveBackGestureEnabled": true,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
@@ -28,10 +31,33 @@
       ],
       "allowBackup": false
     },
-    "plugins": ["expo-sqlite", "expo-notifications", "expo-document-picker"],
+    "plugins": [
+      "expo-sqlite",
+      "expo-notifications",
+      "expo-document-picker",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/android-icon-foreground.png",
+          "imageWidth": 200,
+          "backgroundColor": "#163A2C"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
+    ],
     "experiments": {
       "reactCompiler": true
     },
-    "platforms": ["android"]
+    "platforms": [
+      "android"
+    ]
   }
 }

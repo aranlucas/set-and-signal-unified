@@ -35,12 +35,24 @@ export function RestTimer({
   const remaining = Math.max(0, Math.ceil((rest.endsAt - now) / 1000));
   useEffect(() => {
     announced.current = false;
-    const tick = setInterval(() => setNow(Date.now()), 500);
+    // Wake exactly when the displayed second changes, aligned to the deadline,
+    // instead of polling: one native text/progress update per second, no drift.
+    let tick: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      const t = Date.now();
+      setNow(t);
+      const left = rest.endsAt - t;
+      if (left <= 0) return;
+      tick = setTimeout(schedule, (left % 1000 || 1000) + 5);
+    };
+    tick = setTimeout(schedule, 0);
     const listener = NativeAppState.addEventListener("change", (status) => {
-      if (status === "active") setNow(Date.now());
+      if (status !== "active") return;
+      clearTimeout(tick);
+      schedule();
     });
     return () => {
-      clearInterval(tick);
+      clearTimeout(tick);
       listener.remove();
     };
   }, [rest.endsAt]);
