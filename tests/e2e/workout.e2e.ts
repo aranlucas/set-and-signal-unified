@@ -152,6 +152,8 @@ describe("workout A", { serial: true }, () => {
     await expect(screen.getByText("22.5 kg")).toBeVisible();
     await expect(screen.getByText("40 kg")).toBeVisible();
     await expect(screen.getByText("Workout A")).toBeVisible();
-    await expect(screen.getByText(/· 15 sets$/)).toBeVisible();
+    const lastWorkoutSummary = screen.getByText(/· 15 sets$/);
+    await screen.scrollUntilVisible(lastWorkoutSummary);
+    await expect(lastWorkoutSummary).toBeVisible();
   });
 });
