@@ -83,6 +83,12 @@
     "experiments": {
       "reactCompiler": true
     },
-    "platforms": ["android"]
+    "platforms": ["android"],
+    "extra": {
+      "eas": {
+        "projectId": "5901bc45-5617-4899-9016-14363384acec"
+      }
+    },
+    "owner": "aranlucas"
   }
 }

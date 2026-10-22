@@ -41,7 +41,7 @@ model. It does not start Metro or a web server.
 
 ```sh
 pnpm run build:apk                    # or build and install however you prefer
-adb install -r artifacts/Fivefold-<version>.apk
+adb install -r artifacts/Fivefold.apk
 pnpm run test:e2e                     # E2E_TELEMETRY_DISABLED=1 is set here
 ```
 

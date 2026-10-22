@@ -6,7 +6,7 @@ A focused, offline 5×5 workout log for Android. Built with **Expo SDK 58**, **R
 
 ## Install
 
-The signed standalone APK is generated at `artifacts/Fivefold-1.1.0.apk`. Transfer it to an Android phone, open it, and allow installation from your chosen file/browser app when Android asks. Android 7.0/API 24 or newer is required. The APK contains ARM32, ARM64, x86, and x86-64 code and does not need Expo Go or Metro. A SHA-256 sidecar is provided beside the APK.
+Build a signed standalone APK with `pnpm run build:apk`; the output is `artifacts/Fivefold.apk`. Transfer it to an Android phone, open it, and allow installation from your chosen file/browser app when Android asks. Android 7.0/API 24 or newer is required. The APK contains ARM32, ARM64, x86, and x86-64 code and does not need Expo Go or Metro.
 
 ## Training
 
@@ -32,24 +32,29 @@ Use Node 24+, JDK 17, and an installed Android SDK. The tested local SDK has bui
 pnpm install --frozen-lockfile
 pnpm run check
 pnpm dlx expo-doctor
-pnpm run android
+pnpm android
 ```
 
 `pnpm run check` runs ESLint 10 with TypeScript and React Hooks rules, strict TypeScript, and Vitest. React Compiler and React Native's New Architecture/Hermes are enabled. All app controls/layouts use Expo UI; React Native is used for app lifecycle and system APIs.
 
+`pnpm android` runs Expo's `run:android` command, which generates the native Android project when needed, compiles it, installs it on your device/emulator, and starts Metro. For later JavaScript/TypeScript changes, use `pnpm start`.
+
+For a standalone signed APK, use [EAS Build locally](https://docs.expo.dev/build-reference/local-builds/). The `preview` profile in `eas.json` requests an APK and uses local signing credentials. EAS handles dependency installation, Expo prebuild, Gradle compilation, signing, and copying the finished APK; there is no custom build program.
+
+The `pnpm eas` shortcut runs the pinned EAS CLI through `pnpm dlx`, with its two dependency build scripts explicitly allowed for pnpm 12. Authenticate once with `pnpm eas login`. The app is linked to its EAS project through `extra.eas.projectId` in `app.json`. On a new checkout, create the git-ignored `credentials.json` at the repository root following [Expo's local credentials format](https://docs.expo.dev/app-signing/local-credentials/). Set `android.keystore.keystorePath` to the absolute path of your release keystore and fill in its alias and passwords.
+
+This app's existing signing identity is `~/.local/share/fivefold/signing/release.jks`, with alias `fivefold` and its password in the adjacent `password` file. Reuse that identity for updates. **Back up that directory securely before moving machines.** Keeping the same key and raising `android.versionCode` allows later APKs to update an installation without removing its data. Never commit `credentials.json`, the keystore, or its password.
+
 ```sh
+pnpm run check
 pnpm run build:apk
-# For JS-only iterations after a successful prebuild:
-pnpm run build:apk -- --skip-prebuild
 ```
 
-The build script runs checks, performs Expo prebuild, builds a minified/resource-shrunk release, signs the APK, verifies its signature and 16 KB ZIP alignment, and writes its checksum and build metadata. Set `ANDROID_HOME` when the SDK is outside `~/Library/Android/sdk`.
-
-The persistent signing identity lives at `~/.local/share/fivefold/signing/`, outside this repository, with private file permissions. **Back up that directory securely before moving machines.** Keeping the same key and raising `android.versionCode` allows later APKs to update an installation without removing its data. Never commit the keystore/password. `--skip-prebuild` is only for JS-only changes; app config/native dependency changes require the normal build.
+The build runs on your machine and requires an Expo account, JDK 17, and an Android SDK. Set `ANDROID_HOME` when the SDK is outside `~/Library/Android/sdk`. Checks run separately from the build. If you need an artifact checksum, run `shasum -a 256 artifacts/Fivefold.apk`. The versioned APK paths and metadata in `docs/verification*.md` describe earlier releases.
 
 ## Verification and research
 
-See [official-source research](docs/research.md), [architecture and data rules](docs/architecture.md), and [release verification](docs/verification.md). The QA script at `scripts/android-smoke.mjs` uses the exact `agent-device` launcher and target flags returned by T3 `device_open`. Run it only on a dedicated QA installation: it discards an existing QA workout if needed, logs two full workouts and starts a third.
+See [official-source research](docs/research.md), [architecture and data rules](docs/architecture.md), and [release verification](docs/verification.md). The QA script at `android-smoke.mjs` uses the exact `agent-device` launcher and target flags returned by T3 `device_open`. Run it only on a dedicated QA installation: it discards an existing QA workout if needed, logs two full workouts and starts a third.
 
 ```sh
 node android-smoke.mjs /absolute/path/to/agent-device \
