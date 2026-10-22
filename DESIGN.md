@@ -6,7 +6,7 @@ StrongLifts-style focus leads the design. Strong and Hevy inform compact layout 
 
 ## Native System
 
-Use Expo UI's Jetpack Compose controls and Material type/color roles. The current release uses a green seeded Material palette, neutral tonal surfaces, light/dark/system appearance, and official Material Symbols Rounded icons. The palette is an implementation choice; the user's confirmed preference is the workout-app direction.
+Use Expo UI's Jetpack Compose controls and Material type/color roles. The current release uses a green seeded Material palette, neutral tonal surfaces, light/dark/system appearance, and official Material Symbols (Outlined style) from `@expo/material-symbols`, imported per icon from the package instead of copied into `assets/`. The palette is an implementation choice; the user's confirmed preference is the workout-app direction.
 
 Use 16dp screen gutters and an 8dp spacing rhythm. Set targets are numbered, at least 48dp, and separated by 8dp. Respect native font scaling and allow content to wrap and scroll.
 

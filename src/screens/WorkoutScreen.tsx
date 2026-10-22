@@ -1,4 +1,5 @@
 import { useState } from "react";
+import MoreIcon from "@expo/material-symbols/more_vert.xml";
 import {
   Column,
   Icon,
@@ -198,7 +199,7 @@ export function WorkoutScreen(p: WorkoutProps) {
                 </TextButton>
                 <IconButton onClick={() => p.onTools(e.lift)}>
                   <Icon
-                    source={require("../../assets/more.xml")}
+                    source={MoreIcon}
                     contentDescription={`Warm-up & plates for ${NAMES[e.lift]}`}
                   />
                 </IconButton>

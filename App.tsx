@@ -3,6 +3,11 @@ import { BackHandler } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import TrainIcon from "@expo/material-symbols/fitness_center.xml";
+import HistoryIcon from "@expo/material-symbols/history.xml";
+import ProgressIcon from "@expo/material-symbols/monitoring.xml";
+import SettingsIcon from "@expo/material-symbols/settings.xml";
+import BackIcon from "@expo/material-symbols/arrow_back.xml";
 import {
   AlertDialog,
   Button,
@@ -60,10 +65,10 @@ type Dialog = {
   destructive?: boolean;
 };
 const icons = {
-  Train: require("./assets/train.xml"),
-  History: require("./assets/history.xml"),
-  Progress: require("./assets/progress.xml"),
-  Settings: require("./assets/settings.xml"),
+  Train: TrainIcon,
+  History: HistoryIcon,
+  Progress: ProgressIcon,
+  Settings: SettingsIcon,
 };
 
 export default function App() {
@@ -274,7 +279,7 @@ function Application({
           <TopAppBar.NavigationIcon>
             <IconButton onClick={() => setSelectedId(null)}>
               <Icon
-                source={require("./assets/back.xml")}
+                source={BackIcon}
                 contentDescription="Back to history"
               />
             </IconButton>

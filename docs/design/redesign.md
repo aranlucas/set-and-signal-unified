@@ -6,7 +6,7 @@ The user requested a simple 5×5 counter/log using the latest React Native, Expo
 
 Use native Material controls, 16dp screen gutters, compact exercise sections, numbered 48dp set targets with 8dp gaps, Material type roles, a green seeded Material palette, and neutral tonal surfaces. Finish stays in the top app bar. Completed, partial, unlogged and next sets differ in text as well as color. Do not add motivational hero copy above working data.
 
-Current public official screenshots are research references, not proof of the competitors' exact installed Android versions. See competitor-ui.md and the source manifest. Reference assets are not bundled into the app. Navigation XML uses Google's Material Symbols Rounded, Apache 2.0; the source paths are in the upstream material-design-icons symbols/android directory. Local changes remove theme resource references so Expo UI's runtime XML parser can tint the vectors; paths are otherwise unmodified.
+Current public official screenshots are research references, not proof of the competitors' exact installed Android versions. See competitor-ui.md and the source manifest. Reference assets are not bundled into the app. Navigation and toolbar icons come from `@expo/material-symbols` (Google Material Symbols, Apache 2.0) as Android vector drawables imported from their package subpaths, so only the icons the app names are bundled. The package ships the Outlined style, which replaces the earlier Rounded vectors copied into `assets/`; Expo UI maps their theme tint attributes to black and tints them from the surrounding content color. `assets/MATERIAL-SYMBOLS-LICENSE.txt` remains for attribution.
 
 ## Review response
 
