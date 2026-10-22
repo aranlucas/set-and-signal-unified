@@ -42,7 +42,10 @@ export function syncRestAlert(
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: rest.endsAt,
           channelId: channel,
-          delivery: "bestEffort",
+          // setAlarmClock() is not deferred by Doze or OEM battery savers, so the
+          // alert lands when the in-app countdown hits zero. Falls back to best
+          // effort if the exact-alarm permission is unavailable.
+          delivery: "alarmClock",
         },
       });
     })

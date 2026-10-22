@@ -9,8 +9,10 @@ import {
 } from "@expo/ui/jetpack-compose";
 import {
   clickable,
+  clip,
   fillMaxWidth,
   semantics,
+  Shapes,
   weight,
 } from "@expo/ui/jetpack-compose/modifiers";
 import {
@@ -45,6 +47,8 @@ export function HistoryScreen({
       <Column
         modifiers={[
           fillMaxWidth(),
+          // Clip first so the native ripple follows the card's rounded shape.
+          clip(Shapes.RoundedCorner(16)),
           clickable(() => onOpen(s)),
           semantics({
             contentDescription: `Open workout ${s.kind}, ${sessionDate(s)}`,

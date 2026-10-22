@@ -34,7 +34,6 @@ run(
     ":app:assembleRelease",
     "--console=plain",
     "--max-workers=4",
-    "-Pandroid.enableShrinkResourcesInReleaseBuilds=true",
   ],
   join(root, "android"),
 );

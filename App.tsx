@@ -338,9 +338,13 @@ function Application({
               commit((s) => logSet(s, lift, i, reps)) &&
               state.settings.haptics
             )
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
-                () => {},
-              );
+              void Haptics.performAndroidHapticsAsync(
+                reps === null
+                  ? Haptics.AndroidHaptics.Toggle_Off
+                  : reps === 5
+                    ? Haptics.AndroidHaptics.Confirm
+                    : Haptics.AndroidHaptics.Reject,
+              ).catch(() => {});
           }}
           onWeight={setWeightLift}
           onTools={setToolsLift}

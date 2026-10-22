@@ -19,7 +19,7 @@ Native state is saved on each set, weight change, setting and note edit; no back
 
 ## Timer rules
 
-A new set starts an absolute deadline. Correcting that same set from success to a miss upgrades its rest to the missed-rep duration; repeated correction does not restart it. Editing an older set leaves the current timer alone. Clearing the matching set cancels its timer. App foreground/restart computes time from the saved deadline. +30 seconds is capped at an hour. Finish/discard cancels rest. Notifications are optional and best effort, with the in-app clock authoritative.
+A new set starts an absolute deadline. Correcting that same set from success to a miss upgrades its rest to the missed-rep duration; repeated correction does not restart it. Editing an older set leaves the current timer alone. Clearing the matching set cancels its timer. App foreground/restart computes time from the saved deadline. +30 seconds is capped at an hour. Finish/discard cancels rest. Notifications are optional. They use `setAlarmClock()` (`delivery: "alarmClock"` with `USE_EXACT_ALARM`), so Doze and OEM battery savers do not defer them; without exact-alarm access Android falls back to best-effort delivery. The in-app clock stays authoritative.
 
 ## History and progression policy
 

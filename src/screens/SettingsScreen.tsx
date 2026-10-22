@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Column,
+  ListItem,
   Row,
   Switch,
   Text,
@@ -12,7 +13,7 @@ import {
   clickable,
   fillMaxWidth,
   paddingAll,
-  semantics,
+  toggleable,
   verticalScroll,
   weight,
 } from "@expo/ui/jetpack-compose/modifiers";
@@ -22,6 +23,7 @@ import {
   Choices,
   Divider,
   Heading,
+  ListGroup,
   Page,
   Panel,
   SectionTitle,
@@ -115,36 +117,31 @@ export function SettingsScreen({
             </Caption>
           </Panel>
         ) : null}
-        <Panel>
+        <ListGroup>
           {rows.map((row, i) => (
-            <Column key={row.group} verticalArrangement={{ spacedBy: 4 }}>
+            <Column key={row.group}>
               {i ? <Divider /> : null}
-              <Row
-                modifiers={[
-                  fillMaxWidth(),
-                  clickable(() => setGroup(row.group)),
-                  paddingAll(4),
-                  semantics({
-                    contentDescription: `Open ${titles[row.group]}`,
-                  }),
-                ]}
-                horizontalArrangement="spaceBetween"
-                verticalAlignment="center"
+              <ListItem
+                colors={{ containerColor: c.surfaceContainerLow }}
+                modifiers={[clickable(() => setGroup(row.group))]}
               >
-                <Column
-                  modifiers={[weight(1)]}
-                  verticalArrangement={{ spacedBy: 4 }}
-                >
-                  <SectionTitle>{titles[row.group]}</SectionTitle>
-                  <Caption>{row.detail}</Caption>
-                </Column>
-                <TextButton onClick={() => setGroup(row.group)}>
-                  <Text>{row.value}</Text>
-                </TextButton>
-              </Row>
+                <ListItem.HeadlineContent>
+                  <Text style={{ typography: "titleMedium", fontWeight: "600" }}>
+                    {titles[row.group]}
+                  </Text>
+                </ListItem.HeadlineContent>
+                <ListItem.SupportingContent>
+                  <Text>{row.detail}</Text>
+                </ListItem.SupportingContent>
+                <ListItem.TrailingContent>
+                  <Text color={c.primary} style={{ typography: "labelLarge" }}>
+                    {row.value}
+                  </Text>
+                </ListItem.TrailingContent>
+              </ListItem>
             </Column>
           ))}
-        </Panel>
+        </ListGroup>
         {!state.onboarded ? (
           <Action onPress={onDone}>Save setup & start lifting</Action>
         ) : null}
@@ -267,7 +264,7 @@ export function SettingsScreen({
                 <Divider />
                 <SettingSwitch
                   label="Rest notifications"
-                  detail="Background alerts may be delayed by Android battery settings."
+                  detail="Alerts when rest ends, even with the screen off. Android shows an alarm icon while you rest."
                   value={settings.restAlerts}
                   onChange={onAlerts}
                 />
@@ -358,9 +355,13 @@ function SettingSwitch({
   value: boolean;
   onChange: (v: boolean) => void;
 }) {
+  // Material pattern: the whole row is one switch target for touch and TalkBack.
   return (
     <Row
-      modifiers={[fillMaxWidth()]}
+      modifiers={[
+        fillMaxWidth(),
+        toggleable(value, () => onChange(!value), { role: "switch" }),
+      ]}
       horizontalArrangement={{ spacedBy: 12 }}
       verticalAlignment="center"
     >
@@ -368,11 +369,7 @@ function SettingSwitch({
         <SectionTitle>{label}</SectionTitle>
         <Caption>{detail}</Caption>
       </Column>
-      <Switch
-        value={value}
-        onCheckedChange={onChange}
-        modifiers={[semantics({ contentDescription: label })]}
-      />
+      <Switch value={value} />
     </Row>
   );
 }
