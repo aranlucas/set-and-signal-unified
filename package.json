@@ -44,12 +44,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "E2E_TELEMETRY_DISABLED=1 e2e run --target android",
-    "check": "npm run lint && npm run typecheck && npm test",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm test",
     "build:apk": "node scripts/build-apk.mjs",
     "lint": "eslint . --max-warnings=0"
   },
   "private": true,
-  "engines": {
+  "packageManager": "pnpm@12.4.2",  "engines": {
     "node": ">=24"
   }
 }

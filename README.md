@@ -29,18 +29,18 @@ The plate calculator assumes standard denominations and enough plate pairs; it d
 Use Node 24+, JDK 17, and an installed Android SDK. The tested local SDK has build-tools 37, compile SDK 37, target SDK 36, and NDK 27.1.12297006.
 
 ```sh
-npm ci
-npm run check
-npx expo-doctor
-npm run android
+pnpm install --frozen-lockfile
+pnpm run check
+pnpm dlx expo-doctor
+pnpm run android
 ```
 
-`npm run check` runs ESLint 10 with TypeScript and React Hooks rules, strict TypeScript, and Vitest. React Compiler and React Native's New Architecture/Hermes are enabled. All app controls/layouts use Expo UI; React Native is used for app lifecycle and system APIs.
+`pnpm run check` runs ESLint 10 with TypeScript and React Hooks rules, strict TypeScript, and Vitest. React Compiler and React Native's New Architecture/Hermes are enabled. All app controls/layouts use Expo UI; React Native is used for app lifecycle and system APIs.
 
 ```sh
-npm run build:apk
+pnpm run build:apk
 # For JS-only iterations after a successful prebuild:
-npm run build:apk -- --skip-prebuild
+pnpm run build:apk -- --skip-prebuild
 ```
 
 The build script runs checks, performs Expo prebuild, builds a minified/resource-shrunk release, signs the APK, verifies its signature and 16 KB ZIP alignment, and writes its checksum and build metadata. Set `ANDROID_HOME` when the SDK is outside `~/Library/Android/sdk`.
@@ -59,4 +59,4 @@ node scripts/android-smoke.mjs /absolute/path/to/agent-device \
 
 `artifacts/qa-redesign/` contains the 1.1.0 smoke run; `artifacts/design/` contains before/after native screenshots and design reviews live in `docs/design/`. `artifacts/qa/` contains the earlier release’s native screenshots and structured acceptance results. Android is the implemented and tested platform; this repository does not claim an iOS or web build.
 
-Installed-app E2E lives in `tests/e2e/` and drives the installed release APK with `npm run test:e2e` — no Metro and no model key. See [installed-app E2E](docs/e2e.md).
+Installed-app E2E lives in `tests/e2e/` and drives the installed release APK with `pnpm run test:e2e` — no Metro and no model key. See [installed-app E2E](docs/e2e.md).

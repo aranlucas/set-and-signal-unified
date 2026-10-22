@@ -19,7 +19,7 @@ model or API key: every step is a locator or an assertion, with no
 The repository carries the full `e2e init` setup:
 
 ```sh
-npx e2e init --engine mobile --gateway openai-compatible \
+pnpm exec e2e init --engine mobile --gateway openai-compatible \
   --endpoint https://freellmapi-production-1175.up.railway.app/v1 \
   --skills .agents/skills,.claude/skills --mcp .mcp.json --install
 ```
@@ -40,15 +40,15 @@ model. It does not start Metro or a web server.
 ## Run
 
 ```sh
-npm run build:apk                    # or build and install however you prefer
+pnpm run build:apk                    # or build and install however you prefer
 adb install -r artifacts/Fivefold-<version>.apk
-npm run test:e2e                     # E2E_TELEMETRY_DISABLED=1 is set here
+pnpm run test:e2e                     # E2E_TELEMETRY_DISABLED=1 is set here
 ```
 
 Run one file while iterating:
 
 ```sh
-npx e2e run tests/e2e/settings.e2e.ts
+pnpm exec e2e run tests/e2e/settings.e2e.ts
 ```
 
 `e2e.config.ts` drives whatever build is installed under the package id, so

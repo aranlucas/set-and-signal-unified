@@ -24,9 +24,9 @@ function run(cmd, args, cwd = root) {
   if (result.status !== 0)
     throw new Error(`${cmd} exited with status ${result.status}`);
 }
-run("npm", ["run", "check"]);
+run("pnpm", ["run", "check"]);
 if (!process.argv.includes("--skip-prebuild")) {
-  run("npx", ["expo", "prebuild", "--platform", "android", "--no-install"]);
+  run("pnpm", ["exec", "expo", "prebuild", "--platform", "android", "--no-install"]);
 }
 run(
   "./gradlew",
