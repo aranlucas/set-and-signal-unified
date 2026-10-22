@@ -1,0 +1,18 @@
+Tapped Squat, set 1 of 5, not logged. Tap to log 5 reps
+Verified 1 / 15 sets
+Tapped Settings
+Tapped Open Appearance
+Tapped Dark
+Tapped Done
+Tapped Train
+Tapped History
+Tapped Open workout B, Thu, Oct 22, 2026
+Verified saved workouts
+Tapped Progress
+Verified Deadlift
+Tapped Settings
+Verified Resume
+Tapped Train
+Final Android 15 dark captures and scrolling passed
+
+Large text 1.5: final history exercise and actions reachable; 1 rep and Undo passed. Font scale restored to 1.0.

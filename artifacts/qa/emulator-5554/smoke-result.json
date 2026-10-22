@@ -1,0 +1,129 @@
+{
+  "status": "passed",
+  "events": [
+    {
+      "time": "2026-10-22T07:45:17.678Z",
+      "message": "Tapped Discard"
+    },
+    {
+      "time": "2026-10-22T07:45:18.859Z",
+      "message": "Tapped Discard workout"
+    },
+    {
+      "time": "2026-10-22T07:45:20.125Z",
+      "message": "Tapped Switch A / B"
+    },
+    {
+      "time": "2026-10-22T07:45:21.126Z",
+      "message": "Tapped Start workout A"
+    },
+    {
+      "time": "2026-10-22T07:45:21.891Z",
+      "message": "Tapped Squat, set 1 of 5, not logged. Tap to log 5 reps"
+    },
+    {
+      "time": "2026-10-22T07:45:22.501Z",
+      "message": "Verified 1 / 15 sets"
+    },
+    {
+      "time": "2026-10-22T07:45:30.389Z",
+      "message": "Verified 1 / 15 sets"
+    },
+    {
+      "time": "2026-10-22T07:45:30.390Z",
+      "message": "Restart preserved the first set"
+    },
+    {
+      "time": "2026-10-22T07:45:31.194Z",
+      "message": "Tapped Squat, set 1 of 5, 5 of 5 reps. Tap to edit reps"
+    },
+    {
+      "time": "2026-10-22T07:45:31.942Z",
+      "message": "Verified Currently: 5 reps"
+    },
+    {
+      "time": "2026-10-22T07:45:32.742Z",
+      "message": "Tapped 3 reps"
+    },
+    {
+      "time": "2026-10-22T07:45:33.522Z",
+      "message": "Tapped Squat, set 1 of 5, 3 of 5 reps. Tap to edit reps"
+    },
+    {
+      "time": "2026-10-22T07:45:34.819Z",
+      "message": "Tapped 0 reps"
+    },
+    {
+      "time": "2026-10-22T07:45:35.615Z",
+      "message": "Tapped Squat, set 1 of 5, 0 of 5 reps. Tap to edit reps"
+    },
+    {
+      "time": "2026-10-22T07:45:37.162Z",
+      "message": "Tapped Clear set"
+    },
+    {
+      "time": "2026-10-22T07:45:37.959Z",
+      "message": "Tapped Squat, set 1 of 5, not logged. Tap to log 5 reps"
+    },
+    {
+      "time": "2026-10-22T07:45:37.959Z",
+      "message": "Explicit correction, zero reps and clear passed"
+    },
+    {
+      "time": "2026-10-22T07:45:56.648Z",
+      "message": "Tapped Finish"
+    },
+    {
+      "time": "2026-10-22T07:45:58.785Z",
+      "message": "Tapped Save workout"
+    },
+    {
+      "time": "2026-10-22T07:45:59.823Z",
+      "message": "Tapped Start workout B"
+    },
+    {
+      "time": "2026-10-22T07:46:14.104Z",
+      "message": "Tapped Finish"
+    },
+    {
+      "time": "2026-10-22T07:46:15.771Z",
+      "message": "Tapped Save workout"
+    },
+    {
+      "time": "2026-10-22T07:46:16.808Z",
+      "message": "Tapped History"
+    },
+    {
+      "time": "2026-10-22T07:46:17.795Z",
+      "message": "Tapped Open workout B, Thu, Oct 22, 2026"
+    },
+    {
+      "time": "2026-10-22T07:46:18.178Z",
+      "message": "Verified Workout B"
+    },
+    {
+      "time": "2026-10-22T07:46:20.900Z",
+      "message": "Tapped Progress"
+    },
+    {
+      "time": "2026-10-22T07:46:21.436Z",
+      "message": "Verified Lift records"
+    },
+    {
+      "time": "2026-10-22T07:46:23.949Z",
+      "message": "Tapped Train"
+    },
+    {
+      "time": "2026-10-22T07:46:24.951Z",
+      "message": "Tapped Start workout A"
+    },
+    {
+      "time": "2026-10-22T07:46:25.305Z",
+      "message": "Verified Last:"
+    },
+    {
+      "time": "2026-10-22T07:46:25.305Z",
+      "message": "A → B → A, deadlift 1×5, history, progress and restart passed"
+    }
+  ]
+}

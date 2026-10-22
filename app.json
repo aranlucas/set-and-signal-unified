@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Fivefold",
+    "slug": "fivefold-5x5",
+    "version": "1.1.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "fivefold",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "app.fivefold.lifts",
+      "versionCode": 2,
+      "adaptiveIcon": {
+        "backgroundColor": "#163A2C",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "allowBackup": false
+    },
+    "plugins": ["expo-sqlite", "expo-notifications", "expo-document-picker"],
+    "experiments": {
+      "reactCompiler": true
+    },
+    "platforms": ["android"]
+  }
+}

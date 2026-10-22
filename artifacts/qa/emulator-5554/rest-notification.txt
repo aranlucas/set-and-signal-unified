@@ -1,0 +1,66 @@
+    NotificationRecord(0x0a331425: pkg=app.fivefold.lifts user=UserHandle{0} id=0 tag=fivefold-rest importance=4 key=0|app.fivefold.lifts|0|fivefold-rest|10235: Notification(channel=rest shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=AUTO_CANCEL color=0x00000000 vis=PRIVATE template=android.app.Notification$BigTextStyle))
+      uid=10235 userId=0
+      opPkg=app.fivefold.lifts
+      icon=Icon(typ=RESOURCE pkg=app.fivefold.lifts id=0x7f0d0000)
+      flags=AUTO_CANCEL
+      originalFlags=AUTO_CANCEL
+      pri=1
+      key=0|app.fivefold.lifts|0|fivefold-rest|10235
+      seen=false
+      groupKey=0|app.fivefold.lifts|0|fivefold-rest|10235
+      notification=
+            fullscreenIntent=null
+            contentIntent=PendingIntent{18109fa: PendingIntentRecord{c87f071 app.fivefold.lifts startActivity (allowlist: e672d59:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+            deleteIntent=null
+            number=0
+            groupAlertBehavior=0
+            when=1792653093332/1792653093332
+            tickerText=null
+            vis=0
+            contentView=null
+            bigContentView=null
+            headsUpContentView=null
+            color=0x00000000
+            timeout=PT72H
+            extras={
+                android.title=String (Ready for your next set)
+                android.reduced.images=Boolean (true)
+                android.subText=null
+                expo.notification_request=byte[] (624)
+                  [0] 13
+                  [1] 0
+                  [2] 0
+                  [3] 0
+                  [4] 102
+                  [5] 0
+                  [6] 105
+                  [7] 0
+                  [8] 118
+                  [9] 0
+                  [10] 101
+                  [11] 0
+                  [12] 102
+                  [13] 0
+                  [14] 111
+                  [15] 0
+                  [16] 108
+                  [17] 0
+                  [18] 100
+                  [19] 0
+                  [20] 45
+                  [21] 0
+                  [22] 114
+                  [23] 0
+                  [24] 101
+                  [25] 0
+                  [26] 115
+                  [27] 0
+                  [28] 116
+                  [29] 0
+                  [30] 0
+                  [31] 0
+                  [32] 66
+                  [33] 0
+                  [34] 0
+                  [35] 0
+                  [36] 101

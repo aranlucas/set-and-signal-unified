@@ -1,0 +1,9 @@
+{
+  "builtAt": "2026-10-22T07:52:45.949Z",
+  "apk": "/Users/lucas/.t3/projects/stronglifts/artifacts/Fivefold-1.1.0.apk",
+  "sha256": "dcb9d9909dd88fb727b14f44c81abf944764cc8724cde12fcf9968c96939a7c9",
+  "expo": "~58.0.17",
+  "reactNative": "0.88.0",
+  "expoUI": "~58.0.22",
+  "signingIdentityDirectory": "/Users/lucas/.local/share/fivefold/signing"
+}

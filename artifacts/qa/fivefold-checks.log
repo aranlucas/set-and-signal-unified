@@ -1,0 +1,25 @@
+
+> fivefold@1.0.0 check
+> npm run lint && npm run typecheck && npm test
+
+
+> fivefold@1.0.0 lint
+> eslint . --max-warnings=0
+
+
+> fivefold@1.0.0 typecheck
+> tsc --noEmit
+
+
+> fivefold@1.0.0 test
+> vitest run
+
+
+ RUN  v5.0.5 /Users/lucas/.t3/projects/stronglifts
+
+
+ Test Files  3 passed (3)
+      Tests  83 passed (83)
+   Start at  00:06:21
+   Duration  159ms (tests 50%, import 29%, transform 14%, worker 7%)
+

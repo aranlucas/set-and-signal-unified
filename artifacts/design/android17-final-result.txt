@@ -1,0 +1,25 @@
+Tapped Squat, set 1 of 5, not logged. Tap to log 5 reps
+Verified Squat · Set 2/5
+Tapped History
+Tapped Open workout B, Thu, Oct 22, 2026
+Verified Workout B
+Verified saved workouts
+Tapped Progress
+Verified Lift records
+Verified Deadlift
+Tapped Settings
+Verified Rest
+Verified Workout A
+Tapped Squat, set 1 of 5, 5 of 5 reps. Tap to edit reps
+Tapped 1 rep
+Verified 1 of 5 reps
+Tapped Undo
+Verified 5 of 5 reps
+Tapped Edit Squat weight
+Tapped +2.5 kg
+Tapped −2.5 kg
+Tapped Save weight
+Tapped Warm-up & plates for Squat
+Verified Plates on EACH side
+Tapped Back to workout
+Final Android 17 update, data, back, editor/undo, weights, tools, records and persistent rest passed
