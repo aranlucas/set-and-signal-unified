@@ -6,9 +6,13 @@ export default defineConfig({
     projects: [
       {
         plugins: [cloudflareTest({ experimental: { newConfig: true } })],
-        test: { name: "worker", include: ["test/worker.test.ts"] },
+        test: {
+          name: "worker",
+          include: ["test/**/*.test.ts"],
+          exclude: ["test/smoke.test.ts"],
+        },
       },
-      // Live deployment checks; run explicitly with `npm run smoke`.
+      // Live deployment checks; run explicitly with `pnpm run smoke`.
       {
         test: {
           name: "smoke",

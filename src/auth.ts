@@ -5,13 +5,10 @@ import {
 } from "@cloudflare/workers-oauth-provider";
 import { obtainToken, readBounded } from "./garmin";
 import { GarminError } from "./garmin-error";
+import { READ_SCOPE, WOMENS_SCOPE } from "./scopes";
 import { consentPage, escape, home, page, privacyPage } from "./pages";
 
 export type AppEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
-
-export const READ_SCOPE = "garmin:read";
-
-export const WOMENS_SCOPE = "garmin:womens-health";
 
 export function html(
   body: string,

@@ -2,7 +2,7 @@
 
 # Garmin Personal MCP
 
-A read-only MCP server for Garmin’s **official Personal API**, deployed on Cloudflare Workers. Built with the current stable TypeScript MCP SDK **v2.3.1** (`@modelcontextprotocol/server`), Zod 4, and Cloudflare’s OAuth provider. Dependencies are pinned in `package-lock.json`.
+A read-only MCP server for Garmin’s **official Personal API**, deployed on Cloudflare Workers. Built with TypeScript MCP SDK **v2.3.1** (`@modelcontextprotocol/server`), Zod 4, and Cloudflare’s OAuth provider. Dependencies are pinned in `pnpm-lock.yaml`.
 
 **Live MCP URL:** `https://garmin-mcp.aranlucas.workers.dev/mcp`
 
@@ -71,7 +71,6 @@ Requires Node 24.22+ (pinned in `.node-version`) and pnpm (pinned in `packageMan
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm run typegen
 pnpm run check
 pnpm run build
 pnpm run deploy
