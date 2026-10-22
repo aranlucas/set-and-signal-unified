@@ -61,6 +61,7 @@ it("registers a public client, binds consent to the browser, and redirects on de
   const consent = await get(`/authorize?${params}`);
   expect(consent.status).toBe(200);
   expect(consent.headers.get("content-security-policy")).toMatch(/frame-ancestors 'none'/);
+  expect(consent.headers.get("referrer-policy")).toBe("same-origin");
   const html = await consent.text();
   expect(html).toMatch(/Garmin Personal API key/);
   expect(html).toMatch(/localhost/);
