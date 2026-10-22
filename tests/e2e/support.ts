@@ -7,24 +7,62 @@ import { expect, type Locator, type Screen } from "e2e";
 // two matching reads before tapping.
 export async function tap(screen: Screen, target: Locator) {
   let box = await target.boundingBox();
-  for (let attempt = 0; attempt < 40; attempt++) {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    const next = await target.boundingBox();
-    if (
-      box &&
-      next &&
-      Math.abs(next.x - box.x) < 1 &&
-      Math.abs(next.y - box.y) < 1 &&
-      Math.abs(next.width - box.width) < 1 &&
-      Math.abs(next.height - box.height) < 1
-    ) {
-      box = next;
-      break;
-    }
-    box = next;
-  }
+  await expect
+    .poll(
+      async () => {
+        const next = await target.boundingBox();
+        const stable =
+          box !== null &&
+          next !== null &&
+          Math.abs(next.x - box.x) < 1 &&
+          Math.abs(next.y - box.y) < 1 &&
+          Math.abs(next.width - box.width) < 1 &&
+          Math.abs(next.height - box.height) < 1;
+        box = next;
+        return stable;
+      },
+      { message: "Target must settle before tapping" },
+    )
+    .toBe(true);
   if (!box) throw new Error("Target has no visible box.");
   await screen.tapAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+}
+
+/** Scrolls active-workout content without starting inside the fixed Rest dock. */
+export async function scrollWorkoutUntilVisible(
+  screen: Screen,
+  target: Locator,
+  { direction = "down" }: { direction?: "up" | "down" } = {},
+) {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    if (await target.isVisible()) return;
+
+    // Compose flattens the scroll container out of the accessibility tree.
+    // The default viewport swipe starts at 80% height, inside the Rest dock
+    // on smaller screens. Anchor the path to the persistent navigation and
+    // toolbar instead, keeping both ends safely inside workout content.
+    const navigation = await screen.getByText("Train").boundingBox();
+    const toolbar = await screen.getByText("Finish").boundingBox();
+    if (!navigation || !toolbar) {
+      throw new Error(
+        "Workout navigation and toolbar must have visible bounds.",
+      );
+    }
+    const x =
+      (navigation.x + navigation.width / 2 + toolbar.x + toolbar.width / 2) / 2;
+    const upper = Math.max(navigation.y * 0.3, toolbar.y + toolbar.height * 2);
+    const lower = navigation.y * 0.65;
+    if (upper >= lower) {
+      throw new Error("Workout content has no safe vertical swipe path.");
+    }
+    await screen.swipe({
+      from: { x, y: direction === "down" ? lower : upper },
+      to: { x, y: direction === "down" ? upper : lower },
+    });
+  }
+  // Retry visibility after the last gesture, and retain a normal assertion
+  // failure (with its locator and screen evidence) if the target is missing.
+  await expect(target).toBeVisible();
 }
 
 /** Starts the next workout from the home screen and checks it is active. */
@@ -55,16 +93,17 @@ export async function logAllSets(
   already = 0,
 ) {
   const counter = screen.getByText(`${totalSets} / ${totalSets} sets`);
-  await screen.scrollUntilVisible(
+  await scrollWorkoutUntilVisible(
+    screen,
     screen.getByText(`${already} / ${totalSets} sets`),
     { direction: "up" },
   );
   for (let logged = already; logged < totalSets; logged++) {
     const pending = pendingSets(screen).first();
-    await screen.scrollUntilVisible(pending);
+    await scrollWorkoutUntilVisible(screen, pending);
     await tap(screen, pending);
   }
-  await screen.scrollUntilVisible(counter, { direction: "up" });
+  await scrollWorkoutUntilVisible(screen, counter, { direction: "up" });
   await expect(counter).toBeVisible();
 }
 
@@ -80,7 +119,7 @@ export async function finishWorkout(
 /** Scrolls to the bottom of the active workout and discards it. */
 export async function discardWorkout(screen: Screen) {
   const discard = screen.getByText("Discard");
-  await screen.scrollUntilVisible(discard);
+  await scrollWorkoutUntilVisible(screen, discard);
   await tap(screen, discard);
   await tap(screen, screen.getByText("Discard workout"));
 }

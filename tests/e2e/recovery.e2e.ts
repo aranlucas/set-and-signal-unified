@@ -1,10 +1,6 @@
 import { test } from "@e2e-dev/mobile";
 import { describe, expect } from "e2e";
-import {
-  discardWorkout,
-  startWorkout,
-  tap,
-} from "./support";
+import { discardWorkout, startWorkout, tap } from "./support";
 
 // Recovery paths: abandoning a workout, resuming one after a process death,
 // saving a partial session and removing it from history.
@@ -23,10 +19,7 @@ describe("workout recovery", { serial: true }, () => {
     await expect(screen.getByText("No workouts yet")).toBeVisible();
   });
 
-  test("resumes an active workout after a restart", async ({
-    app,
-    screen,
-  }) => {
+  test("resumes an active workout after a restart", async ({ app, screen }) => {
     await tap(screen, screen.getByText("Train"));
     await startWorkout(screen, "A", 15);
     await tap(screen, screen.getByLabel(/^Squat, set 1 of 5, not logged/));
@@ -76,7 +69,9 @@ describe("workout recovery", { serial: true }, () => {
     await expect(
       screen.getByLabel(/^Squat, set 2 of 5, skipped/),
     ).toBeVisible();
-    await expect(screen.getByText(/– means skipped/)).toBeVisible();
+    const skippedHint = screen.getByText(/– means skipped/);
+    await screen.scrollUntilVisible(skippedHint);
+    await expect(skippedHint).toBeVisible();
   });
 
   test("deletes the workout from history", async ({ screen }) => {

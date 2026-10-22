@@ -53,7 +53,7 @@ pnpm exec e2e run tests/e2e/settings.e2e.ts
 
 `e2e.config.ts` drives whatever build is installed under the package id, so
 Metro does not have to be running. With several devices booted it drives one
-of them; set `E2E_DEVICE=emulator-5556` to pin the target for this repository. The config also supports a literal device identifier:
+of them; set `E2E_DEVICE=emulator-5556` to pin the target for this repository. Each pinned device gets its own driver session so separate runs do not compete for the same session. The config also supports a literal device identifier:
 
 ```ts
 engine: mobile({ platform: "android", device: "emulator-5556" }),
@@ -74,13 +74,14 @@ failure land in `.e2e/` (git-ignored). A failing step prints a link to
 ```ts
 const freellm = createOpenAICompatible({
   name: "freellm",
-  baseURL: process.env.FREELLM_BASE_URL ??
+  baseURL:
+    process.env.FREELLM_BASE_URL ??
     "https://freellmapi-production-1175.up.railway.app/v1",
   apiKey: process.env.FREELLM_API_KEY,
 });
 
 // `auto` lets the endpoint route to the best model in the active chain.
-model: freellm.chatModel("auto")
+model: freellm.chatModel("auto");
 ```
 
 Set the key in the shell that runs e2e when adding a test that uses
@@ -95,7 +96,7 @@ deterministic suites never acquire a model, so they pass without the key.
 
 ## What it covers
 
-Five serial groups and a smoke test, 33 tests total:
+Five serial groups, a navigation regression, and a smoke test, 35 tests total:
 
 - `tests/e2e/workout.e2e.ts` (8): clean install starts A; logging a set runs
   the rest timer, `+30s` and `Skip`; `Undo` restores a set; a logged set
@@ -103,7 +104,7 @@ Five serial groups and a smoke test, 33 tests total:
   a note, logging all 15 sets and saving; History detail with the note and
   volume; Progress records and the weight chart; the next workout and its
   progressed weights.
-- `tests/e2e/workout-b.e2e.ts` (4): a complete A → B cycle with the deadlift
+- `tests/e2e/workout-b.e2e.ts` (5): a complete A → B cycle split at the saved-A boundary so each workout retains the default 120-second test budget, with the deadlift
   1×5; B history with its volume; saving an unfinished workout as skipped; a
   partly skipped lift keeping its planned weight.
 - `tests/e2e/settings.e2e.ts` (8): group values; converting kg ↔ lb; editing a
@@ -114,6 +115,7 @@ Five serial groups and a smoke test, 33 tests total:
   after a restart; switching the next workout A ↔ B; saving a partial workout;
   keeping it in history across a restart; deleting it again.
 - `tests/e2e/insights.e2e.ts` (6): All/A/B history filtering and empty states; successful and skipped-lift progression explanations; four weekly counts; existing records and weight history; partial B loads; persistence after restart.
+- `tests/e2e/navigation.e2e.ts` (1): system Back from History, Progress, and Settings returns to Train instead of the Android launcher. The insights and workout suites also check Back from saved workout details.
 - `tests/example.e2e.ts` (1): the installed app launches and exposes Train,
   History, Progress and Settings.
 
@@ -137,8 +139,9 @@ that is still sliding up reports a box below its final position, and an early
 tap can land on the sheet's backing scrim instead of the control. Assertions
 do not need this: labels and text are read straight from the tree.
 
-Three more device-only details show up in selectors:
+These device-only details show up in selectors:
 
+- On compact screens, the default viewport swipe can begin inside the fixed rest dock. `scrollWorkoutUntilVisible` derives a bounded swipe path from the toolbar and navigation positions so gestures start inside workout content.
 - The workout header (`0 / 15 sets`) is inside the lazy list. Once the list is
   scrolled to the sets, the header is virtualized out of the tree, so
   `logAllSets` checks the counter once at the end, after scrolling back up.
