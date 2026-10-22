@@ -22,7 +22,9 @@ describe("workout B", { serial: true }, () => {
     await expect(screen.getByText("Start workout B")).toBeVisible();
   });
 
-  test("completes workout B and advances the full cycle", async ({ screen }) => {
+  test("completes workout B and advances the full cycle", async ({
+    screen,
+  }) => {
     await startWorkout(screen, "B", 11);
     await expect(screen.getByText("Workout B")).toBeVisible();
     await expect(screen.getByText("1 × 5 reps")).toBeVisible();
