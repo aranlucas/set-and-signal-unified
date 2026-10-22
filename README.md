@@ -67,7 +67,7 @@ No workout uploads, activity editing, course publishing, or arbitrary HTTP proxy
 
 ## Develop and deploy
 
-Requires Node 24+ and npm. No Garmin secret belongs in `.env`, source, Wrangler variables, MCP config, or this chat. Enter it through the consent page.
+Requires Node 24.22+ (pinned in `.node-version`) and npm. Deployment uses Cloudflare’s [`cf` CLI](https://developers.cloudflare.com/cf/) with `cloudflare.config.ts`. No Garmin secret belongs in `.env`, source, config variables, MCP config, or this chat. Enter it through the consent page.
 
 ```sh
 npm ci
@@ -78,11 +78,13 @@ npm run deploy
 npm run smoke
 ```
 
-`npm run check` type-checks and runs tests inside the Cloudflare Workers runtime with **local isolated KV** and mocked outbound Garmin calls. `npm run build` runs Wrangler’s packaging dry run. `npm run smoke` checks the live deployment: health, protected MCP access, OAuth discovery, client registration, browser-bound consent, and deny. It creates an expiring smoke-test OAuth client, never a Garmin grant; set `SMOKE_URL` to check another deployment.
+`npm run check` type-checks and runs tests inside the Cloudflare Workers runtime with **local isolated KV** and mocked outbound Garmin calls. `npm run typecheck` regenerates `.cloudflare/types` from `cloudflare.config.ts` before `tsc`. `npm run build` runs `cf build`; use `npx cf deploy --dry-run` to check the upload and bindings without deploying. `npm run smoke` checks the live deployment: health, protected MCP access, OAuth discovery, client registration, browser-bound consent, and deny. It creates an expiring smoke-test OAuth client, never a Garmin grant; set `SMOKE_URL` to check another deployment.
 
-For another Cloudflare account, change `account_id` and `PUBLIC_URL` in `wrangler.jsonc`, create your own KV namespace with `npx wrangler kv namespace create garmin-mcp-oauth`, replace the binding ID, and regenerate types. `PUBLIC_URL` must exactly match the Worker’s canonical origin; tokens are bound to `${PUBLIC_URL}/mcp`.
+Pushes deploy through Cloudflare Workers Builds: every build runs `npm run check`, then `main` runs `npx cf deploy` and other branches run `npx cf previews deploy`. Previews use the separate `garmin-mcp-preview-oauth` KV namespace (`isPreview` in `cloudflare.config.ts`) and keep the production `PUBLIC_URL`, so they validate the upload but are not a working OAuth origin.
 
-For local interactive development, run `npm run dev -- --var PUBLIC_URL:http://localhost:8787`. The OAuth library uses `Secure`, `__Host-` consent cookies, so use a localhost-capable browser or an HTTPS development origin for browser testing. The automated tests exercise the complete authorization flow without relying on a browser’s localhost cookie policy.
+For another Cloudflare account, change `accountId` and `PUBLIC_URL` in `cloudflare.config.ts`, create your own KV namespace with `npx cf kv namespaces create`, replace the `OAUTH_KV` ID, and regenerate types. `PUBLIC_URL` must exactly match the Worker’s canonical origin; tokens are bound to `${PUBLIC_URL}/mcp`.
+
+For local interactive development, run `npm run dev -- --mode development`, which sets `PUBLIC_URL` to `http://localhost:8787`. The OAuth library uses `Secure`, `__Host-` consent cookies, so use a localhost-capable browser or an HTTPS development origin for browser testing. The automated tests exercise the complete authorization flow without relying on a browser’s localhost cookie policy.
 
 ## Verification and research
 
