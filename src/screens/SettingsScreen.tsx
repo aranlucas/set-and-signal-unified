@@ -147,7 +147,7 @@ export function SettingsScreen({
         {!state.onboarded ? (
           <Action onPress={onDone}>Save setup & start lifting</Action>
         ) : null}
-        <Caption>Fivefold 1.1.0 · Independent 5×5 training log</Caption>
+        <Caption>Fivefold {version} · Independent 5×5 training log</Caption>
         <Caption>
           Workouts stay on this device. Export a backup before switching phones
           or uninstalling.
@@ -377,3 +377,4 @@ function SettingSwitch({
 }
 const time = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+import { version } from "../../package.json";

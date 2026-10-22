@@ -1,7 +1,7 @@
 {
-  "builtAt": "2026-10-22T07:52:45.949Z",
-  "apk": "/Users/lucas/.t3/projects/stronglifts/artifacts/Fivefold-1.1.0.apk",
-  "sha256": "dcb9d9909dd88fb727b14f44c81abf944764cc8724cde12fcf9968c96939a7c9",
+  "builtAt": "2026-10-22T17:28:11.603Z",
+  "apk": "/Users/lucas/.t3/worktrees/stronglifts/t3-3e4418a6/artifacts/Fivefold-1.2.0.apk",
+  "sha256": "5c882e991ad8cf987a3485d43ee4a258d37bf62d3272d84abcafe0a4f372eb40",
   "expo": "~58.0.17",
   "reactNative": "0.88.0",
   "expoUI": "~58.0.22",

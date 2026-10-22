@@ -237,7 +237,11 @@ export function nextPlan(
 }
 export function finishSession(state: AppState, now = Date.now()): AppState {
   if (!state.active || loggedSets(state.active) === 0) return state;
-  const session: Session = { ...state.active, finishedAt: now };
+  // Clock changes must not produce a timestamp that makes saved data unreadable.
+  const finishedAt = Number.isFinite(now)
+    ? Math.min(8.64e15, Math.max(state.active.startedAt, now))
+    : state.active.startedAt;
+  const session: Session = { ...state.active, finishedAt };
   const plans = { ...state.plans };
   for (const e of session.exercises)
     plans[e.lift] = nextPlan(plans[e.lift], e, state.settings);

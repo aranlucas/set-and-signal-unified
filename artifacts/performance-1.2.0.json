@@ -1,0 +1,11 @@
+{
+  "fixtureSessions": 10000,
+  "environment": "darwin/arm64, Node 24.22.1",
+  "coldSummaryCpuP95Ms": 2.611,
+  "coldSummaryWallP95Ms": 4.322,
+  "cached1000CallsCpuMs": 0.175,
+  "budgets": {
+    "coldSummaryCpuP95Ms": 16,
+    "cached1000CallsCpuMs": 8
+  }
+}

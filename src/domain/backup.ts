@@ -10,6 +10,8 @@ import {
 const finite = (x: unknown, min: number, max: number): x is number =>
   typeof x === "number" && Number.isFinite(x) && x >= min && x <= max;
 const bool = (x: unknown) => typeof x === "boolean";
+const unsupportedState =
+  "This is not a supported Fivefold backup. Your current data has not been changed.";
 function validSession(s: any, finished: boolean): s is Session {
   return (
     s &&
@@ -39,15 +41,9 @@ function validSession(s: any, finished: boolean): s is Session {
     )
   );
 }
-export function parseBackup(text: string): AppState {
-  if (text.length > 20_000_000)
-    throw new Error("This backup is too large (maximum 20 MB).");
-  let s: any;
-  try {
-    s = JSON.parse(text);
-  } catch {
-    throw new Error("This file is not valid JSON. Choose a Fivefold backup.");
-  }
+// Local storage shares the schema checks, but not external-import resource limits.
+export function validateState(value: unknown): AppState {
+  const s = value as AppState | null | undefined;
   const settings = s?.settings;
   if (
     !s ||
@@ -60,9 +56,9 @@ export function parseBackup(text: string): AppState {
     !finite(settings.restSeconds, 15, 600) ||
     !finite(settings.failedRestSeconds, 15, 600) ||
     !["system", "light", "dark"].includes(settings.theme) ||
-    !["autoProgress", "autoDeload", "haptics", "keepAwake", "restAlerts"].every(
-      (k) => bool(settings[k]),
-    ) ||
+    !(
+      ["autoProgress", "autoDeload", "haptics", "keepAwake", "restAlerts"] as const
+    ).every((k) => bool(settings[k])) ||
     !LIFTS.every(
       (l) =>
         s.plans?.[l] &&
@@ -76,24 +72,34 @@ export function parseBackup(text: string): AppState {
       (validSession(s.active, false) && s.active.unit === settings.unit)
     ) ||
     !Array.isArray(s.history) ||
-    s.history.length > 20000 ||
     !s.history.every((h: unknown) => validSession(h, true)) ||
     new Set(s.history.map((h: Session) => h.id)).size !== s.history.length ||
-    (s.active && s.history.some((h: Session) => h.id === s.active.id)) ||
+    (s.active && s.history.some((h: Session) => h.id === s.active?.id)) ||
     !(
       s.rest === null ||
       (s.rest &&
         s.active &&
-        s.active.exercises.some((e: any) => e.lift === s.rest.lift) &&
+        s.active.exercises.some((e) => e.lift === s.rest?.lift) &&
         Number.isInteger(s.rest.setIndex) &&
         finite(s.rest.setIndex, 0, s.rest.lift === "deadlift" ? 0 : 4) &&
         finite(s.rest.endsAt, 1, 8.64e15) &&
         finite(s.rest.duration, 15, 3600))
     )
   ) {
-    throw new Error(
-      "This is not a supported Fivefold backup. Your current data has not been changed.",
-    );
+    throw new Error(unsupportedState);
   }
-  return s as AppState;
+  return s;
+}
+export function parseBackup(text: string): AppState {
+  if (text.length > 20_000_000)
+    throw new Error("This backup is too large (maximum 20 MB).");
+  let s: any;
+  try {
+    s = JSON.parse(text);
+  } catch {
+    throw new Error("This file is not valid JSON. Choose a Fivefold backup.");
+  }
+  if (Array.isArray(s?.history) && s.history.length > 20000)
+    throw new Error(unsupportedState);
+  return validateState(s);
 }

@@ -1,13 +1,13 @@
 import * as SQLite from "expo-sqlite";
 import { initialState, type AppState } from "../domain/workout";
-import { parseBackup } from "../domain/backup";
+import { validateState } from "../domain/backup";
 
 let database: SQLite.SQLiteDatabase | undefined;
 let persistedHistory: AppState["history"] = [];
 export function loadState(): AppState {
   database = SQLite.openDatabaseSync("fivefold.db");
   database.execSync(
-    "PRAGMA journal_mode = WAL; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS workouts (id TEXT PRIMARY KEY, finished_at REAL NOT NULL, json TEXT NOT NULL); PRAGMA user_version = 1;",
+    "PRAGMA journal_mode = WAL; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS workouts (id TEXT PRIMARY KEY, finished_at REAL NOT NULL, json TEXT NOT NULL); CREATE INDEX IF NOT EXISTS workouts_finished_at ON workouts (finished_at DESC); PRAGMA user_version = 1;",
   );
   const row = database.getFirstSync<{ json: string }>(
     "SELECT json FROM app_state WHERE id = 1",
@@ -24,7 +24,7 @@ export function loadState(): AppState {
   const history = rows.length
     ? rows.map((r) => JSON.parse(r.json))
     : saved.history;
-  const state = parseBackup(JSON.stringify({ ...saved, history }));
+  const state = validateState({ ...saved, history });
   persistedHistory = rows.length ? state.history : [];
   return state;
 }

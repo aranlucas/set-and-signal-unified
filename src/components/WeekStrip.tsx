@@ -8,34 +8,48 @@ import {
   weight,
 } from "@expo/ui/jetpack-compose/modifiers";
 import { Caption } from "./ui";
-import { weeklyCount, type Session } from "../domain/workout";
+import { type Session } from "../domain/workout";
+import { useToday } from "../data/useToday";
 
 export function WeekStrip({ history }: { history: Session[] }) {
   const c = useMaterialColors();
-  const today = new Date();
-  const monday = new Date(today);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const today = useToday(history);
+  const days = useMemo(() => {
+    const monday = new Date(today);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const result = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(monday);
+      date.setDate(date.getDate() + i);
+      const end = new Date(date);
+      end.setDate(end.getDate() + 1);
+      return { date, end, count: 0 };
+    });
+    for (const session of history) {
+      if (
+        session.finishedAt === null ||
+        session.finishedAt > +today ||
+        session.finishedAt < +monday ||
+        session.finishedAt >= +result[6].end
+      )
+        continue;
+      const day = (new Date(session.finishedAt).getDay() + 6) % 7;
+      result[day].count++;
+    }
+    return result;
+  }, [history, today]);
   return (
     <Column verticalArrangement={{ spacedBy: 12 }}>
       <Row modifiers={[fillMaxWidth()]} horizontalArrangement="spaceBetween">
         <Text style={{ typography: "titleMedium", fontWeight: "600" }}>
           This week
         </Text>
-        <Caption>{weeklyCount(history)} / 3 workouts</Caption>
+        <Caption>
+          {days.reduce((sum, day) => sum + day.count, 0)} / 3 workouts
+        </Caption>
       </Row>
       <Row modifiers={[fillMaxWidth()]} horizontalArrangement={{ spacedBy: 6 }}>
-        {Array.from({ length: 7 }, (_, i) => {
-          const date = new Date(monday);
-          date.setDate(date.getDate() + i);
-          const end = new Date(date);
-          end.setDate(end.getDate() + 1);
-          const count = history.filter(
-            (s) =>
-              s.finishedAt !== null &&
-              s.finishedAt >= +date &&
-              s.finishedAt < +end,
-          ).length;
+        {days.map(({ date, count }, i) => {
           const isToday = date.toDateString() === today.toDateString();
           return (
             <Column
@@ -80,3 +94,4 @@ export function WeekStrip({ history }: { history: Session[] }) {
     </Column>
   );
 }
+import { useMemo } from "react";

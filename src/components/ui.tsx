@@ -114,10 +114,12 @@ export function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <Row
       modifiers={[fillMaxWidth()]}
-      horizontalArrangement="spaceBetween"
+      horizontalArrangement={{ spacedBy: 12 }}
       verticalAlignment="center"
     >
-      <Caption>{label}</Caption>
+      <Column modifiers={[weight(1)]}>
+        <Caption>{label}</Caption>
+      </Column>
       <Text style={{ typography: "titleSmall" }}>{value}</Text>
     </Row>
   );

@@ -24,6 +24,12 @@ Native bottom navigation and dialogs, a green seeded Material 3 palette, system/
 
 The plate calculator assumes standard denominations and enough plate pairs; it does not track gym inventory. Warmups are suggestions, not logged work sets. Rest notifications are scheduled as Android alarm clocks (`USE_EXACT_ALARM`), so battery optimization does not delay them; Android shows an alarm icon while a rest alert is pending, and the in-app deadline remains authoritative. Unit changes round future plans to standard increments and leave original history units intact. The app is independent of StrongLifts.
 
+## Roadmap and quality gates
+
+[The roadmap](docs/roadmap.md) tracks this release and the next improvements. Version 1.2 adds All/A/B history filters, four-week training consistency, explicit latest-lift results, and reasons for next-load changes in the finish preview. Progress uses one cached summary with bounded recent entries. Local storage no longer applies backup-import size limits when reopening a training log, and saving remains readable after the device clock moves backward.
+
+`pnpm run check` includes structural performance regressions and `pnpm run perf`: a 10,000-session CPU benchmark with a 16 ms p95 main-thread CPU budget for a fresh summary and an 8 ms CPU budget for 1,000 cached reads. These are development-machine gates; release-device startup and frame profiling are tracked separately. Native controls and persistence continue to use Expo libraries, with no new runtime dependencies.
+
 ## Development
 
 Use Node 24+, JDK 17, and an installed Android SDK. The tested local SDK has build-tools 37, compile SDK 37, target SDK 36, and NDK 27.1.12297006.
@@ -35,7 +41,7 @@ pnpm dlx expo-doctor
 pnpm android
 ```
 
-`pnpm run check` runs ESLint 10 with TypeScript and React Hooks rules, strict TypeScript, and Vitest. React Compiler and React Native's New Architecture/Hermes are enabled. All app controls/layouts use Expo UI; React Native is used for app lifecycle and system APIs.
+`pnpm run check` runs ESLint 10 with TypeScript and React Hooks rules, strict TypeScript, Vitest, and the performance gate. React Compiler and React Native's New Architecture/Hermes are enabled. All app controls/layouts use Expo UI; React Native is used for app lifecycle and system APIs.
 
 `pnpm android` runs Expo's `run:android` command, which generates the native Android project when needed, compiles it, installs it on your device/emulator, and starts Metro. For later JavaScript/TypeScript changes, use `pnpm start`.
 

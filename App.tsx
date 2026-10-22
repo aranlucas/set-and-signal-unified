@@ -28,6 +28,7 @@ import {
   background,
   fillMaxSize,
   fillMaxWidth,
+  verticalScroll,
 } from "@expo/ui/jetpack-compose/modifiers";
 import { Action, Caption, Heading, Page, Panel } from "./src/components/ui";
 import { RestTimer } from "./src/components/RestTimer";
@@ -37,6 +38,7 @@ import { enableRestAlerts, syncRestAlert } from "./src/data/notifications";
 import { exportData, importData } from "./src/data/exports";
 import { syncWidget, syncWorkoutNotification } from "./src/data/surfaces";
 import { nextSetLabel } from "./src/domain/surfaces";
+import { planPreview } from "./src/domain/planPreview";
 import { WorkoutScreen } from "./src/screens/WorkoutScreen";
 import { HistoryScreen, SessionDetail } from "./src/screens/HistoryScreen";
 import { ProgressScreen } from "./src/screens/ProgressScreen";
@@ -48,12 +50,12 @@ import {
   formatWeight,
   logSet,
   loggedSets,
-  nextPlan,
   startSession,
   totalSets,
   type Lift,
   type Rest,
   type Session,
+  type WorkoutKind,
 } from "./src/domain/workout";
 
 type Tab = "Train" | "History" | "Progress" | "Settings";
@@ -108,6 +110,7 @@ function Application({
   const [weightLift, setWeightLift] = useState<Lift | "bar" | null>(null);
   const [toolsLift, setToolsLift] = useState<Lift | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [historyKind, setHistoryKind] = useState<"All" | WorkoutKind>("All");
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [notice, setNotice] = useState("");
   const [undo, setUndo] = useState<{
@@ -130,7 +133,10 @@ function Application({
   }, [notice]);
   const c = useMaterialColors();
   const hasActiveWorkout = state.active !== null;
-  const selected = state.history.find((s) => s.id === selectedId);
+  const selected =
+    selectedId === null
+      ? undefined
+      : state.history.find((s) => s.id === selectedId);
   const openSession = useCallback((s: Session) => setSelectedId(s.id), []);
   useEffect(() => {
     syncRestAlert(state.rest, state.settings.restAlerts, () =>
@@ -173,11 +179,11 @@ function Application({
     const active = state.active;
     if (!active || !loggedSets(active)) return;
     const summary = active.exercises
-      .map(
-        (e) =>
-          `${NAMES[e.lift]} → ${formatWeight(nextPlan(state.plans[e.lift], e, state.settings).weight)} ${active.unit}`,
-      )
-      .join("\n");
+      .map((e) => {
+        const preview = planPreview(state.plans[e.lift], e, state.settings);
+        return `${NAMES[e.lift]} → ${formatWeight(preview.plan.weight)} ${active.unit}\n${preview.reason}`;
+      })
+      .join("\n\n");
     setDialog({
       title:
         loggedSets(active) === totalSets(active)
@@ -278,10 +284,7 @@ function Application({
         {selected ? (
           <TopAppBar.NavigationIcon>
             <IconButton onClick={() => setSelectedId(null)}>
-              <Icon
-                source={BackIcon}
-                contentDescription="Back to history"
-              />
+              <Icon source={BackIcon} contentDescription="Back to history" />
             </IconButton>
           </TopAppBar.NavigationIcon>
         ) : null}
@@ -404,7 +407,12 @@ function Application({
             }
           />
         ) : (
-          <HistoryScreen state={state} onOpen={openSession} />
+          <HistoryScreen
+            state={state}
+            onOpen={openSession}
+            kind={historyKind}
+            onKind={setHistoryKind}
+          />
         )
       ) : null}
       {tab === "Progress" ? <ProgressScreen state={state} /> : null}
@@ -546,7 +554,9 @@ function Application({
             <Text>{dialog.title}</Text>
           </AlertDialog.Title>
           <AlertDialog.Text>
-            <Text>{dialog.text}</Text>
+            <Column modifiers={[verticalScroll()]}>
+              <Text>{dialog.text}</Text>
+            </Column>
           </AlertDialog.Text>
           <AlertDialog.ConfirmButton>
             <TextButton

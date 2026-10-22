@@ -1,7 +1,7 @@
 {
   "name": "fivefold",
   "license": "0BSD",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "index.ts",
   "dependencies": {
     "@expo/material-symbols": "^0.1.1",
@@ -44,10 +44,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "E2E_TELEMETRY_DISABLED=1 e2e run --target android",
-    "check": "pnpm run lint && pnpm run typecheck && pnpm test",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm test && pnpm run perf",
     "build:apk": "pnpm eas build --platform android --profile preview --local --output ./artifacts/Fivefold.apk",
     "lint": "eslint . --max-warnings=0",
-    "eas": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@25.3.0"
+    "eas": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@25.3.0",
+    "perf": "tsx check-performance.ts"
   },
   "private": true,
   "packageManager": "pnpm@12.15.0",
