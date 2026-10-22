@@ -1,42 +1,56 @@
 import { test } from "@e2e-dev/mobile";
-import { describe, expect, type Locator, type Screen } from "e2e";
+import { describe, expect } from "e2e";
+import {
+  finishWorkout,
+  logAllSets,
+  startWorkout,
+  tap,
+} from "./support";
 
-// One installed-app run of the core training loop. The suite drives whatever
-// release APK is installed under app.fivefold.lifts, so it covers the Compose
-// controls that Vitest cannot reach. It starts from a clean install and owns
-// the data it creates.
-//
-// Expo UI renders each control's label and its clickable region as two nodes,
-// and a tap on the label is refused because the touch point belongs to the
-// sibling button. Tapping the centre of the label reaches the control, so
-// `tap` goes through the viewport instead of the node.
-async function tap(screen: Screen, target: Locator) {
-  const box = await target.boundingBox();
-  if (!box) throw new Error("Target has no visible box.");
-  await screen.tapAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
-}
-
-const pendingSet = (screen: Screen) =>
-  screen.getByLabel(/not logged\. Tap to log 5 reps/).first();
-
+// One installed-app run of workout A. The suite drives whatever release APK
+// is installed under app.fivefold.lifts, so it covers the Compose controls
+// that Vitest cannot reach. It starts from a clean install and owns the data
+// it creates.
 describe("workout A", { serial: true }, () => {
-  test("starts from the next workout", async ({ app, screen }) => {
+  test("starts from a clean install", async ({ app, screen }) => {
     await app.clearState();
     await app.open();
 
+    await expect(screen.getByText("Fivefold")).toBeVisible();
+    await expect(screen.getByText("Start workout A")).toBeVisible();
+    await startWorkout(screen, "A", 15);
     await expect(screen.getByText("Workout A")).toBeVisible();
-    await tap(screen, screen.getByText("Start workout A"));
-    await expect(screen.getByText("0 / 15 sets")).toBeVisible();
   });
 
-  test("logs a set and keeps it across a restart", async ({ app, screen }) => {
+  test("runs the rest timer and undoes a set", async ({ screen }) => {
     await tap(screen, screen.getByLabel(/^Squat, set 1 of 5, not logged/));
     await expect(screen.getByText("1 / 15 sets")).toBeVisible();
     await expect(
       screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/),
     ).toBeVisible();
 
+    await expect(screen.getByText("Squat · Set 2/5")).toBeVisible();
+    await expect(screen.getByText(/^Rest 1:(2\d|30)$/)).toBeVisible();
+
+    await tap(screen, screen.getByText("+30s"));
+    await expect(screen.getByText(/^Rest (1:5\d|2:0\d)$/)).toBeVisible();
+
+    await tap(screen, screen.getByText("Skip"));
+    await expect(screen.getByText(/^Rest /)).not.toBeVisible();
+
+    await tap(screen, screen.getByText("Undo"));
+    await expect(screen.getByText("0 / 15 sets")).toBeVisible();
+    await expect(
+      screen.getByLabel(/^Squat, set 1 of 5, not logged/),
+    ).toBeVisible();
+  });
+
+  test("keeps a logged set across a restart", async ({ app, screen }) => {
+    await tap(screen, screen.getByLabel(/^Squat, set 1 of 5, not logged/));
+    await expect(screen.getByText("1 / 15 sets")).toBeVisible();
+
     await app.restart();
+    await expect(screen.getByText("Workout A")).toBeVisible();
     await expect(screen.getByText("1 / 15 sets")).toBeVisible();
     await expect(
       screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/),
@@ -69,23 +83,70 @@ describe("workout A", { serial: true }, () => {
     await expect(screen.getByText("0 / 15 sets")).toBeVisible();
   });
 
-  test("logs every set and advances to workout B", async ({ screen }) => {
-    for (let logged = 0; logged < 15; logged++) {
-      await screen.scrollUntilVisible(pendingSet(screen));
-      await tap(screen, pendingSet(screen));
-      await expect(screen.getByText(`${logged + 1} / 15 sets`)).toBeVisible();
-    }
+  test("records a note, logs every set and saves", async ({ device, screen }) => {
+    const addNote = screen.getByText("Add note");
+    await screen.scrollUntilVisible(addNote);
+    await tap(screen, addNote);
+    await screen.getByRole("textbox").fill(
+      "Felt strong. Belt on from set 3.",
+    );
+    await device.dismissKeyboard();
+    await tap(screen, screen.getByText("Hide note"));
 
-    await tap(screen, screen.getByText("Finish"));
-    await tap(screen, screen.getByText("Save workout"));
+    await logAllSets(screen, 15);
+    await finishWorkout(screen);
+
     await expect(screen.getByText("Start workout B")).toBeVisible();
+    await expect(screen.getByText("Workout B")).toBeVisible();
   });
 
-  test("shows the finished workout in history", async ({ screen }) => {
+  test("shows the workout and its note in history", async ({ app, screen }) => {
     await tap(screen, screen.getByText("History"));
-    await expect(screen.getByText("Workout A").first()).toBeVisible();
+    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("Workout A")).toBeVisible();
 
-    await tap(screen, screen.getByText("Workout A").first());
+    await tap(screen, screen.getByText("Workout A"));
+    await expect(screen.getByText("Details")).toBeVisible();
+    await expect(screen.getByText("Workout A")).toBeVisible();
     await expect(screen.getByText("Squat")).toBeVisible();
+    await expect(screen.getByText(/1,750 kg volume/)).toBeVisible();
+    await expect(
+      screen.getByText("Felt strong. Belt on from set 3."),
+    ).toBeVisible();
+
+    await app.back();
+    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+  });
+
+  test("shows the completed lift on progress", async ({ screen }) => {
+    await tap(screen, screen.getByText("Progress"));
+    await expect(screen.getByText("1 / 3 workouts this week")).toBeVisible();
+    await expect(screen.getByText("1 total")).toBeVisible();
+    await expect(screen.getByText("Lift records")).toBeVisible();
+
+    await tap(screen, screen.getByText("Deadlift").last());
+    const prescription = screen.getByText("Best completed prescription");
+    await screen.scrollUntilVisible(prescription);
+    await expect(prescription).toBeVisible();
+    await expect(screen.getByText("No record yet")).toBeVisible();
+
+    const squatRecord = screen.getByLabel("View Squat progress");
+    await screen.scrollUntilVisible(squatRecord, { direction: "up" });
+    await tap(screen, squatRecord);
+
+    const chartBar = screen.getByLabel(/20 kg, all reps completed$/);
+    await screen.scrollUntilVisible(chartBar);
+    await expect(chartBar).toBeVisible();
+    await expect(screen.getByText("5 / 5 / 5 / 5 / 5 reps")).toBeVisible();
+  });
+
+  test("advances to workout B with the next weights", async ({ screen }) => {
+    await tap(screen, screen.getByText("Train"));
+    await expect(screen.getByText("Workout B")).toBeVisible();
+    await expect(screen.getByText("Start workout B")).toBeVisible();
+    await expect(screen.getByText("22.5 kg")).toBeVisible();
+    await expect(screen.getByText("40 kg")).toBeVisible();
+    await expect(screen.getByText("Workout A")).toBeVisible();
+    await expect(screen.getByText(/· 15 sets$/)).toBeVisible();
   });
 });
