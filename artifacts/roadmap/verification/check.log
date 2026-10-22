@@ -1,0 +1,25 @@
+$ pnpm run lint && pnpm run typecheck && pnpm test && pnpm run perf
+$ eslint . --max-warnings=0
+$ tsc --noEmit
+$ vitest run
+
+ RUN  v5.0.5 /Users/lucas/.t3/worktrees/stronglifts/t3-3e4418a6
+
+
+ Test Files  8 passed (8)
+      Tests  130 passed (130)
+   Start at  11:53:52
+   Duration  752ms (tests 69%, transform 18%, import 10%, worker 3%)
+
+$ tsx check-performance.ts
+{
+  "fixtureSessions": 10000,
+  "environment": "darwin/arm64, Node 24.22.1",
+  "coldSummaryCpuP95Ms": 2.135,
+  "coldSummaryWallP95Ms": 2.213,
+  "cached1000CallsCpuMs": 0.101,
+  "budgets": {
+    "coldSummaryCpuP95Ms": 16,
+    "cached1000CallsCpuMs": 8
+  }
+}

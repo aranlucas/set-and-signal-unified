@@ -1,0 +1,15 @@
+
+ RUN  e2e v0.21.2 /private/tmp/fivefold-back-check.ctavfQ
+      run 01a164ee-1502-71bb-8d40-1f0d03ac67cc · targets: android
+      model freellm.chat/auto
+
+ℹ skipped tests/e2e/settings.e2e.ts, which no positional selected and which failed to collect: The requested module '../../package.json' does not provide an export named 'version' (/private/tmp/fivefold-back-check.ctavfQ/tests/e2e/settings.e2e.ts:2)
+ℹ booting emulator-5556 (1 of 1)
+ ✓ mobile engine for target "android" prepared 2.24s
+ ✓ |android| tests/e2e/navigation.e2e.ts (1 test) 16.81s
+   ✓ system Back returns secondary tabs to Train 16.81s
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  11:44:49
+   Duration  17.67s

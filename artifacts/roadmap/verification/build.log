@@ -1,0 +1,20 @@
+Fivefold 1.2.1 Android release build verification
+Verified at: 2026-10-22T18:30:42.108237+00:00
+Build source: existing EAS local build; no new build started by verification agent.
+Source base: 60c7013fce8ce6eaccee87743ea7bd136a6a22c7 (working-tree changes present)
+Gradle: BUILD SUCCESSFUL in 8m 5s
+APK: artifacts/Fivefold-1.2.1.apk
+SHA-256: 37aa23f48f3bd94de38314d30d72b78f9fdc7237624608f49ebb5e7f2ef43571
+Package: app.fivefold.lifts
+Version: 1.2.1 (code 4)
+SDK build-tools: 37.0.0
+Min / target / compile SDK: 24 / 36 / 37
+APK signature: v2 verified, matches previous 1.2.0 APK
+Signing certificate SHA-256: aa7ad6eee903940e6867adaf2a0b0f2be466042ac00ecde27343f466e2cf321f
+zipalign -c -P 16 4: passed
+Debuggable: false (no application-debuggable flag; no enabled debuggable manifest attribute)
+Predictive Back callback: disabled in final AndroidManifest.xml
+ABIs: arm64-v8a, armeabi-v7a, x86, x86_64
+Raw build log inspected locally. Credential values were not found in it.
+Only this allowlisted summary is retained; raw build log was not copied.
+Temporary ignored credentials.json removed after successful artifact verification.

@@ -1,0 +1,37 @@
+Fivefold Android 15 release verification — final result
+APK: artifacts/Fivefold-1.2.1.apk; version 1.2.1, code 4
+SHA-256: 37aa23f48f3bd94de38314d30d72b78f9fdc7237624608f49ebb5e7f2ef43571
+Device: emulator-5556 / Pixel_API_35 / Android 15
+FINAL: 35 passed, 0 failed, 0 skipped, 0 flaky, 0 interrupted; all 7 files passed; exit 0
+Run id: 01a164fd-27a4-717f-8569-53446bb78505
+Start: 2026-10-22T19:01:18.121Z
+Finish: 2026-10-22T19:06:48.510Z
+CLI duration: 330.40s (5m 30s)
+Command: E2E_DEVICE=emulator-5556 E2E_TELEMETRY_DISABLED=1 pnpm exec e2e run --target android --output .e2e/restart-android15-final-2
+Final stdout: artifacts/roadmap/verification/e2e-android15-final-2.log
+Final report: .e2e/restart-android15-final-2/report.json
+Test-source VCS snapshot: 9be8554bf86b5aae1479a223f85413afc685a38d, t3/compact-phone-e2e, working-tree changes present
+APK provenance remains source base 60c7013 with original working-tree changes; no rebuild.
+
+Separate retained runs:
+1. Initial 34 tests: 28 passed, 2 failed, 4 skipped; 618.41s; 18:31:32.902–18:41:51.277 UTC.
+   Run 01a164e1-e5b4-71a3-a672-9f8d488c9cbb
+   Log e2e-android15-initial.log; report .e2e/restart-android15/report.json
+   Combined A/B test hit 120s budget; Progress text locator tapped static heading.
+2. First 35 tests: 34 passed, 1 failed, 0 skipped; 392.58s; 18:52:55.415–18:59:27.937 UTC.
+   Run 01a164f5-7f1f-73f5-9385-8546394a22f7
+   Log e2e-android15-final.log; report .e2e/restart-android15-final/report.json
+   Recent-workout caption was below viewport. Exact regex assertion retained with scroll.
+3. Final 35 tests: all passed as above.
+   Split A and B tests passed in 34.027s and 24.466s, within unchanged 120s defaults.
+
+Diagnostics: artifacts/roadmap/verification/e2e-android15-diagnostics.log
+Failure screenshots and trees retained under artifacts/roadmap/verification/android15-failure/.
+Original app.back checks remain. No timeout increases, sleeps, automatic retries, assertion weakening, or production changes by verifier.
+Formatting/scoped ESLint/diff checks passed for the final locator fix; earlier split passed TypeScript and 35-test collection checks.
+No commits, child agents, new builds, or GitHub actions by verifier.
+
+Device released after e2e teardown and T3 panel closure, without emulator shutdown.
+After closing sessions, restored and read back: accelerometer_rotation=1, user_rotation=0, font_scale=1.0, night mode=no.
+No driver session was reopened after restoration.
+Released at: 2026-10-22T19:08:14.866407+00:00

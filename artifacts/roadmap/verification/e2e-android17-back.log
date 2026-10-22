@@ -1,0 +1,14 @@
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-3e4418a6
+      run 01a164e0-7e75-7fb8-a21a-076833efbc27 · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5554 (1 of 1)
+ ✓ mobile engine for target "android" prepared 5.74s
+ ✓ |android| tests/e2e/navigation.e2e.ts (1 test) 14.35s
+   ✓ system Back returns secondary tabs to Train 14.35s
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  11:30:02
+   Duration  15.60s
