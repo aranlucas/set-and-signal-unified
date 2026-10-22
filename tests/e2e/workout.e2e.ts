@@ -3,6 +3,7 @@ import { describe, expect } from "e2e";
 import {
   finishWorkout,
   logAllSets,
+  scrollWorkoutUntilVisible,
   startWorkout,
   tap,
 } from "./support";
@@ -17,6 +18,7 @@ describe("workout A", { serial: true }, () => {
     await app.open();
 
     await expect(screen.getByText("Fivefold")).toBeVisible();
+    await screen.scrollUntilVisible(screen.getByText("Start workout A"));
     await expect(screen.getByText("Start workout A")).toBeVisible();
     await startWorkout(screen, "A", 15);
     await expect(screen.getByText("Workout A")).toBeVisible();
@@ -83,13 +85,14 @@ describe("workout A", { serial: true }, () => {
     await expect(screen.getByText("0 / 15 sets")).toBeVisible();
   });
 
-  test("records a note, logs every set and saves", async ({ device, screen }) => {
+  test("records a note, logs every set and saves", async ({
+    device,
+    screen,
+  }) => {
     const addNote = screen.getByText("Add note");
-    await screen.scrollUntilVisible(addNote);
+    await scrollWorkoutUntilVisible(screen, addNote);
     await tap(screen, addNote);
-    await screen.getByRole("textbox").fill(
-      "Felt strong. Belt on from set 3.",
-    );
+    await screen.getByRole("textbox").fill("Felt strong. Belt on from set 3.");
     await device.dismissKeyboard();
     await tap(screen, screen.getByText("Hide note"));
 
@@ -110,9 +113,9 @@ describe("workout A", { serial: true }, () => {
     await expect(screen.getByText("Workout A")).toBeVisible();
     await expect(screen.getByText("Squat")).toBeVisible();
     await expect(screen.getByText(/1,750 kg volume/)).toBeVisible();
-    await expect(
-      screen.getByText("Felt strong. Belt on from set 3."),
-    ).toBeVisible();
+    const note = screen.getByText("Felt strong. Belt on from set 3.");
+    await screen.scrollUntilVisible(note);
+    await expect(note).toBeVisible();
 
     await app.back();
     await expect(screen.getByText("1 saved workouts")).toBeVisible();
@@ -124,7 +127,9 @@ describe("workout A", { serial: true }, () => {
     await expect(screen.getByText("1 total")).toBeVisible();
     await expect(screen.getByText("Lift records")).toBeVisible();
 
-    await tap(screen, screen.getByText("Deadlift").last());
+    const deadliftRecord = screen.getByLabel("View Deadlift progress");
+    await screen.scrollUntilVisible(deadliftRecord);
+    await tap(screen, deadliftRecord);
     const prescription = screen.getByText("Best completed prescription");
     await screen.scrollUntilVisible(prescription);
     await expect(prescription).toBeVisible();
@@ -147,6 +152,8 @@ describe("workout A", { serial: true }, () => {
     await expect(screen.getByText("22.5 kg")).toBeVisible();
     await expect(screen.getByText("40 kg")).toBeVisible();
     await expect(screen.getByText("Workout A")).toBeVisible();
-    await expect(screen.getByText(/· 15 sets$/)).toBeVisible();
+    const lastWorkoutSummary = screen.getByText(/· 15 sets$/);
+    await screen.scrollUntilVisible(lastWorkoutSummary);
+    await expect(lastWorkoutSummary).toBeVisible();
   });
 });

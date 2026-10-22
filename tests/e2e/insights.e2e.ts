@@ -39,7 +39,9 @@ describe("training insights", { serial: true }, () => {
 
     await expect(screen.getByText("0 saved workouts")).toBeVisible();
     await expect(screen.getByText("No workouts yet")).toBeVisible();
-    await expect(screen.getByText(/^(All|A|B)$/)).toHaveText(["All", "A", "B"]);
+    // Compose exposes the selected segment last in its accessibility tree.
+    for (const label of ["All", "A", "B"])
+      await expect(screen.getByText(label)).toBeVisible();
 
     await tap(screen, screen.getByText("A"));
     await expect(screen.getByText("0 workouts A")).toBeVisible();
@@ -108,6 +110,7 @@ describe("training insights", { serial: true }, () => {
       screen.getByLabel(/^Squat, set 5 of 5, 5 of 5 reps/),
     ).toBeVisible();
     await app.back();
+    await expect(screen.getByText("1 saved workouts")).toBeVisible();
   });
 
   test("counts a saved workout once and retains records and weight history", async ({

@@ -1,5 +1,5 @@
 import { test } from "@e2e-dev/mobile";
-import { version } from "../../package.json";
+import packageInfo from "../../package.json";
 import { describe, expect } from "e2e";
 import { discardWorkout, startWorkout, tap } from "./support";
 
@@ -16,14 +16,20 @@ describe("settings", { serial: true }, () => {
     await expect(screen.getByText("Rest & focus")).toBeVisible();
     await expect(screen.getByText("Appearance")).toBeVisible();
     await expect(screen.getByText("Backup & export")).toBeVisible();
-    await expect(
-      screen.getByText(`Fivefold ${version} · Independent 5×5 training log`),
-    ).toBeVisible();
     await expect(screen.getByText("kg")).toBeVisible();
     await expect(screen.getByText("On")).toBeVisible();
     await expect(screen.getByText("1:30 / 3:00")).toBeVisible();
     await expect(screen.getByText("System")).toBeVisible();
     await expect(screen.getByText("0 logs")).toBeVisible();
+
+    const version = screen.getByText(
+      `Fivefold ${packageInfo.version} · Independent 5×5 training log`,
+    );
+    await screen.scrollUntilVisible(version);
+    await expect(version).toBeVisible();
+    await screen.scrollUntilVisible(screen.getByText("Weights & equipment"), {
+      direction: "up",
+    });
   });
 
   test("converts planned weights between units", async ({ screen }) => {
@@ -38,11 +44,13 @@ describe("settings", { serial: true }, () => {
     await expect(screen.getByText("65 lb")).toBeVisible();
     await expect(screen.getByText("90 lb")).toBeVisible();
     await expect(screen.getByText("Increase 5 lb").first()).toBeVisible();
+    await screen.scrollUntilVisible(screen.getByText("Done"));
     await tap(screen, screen.getByText("Done"));
     await expect(screen.getByText("lb")).toBeVisible();
 
     await tap(screen, screen.getByText("Weights & equipment"));
     await tap(screen, screen.getByText("Kilograms"));
+    await screen.scrollUntilVisible(screen.getByText("Done"));
     await tap(screen, screen.getByText("Done"));
     await expect(screen.getByText("kg")).toBeVisible();
   });
@@ -71,6 +79,7 @@ describe("settings", { serial: true }, () => {
     await expect(
       screen.getByText("Bar: 20 kg · Plates on EACH side"),
     ).toBeVisible();
+    await screen.scrollUntilVisible(screen.getByText("Back to workout"));
     await tap(screen, screen.getByText("Back to workout"));
     await discardWorkout(screen);
   });
@@ -111,16 +120,27 @@ describe("settings", { serial: true }, () => {
     await expect(screen.getByText("After a missed rep")).toBeVisible();
     await expect(screen.getByText("Workout notifications")).toBeVisible();
     await expect(screen.getByText("Haptic feedback")).toBeVisible();
+    await screen.scrollUntilVisible(screen.getByText("Keep screen awake"));
     await expect(screen.getByText("Keep screen awake")).toBeVisible();
 
+    await screen.scrollUntilVisible(
+      screen.getByText("After a successful set"),
+      {
+        direction: "up",
+      },
+    );
     await tap(screen, screen.getByText("5:00").first());
+    await screen.scrollUntilVisible(screen.getByText("Done"));
     await tap(screen, screen.getByText("Done"));
     await expect(screen.getByText("5:00 / 3:00")).toBeVisible();
 
     await tap(screen, screen.getByText("Rest & focus"));
     await tap(screen, screen.getByText("10:00"));
+    await screen.scrollUntilVisible(screen.getByText("Haptic feedback"));
     await tap(screen, screen.getByText("Haptic feedback"));
+    await screen.scrollUntilVisible(screen.getByText("Keep screen awake"));
     await tap(screen, screen.getByText("Keep screen awake"));
+    await screen.scrollUntilVisible(screen.getByText("Done"));
     await tap(screen, screen.getByText("Done"));
     await expect(screen.getByText("5:00 / 10:00")).toBeVisible();
   });

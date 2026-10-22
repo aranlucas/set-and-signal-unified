@@ -1,12 +1,18 @@
 import { test } from "@e2e-dev/mobile";
 import { describe, expect } from "e2e";
-import { finishWorkout, logAllSets, startWorkout, tap } from "./support";
+import {
+  finishWorkout,
+  logAllSets,
+  scrollWorkoutUntilVisible,
+  startWorkout,
+  tap,
+} from "./support";
 
 // Workout B has a different shape: overhead press instead of bench and row,
 // and one deadlift set. These tests run after a complete A so the weights and
 // history are the ones a real training cycle produces.
 describe("workout B", { serial: true }, () => {
-  test("runs a full A and B cycle", async ({ app, screen }) => {
+  test("completes workout A before starting B", async ({ app, screen }) => {
     await app.clearState();
     await app.open();
 
@@ -14,13 +20,17 @@ describe("workout B", { serial: true }, () => {
     await logAllSets(screen, 15);
     await finishWorkout(screen);
     await expect(screen.getByText("Start workout B")).toBeVisible();
+  });
 
+  test("completes workout B and advances the full cycle", async ({
+    screen,
+  }) => {
     await startWorkout(screen, "B", 11);
     await expect(screen.getByText("Workout B")).toBeVisible();
     await expect(screen.getByText("1 × 5 reps")).toBeVisible();
-    await expect(
-      screen.getByLabel(/^Deadlift, set 1 of 1, not logged/),
-    ).toBeVisible();
+    const deadlift = screen.getByLabel(/^Deadlift, set 1 of 1, not logged/);
+    await scrollWorkoutUntilVisible(screen, deadlift);
+    await expect(deadlift).toBeVisible();
 
     await logAllSets(screen, 11);
     await finishWorkout(screen);
@@ -61,9 +71,7 @@ describe("workout B", { serial: true }, () => {
 
     await tap(screen, screen.getByText("Finish"));
     await expect(screen.getByText("Save an unfinished workout?")).toBeVisible();
-    await expect(
-      screen.getByText(/1 of 15 sets logged\./),
-    ).toBeVisible();
+    await expect(screen.getByText(/1 of 15 sets logged\./)).toBeVisible();
     await tap(screen, screen.getByText("Save workout"));
 
     await expect(screen.getByText("Start workout B")).toBeVisible();
