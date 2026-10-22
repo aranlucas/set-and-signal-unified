@@ -1,3 +1,101 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-body{font:14px/1.5 var(--font-sans,system-ui);color:var(--foreground,#203434);margin:0}h2{font-size:19px;letter-spacing:-.025em;margin:0 0 18px}h3{font-size:15px;margin:0 0 6px}.flow{display:grid;grid-template-columns:1fr 24px 1fr 24px 1fr;align-items:stretch}.step{padding:18px;background:var(--card,#f0f5f4);border:1px solid var(--border,#d1dedb);border-radius:var(--radius,12px)}.arrow{align-self:center;text-align:center;color:var(--muted-foreground,#617474)}.tag{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground,#617474);margin-bottom:10px}p{margin:0}small{display:block;color:var(--muted-foreground,#617474);margin-top:16px}.label{margin-top:12px;font-size:12px;font-weight:600;color:var(--accent-foreground,#207568)}@media(max-width:560px){.flow{grid-template-columns:1fr}.arrow{padding:6px;transform:rotate(90deg)}}
-</style></head><body><h2>Two separate credentials, one consent screen</h2><div class="flow"><div class="step"><div class="tag">Your assistant</div><h3>MCP OAuth token</h3><p>Authorizes calls to your Cloudflare server.</p><div class="label">The assistant receives this token</div></div><div class="arrow">→</div><div class="step"><div class="tag">Cloudflare Worker</div><h3>Encrypted Garmin key</h3><p>You enter it once on the consent screen. The Worker uses it to request Garmin access tokens.</p><div class="label">Stored in the encrypted grant</div></div><div class="arrow">→</div><div class="step"><div class="tag">Garmin Personal API</div><h3>Garmin access token</h3><p>Allows read-only requests for your activity and health data.</p><div class="label">Held for the current request</div></div></div><small>Your Garmin key is created in Garmin Connect. This MCP’s OAuth flow gives your assistant separate access without handing it that key.</small></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body {
+        font: 14px/1.5 var(--font-sans, system-ui);
+        color: var(--foreground, #203434);
+        margin: 0;
+      }
+      h2 {
+        font-size: 19px;
+        letter-spacing: -0.025em;
+        margin: 0 0 18px;
+      }
+      h3 {
+        font-size: 15px;
+        margin: 0 0 6px;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: 1fr 24px 1fr 24px 1fr;
+        align-items: stretch;
+      }
+      .step {
+        padding: 18px;
+        background: var(--card, #f0f5f4);
+        border: 1px solid var(--border, #d1dedb);
+        border-radius: var(--radius, 12px);
+      }
+      .arrow {
+        align-self: center;
+        text-align: center;
+        color: var(--muted-foreground, #617474);
+      }
+      .tag {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted-foreground, #617474);
+        margin-bottom: 10px;
+      }
+      p {
+        margin: 0;
+      }
+      small {
+        display: block;
+        color: var(--muted-foreground, #617474);
+        margin-top: 16px;
+      }
+      .label {
+        margin-top: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--accent-foreground, #207568);
+      }
+      @media (max-width: 560px) {
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        .arrow {
+          padding: 6px;
+          transform: rotate(90deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Two separate credentials, one consent screen</h2>
+    <div class="flow">
+      <div class="step">
+        <div class="tag">Your assistant</div>
+        <h3>MCP OAuth token</h3>
+        <p>Authorizes calls to your Cloudflare server.</p>
+        <div class="label">The assistant receives this token</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="tag">Cloudflare Worker</div>
+        <h3>Encrypted Garmin key</h3>
+        <p>
+          You enter it once on the consent screen. The Worker uses it to request Garmin access
+          tokens.
+        </p>
+        <div class="label">Stored in the encrypted grant</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="tag">Garmin Personal API</div>
+        <h3>Garmin access token</h3>
+        <p>Allows read-only requests for your activity and health data.</p>
+        <div class="label">Held for the current request</div>
+      </div>
+    </div>
+    <small
+      >Your Garmin key is created in Garmin Connect. This MCP’s OAuth flow gives your assistant
+      separate access without handing it that key.</small
+    >
+  </body>
+</html>

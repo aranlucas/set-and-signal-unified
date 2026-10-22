@@ -45,15 +45,15 @@ The key is encrypted at rest by the OAuth library, but the Worker must decrypt i
 
 The tools follow Garmin’s published [Personal API schema](https://developer.garmin.com/gc-developer-program/personal/swagger-docs/), not undocumented website endpoints. There are **24 standard tools and 2 optional women’s health tools**:
 
-| Data | Tools |
-| --- | --- |
-| Activities | `list_activities`, `get_activity`, `get_activity_workouts`, `download_activity_file`, `get_wellness_activities` |
-| Daily health | `get_daily_summary`, `get_daily_summaries`, `get_steps`, `get_stress`, `get_hydration`, `get_body_battery` |
-| Sleep and recovery | `get_sleep`, `get_sleep_range`, `get_hrv`, `get_hrv_range` |
-| Heart rate and fitness | `get_heart_rate`, `get_heart_rate_zones`, `get_fitness_age`, `get_spo2_acclimation` |
-| Weight and nutrition | `get_weight_measurements`, `get_weight_range`, `get_weight_goals`, `get_nutrition` |
-| Profile | `get_profile` |
-| Separate consent | `get_menstrual_summary`, `get_menstrual_day` |
+| Data                   | Tools                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Activities             | `list_activities`, `get_activity`, `get_activity_workouts`, `download_activity_file`, `get_wellness_activities` |
+| Daily health           | `get_daily_summary`, `get_daily_summaries`, `get_steps`, `get_stress`, `get_hydration`, `get_body_battery`      |
+| Sleep and recovery     | `get_sleep`, `get_sleep_range`, `get_hrv`, `get_hrv_range`                                                      |
+| Heart rate and fitness | `get_heart_rate`, `get_heart_rate_zones`, `get_fitness_age`, `get_spo2_acclimation`                             |
+| Weight and nutrition   | `get_weight_measurements`, `get_weight_range`, `get_weight_goals`, `get_nutrition`                              |
+| Profile                | `get_profile`                                                                                                   |
+| Separate consent       | `get_menstrual_summary`, `get_menstrual_day`                                                                    |
 
 Dates use `YYYY-MM-DD`. Daily date range tools accept at most 31 calendar days per call; split larger requests. `list_activities` date filters are not capped because results are paged at up to 100 items per call. JSON responses are capped at 1 MiB, and original activity downloads at 2 MiB. Downloads return base64 and the upstream media type; Garmin may return a FIT archive. These are local safety limits, not claims about Garmin’s API quotas or history retention.
 
@@ -67,24 +67,24 @@ No workout uploads, activity editing, course publishing, or arbitrary HTTP proxy
 
 ## Develop and deploy
 
-Requires Node 24.22+ (pinned in `.node-version`) and npm. Deployment uses Cloudflare’s [`cf` CLI](https://developers.cloudflare.com/cf/) with `cloudflare.config.ts`. No Garmin secret belongs in `.env`, source, config variables, MCP config, or this chat. Enter it through the consent page.
+Requires Node 24.22+ (pinned in `.node-version`) and pnpm (pinned in `packageManager`). Deployment uses Cloudflare’s [`cf` CLI](https://developers.cloudflare.com/cf/) with `cloudflare.config.ts`. No Garmin secret belongs in `.env`, source, config variables, MCP config, or this chat. Enter it through the consent page.
 
 ```sh
-npm ci
-npm run typegen
-npm run check
-npm run build
-npm run deploy
-npm run smoke
+pnpm install --frozen-lockfile
+pnpm run typegen
+pnpm run check
+pnpm run build
+pnpm run deploy
+pnpm run smoke
 ```
 
-`npm run check` type-checks and runs tests inside the Cloudflare Workers runtime with **local isolated KV** and mocked outbound Garmin calls. `npm run typecheck` regenerates `.cloudflare/types` from `cloudflare.config.ts` before `tsc`. `npm run build` runs `cf build`; use `npx cf deploy --dry-run` to check the upload and bindings without deploying. `npm run smoke` checks the live deployment: health, protected MCP access, OAuth discovery, client registration, browser-bound consent, and deny. It creates an expiring smoke-test OAuth client, never a Garmin grant; set `SMOKE_URL` to check another deployment.
+`pnpm run check` type-checks, lints and format-checks with [Oxforge](https://www.npmjs.com/package/@aranlucas/oxforge) (Oxlint and Oxfmt), and runs tests inside the Cloudflare Workers runtime with **local isolated KV** and mocked outbound Garmin calls. `pnpm run typecheck` regenerates `.cloudflare/types` from `cloudflare.config.ts` before `tsc`. `pnpm run build` runs `cf build`, which bundles with Vite and the Cloudflare Vite plugin; use `pnpm exec cf deploy --dry-run` to check the upload and bindings without deploying. `pnpm run smoke` checks the live deployment: health, protected MCP access, OAuth discovery, client registration, browser-bound consent, and deny. It creates an expiring smoke-test OAuth client, never a Garmin grant; set `SMOKE_URL` to check another deployment.
 
-Pushes deploy through Cloudflare Workers Builds: every build runs `npm run check`, then `main` runs `npx cf deploy` and other branches run `npx cf previews deploy`. Previews use the separate `garmin-mcp-preview-oauth` KV namespace (`isPreview` in `cloudflare.config.ts`) and keep the production `PUBLIC_URL`, so they validate the upload but are not a working OAuth origin.
+Pushes deploy through Cloudflare Workers Builds: every build runs `pnpm run check`, then `main` runs `pnpm exec cf deploy` and other branches run `pnpm exec cf previews deploy`. Previews use the separate `garmin-mcp-preview-oauth` KV namespace (`isPreview` in `cloudflare.config.ts`) and keep the production `PUBLIC_URL`, so they validate the upload but are not a working OAuth origin.
 
-For another Cloudflare account, change `accountId` and `PUBLIC_URL` in `cloudflare.config.ts`, create your own KV namespace with `npx cf kv namespaces create`, replace the `OAUTH_KV` ID, and regenerate types. `PUBLIC_URL` must exactly match the Worker’s canonical origin; tokens are bound to `${PUBLIC_URL}/mcp`.
+For another Cloudflare account, change `accountId` and `PUBLIC_URL` in `cloudflare.config.ts`, create your own KV namespace with `pnpm exec cf kv namespaces create`, replace the `OAUTH_KV` ID, and regenerate types. `PUBLIC_URL` must exactly match the Worker’s canonical origin; tokens are bound to `${PUBLIC_URL}/mcp`.
 
-For local interactive development, run `npm run dev -- --mode development`, which sets `PUBLIC_URL` to `http://localhost:8787`. The OAuth library uses `Secure`, `__Host-` consent cookies, so use a localhost-capable browser or an HTTPS development origin for browser testing. The automated tests exercise the complete authorization flow without relying on a browser’s localhost cookie policy.
+For local interactive development, run `pnpm run dev`. Use `pnpm run lint:fix` and `pnpm run format` to apply fixes. `cf dev` uses Vite in development mode, which sets `PUBLIC_URL` to `http://localhost:5173`; `vite.config.ts` pins that port. The OAuth library uses `Secure`, `__Host-` consent cookies, so use a localhost-capable browser or an HTTPS development origin for browser testing. The automated tests exercise the complete authorization flow without relying on a browser’s localhost cookie policy.
 
 ## Verification and research
 
