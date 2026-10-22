@@ -30,6 +30,8 @@ import { ToolsSheet, WeightSheet } from "./src/components/Sheets";
 import { useWorkoutStore } from "./src/data/useWorkoutStore";
 import { enableRestAlerts, syncRestAlert } from "./src/data/notifications";
 import { exportData, importData } from "./src/data/exports";
+import { syncWidget, syncWorkoutNotification } from "./src/data/surfaces";
+import { nextSetLabel } from "./src/domain/surfaces";
 import { WorkoutScreen } from "./src/screens/WorkoutScreen";
 import { HistoryScreen, SessionDetail } from "./src/screens/HistoryScreen";
 import { ProgressScreen } from "./src/screens/ProgressScreen";
@@ -132,6 +134,10 @@ function Application({
       ),
     );
   }, [state.rest, state.settings.restAlerts]);
+  useEffect(() => {
+    syncWidget(state);
+    syncWorkoutNotification(state, state.settings.restAlerts);
+  }, [state]);
   useEffect(() => {
     if (hasActiveWorkout && state.settings.keepAwake)
       void activateKeepAwakeAsync("fivefold-workout").catch(() => {});
@@ -444,14 +450,7 @@ function Application({
         <RestTimer
           rest={state.rest}
           haptics={state.settings.haptics}
-          nextLabel={(() => {
-            const next = state.active?.exercises.find((e) =>
-              e.sets.some((r) => r === null),
-            );
-            return next
-              ? `${NAMES[next.lift]} · Set ${next.sets.findIndex((r) => r === null) + 1}/${next.sets.length}`
-              : "All sets logged";
-          })()}
+          nextLabel={nextSetLabel(state.active)}
           onExtend={() =>
             commit((s) =>
               s.rest

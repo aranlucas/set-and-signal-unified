@@ -126,7 +126,9 @@ export function SettingsScreen({
                 modifiers={[clickable(() => setGroup(row.group))]}
               >
                 <ListItem.HeadlineContent>
-                  <Text style={{ typography: "titleMedium", fontWeight: "600" }}>
+                  <Text
+                    style={{ typography: "titleMedium", fontWeight: "600" }}
+                  >
                     {titles[row.group]}
                   </Text>
                 </ListItem.HeadlineContent>
@@ -263,8 +265,8 @@ export function SettingsScreen({
                 />
                 <Divider />
                 <SettingSwitch
-                  label="Rest notifications"
-                  detail="Alerts when rest ends, even with the screen off. Android shows an alarm icon while you rest."
+                  label="Workout notifications"
+                  detail="Shows your workout in the notification shade and alerts when rest ends, even with the screen off."
                   value={settings.restAlerts}
                   onChange={onAlerts}
                 />

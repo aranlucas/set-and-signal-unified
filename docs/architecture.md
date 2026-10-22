@@ -8,6 +8,8 @@
 - `src/data/storage.ts`: SQLite WAL storage and atomic transactions.
 - `src/data/useWorkoutStore.ts`: commits to storage before updating the visible state. A failed write retains the previous state and reports the error. A read/validation failure never replaces the stored database with defaults.
 - `src/data/notifications.ts`: serialized cancellation/scheduling with a fixed rest-notification identifier.
+- `src/domain/surfaces.ts`: pure props for the home-screen widget and the ongoing workout notification.
+- `src/data/surfaces.ts` and `src/widgets/`: `expo-widgets` layouts (Glance-rendered Expo UI subset) and their sync. The widget mirrors the next or active workout; the silent ongoing notification mirrors the active workout while workout notifications are enabled. Neither is a source of truth, and widget taps do not open the app (expo-widgets 58 only broadcasts widget clicks).
 - `src/data/exports.ts`: native folder selection, file writes, share sheet and restore picker.
 - `src/screens` and `src/components`: Expo UI Compose controls, Material colors and typography. No third-party UI kit or web view.
 

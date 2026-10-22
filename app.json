@@ -33,7 +33,13 @@
     },
     "plugins": [
       "expo-sqlite",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#216B53"
+        }
+      ],
       "expo-document-picker",
       [
         "expo-splash-screen",
@@ -51,13 +57,32 @@
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }
+      ],
+      [
+        "expo-widgets",
+        {
+          "enableAndroid": true,
+          "widgets": [
+            {
+              "name": "WorkoutWidget",
+              "displayName": "Fivefold workout",
+              "description": "Your next 5×5 workout, or live progress while you lift.",
+              "android": {
+                "targetCellWidth": 3,
+                "targetCellHeight": 2,
+                "minWidth": 180,
+                "minHeight": 110,
+                "resizeMode": "both",
+                "initialLayout": "./src/widgets/WorkoutWidget.tsx"
+              }
+            }
+          ]
+        }
       ]
     ],
     "experiments": {
       "reactCompiler": true
     },
-    "platforms": [
-      "android"
-    ]
+    "platforms": ["android"]
   }
 }
