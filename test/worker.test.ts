@@ -108,7 +108,12 @@ async function startConsent() {
   expect(handle).toBeTruthy();
   const cookie = required(consent.headers.get("set-cookie"), "consent cookie").split(";")[0];
 
-  return { clientId, handle: required(handle, "consent handle"), cookie };
+  return {
+    clientId,
+    handle: required(handle, "consent handle"),
+    cookie,
+    referrerPolicy: consent.headers.get("referrer-policy"),
+  };
 }
 
 async function approve(womensHealth = false) {
@@ -206,6 +211,13 @@ afterEach(() => {
 });
 
 describe("Cloudflare OAuth and MCP integration", () => {
+  it("preserves the browser origin when submitting the consent form", async () => {
+    const consent = await startConsent();
+    // no-referrer makes browsers send Origin: null on native form POSTs.
+    // Keep external referrers private while allowing same-origin consent forms.
+    expect(consent.referrerPolicy).toBe("same-origin");
+  });
+
   it("publishes discovery and challenges unauthenticated MCP access", async () => {
     const metadata = await dispatch("/.well-known/oauth-authorization-server");
     expect(metadata.status).toBe(200);
@@ -224,17 +236,27 @@ describe("Cloudflare OAuth and MCP integration", () => {
     const consent = await startConsent();
     const form = new URLSearchParams({ handle: consent.handle, apiKey, decision: "approve" });
 
-    const badOrigin = await dispatch("/authorize", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Origin: "https://evil.example",
-        Cookie: consent.cookie,
-      },
-      body: form,
-    });
+    const badOrigins = await Promise.all(
+      ["https://evil.example", "null", undefined].map(async (origin) => {
+        const headers = new Headers({
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: consent.cookie,
+        });
 
-    expect(badOrigin.status).toBe(403);
+        if (origin !== undefined) {
+          headers.set("Origin", origin);
+        }
+
+        const response = await dispatch("/authorize", { method: "POST", headers, body: form });
+
+        return { status: response.status, body: await response.text() };
+      }),
+    );
+
+    for (const badOrigin of badOrigins) {
+      expect(badOrigin.status).toBe(403);
+      expect(badOrigin.body).toBe("Invalid origin");
+    }
 
     const missingCookie = await dispatch("/authorize", {
       method: "POST",
