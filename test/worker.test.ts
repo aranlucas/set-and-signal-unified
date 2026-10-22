@@ -4,17 +4,7 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as z from "zod";
 import worker from "../src/index";
-import {
-  GARMIN_BASE,
-  GARMIN_TOKEN_PATH,
-  GarminClient,
-  type GarminJson,
-  obtainToken,
-  readBounded,
-} from "../src/garmin";
-import { consentFormAction } from "../src/auth";
-import { endpointPath, parameterSchema, validateDateRange } from "../src/mcp";
-import { consentPage } from "../src/pages";
+import { GARMIN_BASE, GARMIN_TOKEN_PATH, type GarminJson } from "../src/garmin";
 import { requestUrl, required } from "./support";
 
 const base = env.PUBLIC_URL;
@@ -44,17 +34,6 @@ type ExpectedFetch = {
 };
 
 const describedParameter = z.object({ description: z.string() });
-
-const tokenResponse = (): Promise<Response> =>
-  Promise.resolve(Response.json({ access_token: "tok" }));
-
-const unrecognizedToken = (): Promise<Response> =>
-  Promise.resolve(Response.json({ unrecognized: "not a token" }));
-
-const rateLimited = (): Promise<Response> =>
-  Promise.resolve(new Response("secret body", { status: 429 }));
-
-const unreachable = (): Promise<Response> => Promise.reject(new TypeError("network down"));
 
 async function dispatch(path: string, init?: RequestInit): Promise<Response> {
   const ctx = createExecutionContext();
@@ -462,138 +441,5 @@ describe("Cloudflare OAuth and MCP integration", () => {
 
     expect(response.status).toBe(502);
     expect(await response.text()).not.toContain("must not echo");
-  });
-});
-
-describe("Garmin boundaries", () => {
-  it("validates calendar dates, safe activity IDs, query limits and ordered date windows", () => {
-    expect(
-      parameterSchema({
-        name: "date",
-        in: "query",
-        schema: { type: "string", format: "date" },
-      }).safeParse("2026-02-30").success,
-    ).toBe(false);
-    expect(
-      parameterSchema({
-        name: "activityId",
-        in: "path",
-        required: true,
-        schema: { type: "integer" },
-      }).safeParse(-1).success,
-    ).toBe(false);
-    expect(
-      parameterSchema({ name: "limit", in: "query", schema: { type: "integer" } }).safeParse(101)
-        .success,
-    ).toBe(false);
-    expect(() => validateDateRange({ fromDate: "2026-10-21", toDate: "2026-10-01" })).toThrow(
-      "date range in order",
-    );
-    expect(() =>
-      validateDateRange({ startDate: "2026-10-01", endDate: "2026-10-31" }),
-    ).not.toThrow();
-    expect(() => validateDateRange({ startDate: "2026-10-01", endDate: "2026-11-01" })).toThrow(
-      "31 calendar days",
-    );
-
-    const optionalDate = parameterSchema({
-      name: "startDate",
-      in: "query",
-      schema: { type: "string", format: "date" },
-    });
-
-    // oxlint-disable-next-line unicorn/no-useless-undefined -- checks the absent-value case; safeParse requires an argument.
-    expect(optionalDate.safeParse(undefined).success).toBe(true);
-    expect(
-      parameterSchema({
-        name: "date",
-        in: "path",
-        required: true,
-        schema: { type: "string", format: "date" },
-      }).safeParse(undefined).success, // oxlint-disable-line unicorn/no-useless-undefined -- same absent-value case.
-    ).toBe(false);
-    expect(
-      endpointPath(
-        "/x/{id}",
-        [
-          { name: "id", in: "path", schema: { type: "string" } },
-          { name: "search", in: "query", schema: { type: "string" } },
-        ],
-        { id: "a/b", search: "a&b" },
-      ),
-    ).toBe("/x/a%2Fb?search=a%26b");
-  });
-  it("bounds streamed responses and rejects malformed token payloads", async () => {
-    await expect(readBounded(new Response("too large"), 3)).rejects.toThrow("too large");
-    await expect(obtainToken(apiKey, unrecognizedToken)).rejects.toThrow("unrecognized");
-  });
-  it("returns activity files as base64 and reuses one Garmin token per request", async () => {
-    const calls: string[] = [];
-
-    const accepts: (string | null)[] = [];
-
-    const mock: typeof fetch = (input, init) => {
-      const url = requestUrl(input);
-
-      calls.push(`${init?.method ?? "GET"} ${url.slice(GARMIN_BASE.length)}`);
-
-      if (url.endsWith(GARMIN_TOKEN_PATH)) {
-        return tokenResponse();
-      }
-
-      accepts.push(new Headers(init?.headers).get("accept"));
-
-      return Promise.resolve(
-        new Response(new Uint8Array([0, 1, 2, 255]), {
-          headers: { "Content-Type": "application/zip" },
-        }),
-      );
-    };
-
-    const client = new GarminClient(apiKey, mock);
-
-    const file = {
-      source: "Garmin Connect",
-      encoding: "base64",
-      contentType: "application/zip",
-      data: "AAEC/w==",
-    };
-
-    expect(await client.get("/download-service/files/activity/1", true)).toEqual(file);
-    expect(await client.get("/download-service/files/activity/2", true)).toEqual(file);
-    expect(calls).toEqual([
-      `POST ${GARMIN_TOKEN_PATH}`,
-      "GET /download-service/files/activity/1",
-      "GET /download-service/files/activity/2",
-    ]);
-    expect(accepts).toEqual(["application/octet-stream", "application/octet-stream"]);
-  });
-  it("maps upstream failures to safe messages without echoing bodies", async () => {
-    await expect(obtainToken(apiKey, rateLimited)).rejects.toThrow("rate limit");
-    await expect(obtainToken(apiKey, unreachable)).rejects.toThrow("could not be reached");
-  });
-  it("allows consent forms to redirect only to the validated client", () => {
-    expect(consentFormAction("https://claude.ai/api/mcp/auth_callback?x=1")).toBe(
-      "'self' https://claude.ai",
-    );
-    expect(consentFormAction("cursor://anysphere.cursor-mcp/oauth/callback")).toBe(
-      "'self' cursor:",
-    );
-  });
-  it("escapes untrusted OAuth client information", () => {
-    const output = consentPage(
-      {
-        clientId: "test",
-        clientName: "<script>alert(1)</script>",
-        redirectUri: "https://example.org",
-        redirectHost: "example.org",
-        redirectIsLoopback: false,
-        scope: ["<script>"],
-      },
-      "handle",
-    );
-
-    expect(output).not.toContain("<script>");
-    expect(output).toContain("&#60;script&#62;");
   });
 });

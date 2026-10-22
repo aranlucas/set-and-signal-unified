@@ -1,3 +1,44 @@
+export type Parameter = {
+  name: string;
+  in: "path" | "query";
+  required?: boolean;
+  description?: string;
+  schema: {
+    type: "string" | "integer" | "number" | "boolean" | "array";
+    format?: string;
+    default?: string | number | boolean | string[];
+    example?: string;
+    items?: { type: "string" };
+  };
+};
+
+type Endpoint = {
+  name: string;
+  description: string;
+  path: string;
+  binary: boolean;
+  sensitive: boolean;
+  parameters: readonly Parameter[];
+};
+
+function dateParameter(name: string, location: "path" | "query", description?: string): Parameter {
+  const parameter: Parameter = {
+    name,
+    in: location,
+    schema: { type: "string", format: "date", example: "1989-10-01" },
+  };
+
+  if (location === "path") {
+    parameter.required = true;
+  }
+
+  if (description) {
+    parameter.description = description;
+  }
+
+  return parameter;
+}
+
 // Derived from Garmin’s published Personal API OpenAPI snapshot. See docs/research.md.
 export const endpoints = [
   {
@@ -400,18 +441,11 @@ export const endpoints = [
     binary: false,
     sensitive: false,
     parameters: [
-      {
-        name: "calendarDate",
-        description:
-          "The target date; Fitness Age information returned will be the latest available as of this date.",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
+      dateParameter(
+        "calendarDate",
+        "path",
+        "The target date; Fitness Age information returned will be the latest available as of this date.",
+      ),
       {
         name: "fullHistoryScan",
         description:
@@ -431,28 +465,8 @@ export const endpoints = [
     binary: false,
     sensitive: false,
     parameters: [
-      {
-        name: "startDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-        description: "Beginning of the requested date interval.",
-      },
-      {
-        name: "endDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-        description: "End of the requested date interval.",
-      },
+      dateParameter("startDate", "path", "Beginning of the requested date interval."),
+      dateParameter("endDate", "path", "End of the requested date interval."),
     ],
   },
   {
@@ -461,18 +475,7 @@ export const endpoints = [
     path: "/hrv-service/hrv/{calendarDate}",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "calendarDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("calendarDate", "path")],
   },
   {
     name: "get_hrv_range",
@@ -480,28 +483,7 @@ export const endpoints = [
     path: "/hrv-service/hrv/daily/{fromDate}/{toDate}",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "fromDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "toDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("fromDate", "path"), dateParameter("toDate", "path")],
   },
   {
     name: "get_nutrition",
@@ -548,18 +530,11 @@ export const endpoints = [
           example: "2",
         },
       },
-      {
-        name: "date",
-        in: "path",
-        description:
-          "Date for which to retrieve the daily nutrition logs. Date must be in the YYYY-MM-DD format. The date is interpreted in the user's local timezone.",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
+      dateParameter(
+        "date",
+        "path",
+        "Date for which to retrieve the daily nutrition logs. Date must be in the YYYY-MM-DD format. The date is interpreted in the user's local timezone.",
+      ),
     ],
   },
   {
@@ -569,17 +544,7 @@ export const endpoints = [
     binary: false,
     sensitive: true,
     parameters: [
-      {
-        name: "calendarDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-        description: "The calendar date (yyyy-MM-dd) to retrieve data for.",
-      },
+      dateParameter("calendarDate", "path", "The calendar date (yyyy-MM-dd) to retrieve data for."),
     ],
   },
   {
@@ -589,28 +554,12 @@ export const endpoints = [
     binary: false,
     sensitive: true,
     parameters: [
-      {
-        name: "calendarDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-        description: "The calendar date (yyyy-MM-dd) to retrieve data for.",
-      },
-      {
-        name: "todayDate",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-        description:
-          "The current calendar date (yyyy-MM-dd) from the caller's perspective, used as a reference point for predictions and calculations.",
-      },
+      dateParameter("calendarDate", "path", "The calendar date (yyyy-MM-dd) to retrieve data for."),
+      dateParameter(
+        "todayDate",
+        "query",
+        "The current calendar date (yyyy-MM-dd) from the caller's perspective, used as a reference point for predictions and calculations.",
+      ),
       {
         name: "reducedResponse",
         in: "query",
@@ -646,17 +595,7 @@ export const endpoints = [
     path: "/sleep-service/sleep/dailySleep",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "date",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("date", "query")],
   },
   {
     name: "get_sleep_range",
@@ -664,26 +603,7 @@ export const endpoints = [
     path: "/sleep-service/sleep/dailySleepSummariesByDate",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "startDate",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "endDate",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("startDate", "query"), dateParameter("endDate", "query")],
   },
   {
     name: "get_profile",
@@ -699,28 +619,7 @@ export const endpoints = [
     path: "/usersummary-service/stats/hydration/daily/{startDate}/{endDate}",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "startDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "endDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("startDate", "path"), dateParameter("endDate", "path")],
   },
   {
     name: "get_steps",
@@ -728,28 +627,7 @@ export const endpoints = [
     path: "/usersummary-service/stats/steps/daily/{startDate}/{endDate}",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "startDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "endDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("startDate", "path"), dateParameter("endDate", "path")],
   },
   {
     name: "get_stress",
@@ -757,28 +635,7 @@ export const endpoints = [
     path: "/usersummary-service/stats/stress/daily/{startDate}/{endDate}",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "startDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "endDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("startDate", "path"), dateParameter("endDate", "path")],
   },
   {
     name: "get_daily_summary",
@@ -786,17 +643,7 @@ export const endpoints = [
     path: "/usersummary-service/usersummary/daily",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "calendarDate",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("calendarDate", "query")],
   },
   {
     name: "get_daily_summaries",
@@ -804,26 +651,7 @@ export const endpoints = [
     path: "/usersummary-service/v2/dailysummaries",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "startDate",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "endDate",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("startDate", "query"), dateParameter("endDate", "query")],
   },
   {
     name: "get_weight_measurements",
@@ -832,30 +660,16 @@ export const endpoints = [
     binary: false,
     sensitive: false,
     parameters: [
-      {
-        name: "startDate",
-        in: "path",
-        required: true,
-        description:
-          "The start date(user's local calendar) of the range, inclusive. Format yyyy-MM-dd.",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "endDate",
-        in: "path",
-        required: true,
-        description:
-          "The end date(user's local calendar) of the range, inclusive. Format yyyy-MM-dd.",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
+      dateParameter(
+        "startDate",
+        "path",
+        "The start date(user's local calendar) of the range, inclusive. Format yyyy-MM-dd.",
+      ),
+      dateParameter(
+        "endDate",
+        "path",
+        "The end date(user's local calendar) of the range, inclusive. Format yyyy-MM-dd.",
+      ),
     ],
   },
   {
@@ -865,30 +679,16 @@ export const endpoints = [
     binary: false,
     sensitive: false,
     parameters: [
-      {
-        name: "startDate",
-        description:
-          "The start date(user's local calendar) of the range, inclusive. Format yyyy-MM-dd.",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "endDate",
-        description:
-          "The end date(user's local calendar) of the range, inclusive. Format yyyy-MM-dd.",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
+      dateParameter(
+        "startDate",
+        "path",
+        "The start date(user's local calendar) of the range, inclusive. Format yyyy-MM-dd.",
+      ),
+      dateParameter(
+        "endDate",
+        "path",
+        "The end date(user's local calendar) of the range, inclusive. Format yyyy-MM-dd.",
+      ),
       {
         name: "includeAll",
         description:
@@ -908,24 +708,8 @@ export const endpoints = [
     binary: false,
     sensitive: false,
     parameters: [
-      {
-        name: "startDate",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "endDate",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
+      dateParameter("startDate", "query"),
+      dateParameter("endDate", "query"),
       {
         name: "chunks",
         description:
@@ -944,18 +728,7 @@ export const endpoints = [
     path: "/wellness-service/wellness/daily/spo2acclimation/{calendarDate}",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "calendarDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("calendarDate", "path")],
   },
   {
     name: "get_heart_rate",
@@ -963,17 +736,7 @@ export const endpoints = [
     path: "/wellness-service/wellness/dailyHeartRate",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "date",
-        in: "query",
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("date", "query")],
   },
   {
     name: "get_wellness_activities",
@@ -981,27 +744,6 @@ export const endpoints = [
     path: "/wellnessactivity-service/activity/summary/range/{fromDate}/{untilDate}",
     binary: false,
     sensitive: false,
-    parameters: [
-      {
-        name: "fromDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-      {
-        name: "untilDate",
-        in: "path",
-        required: true,
-        schema: {
-          type: "string",
-          format: "date",
-          example: "1989-10-01",
-        },
-      },
-    ],
+    parameters: [dateParameter("fromDate", "path"), dateParameter("untilDate", "path")],
   },
-] as const;
+] as const satisfies readonly Endpoint[];

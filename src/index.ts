@@ -5,8 +5,9 @@ import {
 } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import * as z from "zod";
-import { authHandler, READ_SCOPE, WOMENS_SCOPE, type AppEnv } from "./auth";
+import { authHandler, type AppEnv } from "./auth";
 import { createServer } from "./mcp";
+import { READ_SCOPE, WOMENS_SCOPE } from "./scopes";
 
 /** Grant props saved by the consent flow in auth.ts. */
 const grantProps = z.object({ apiKey: z.string() });
