@@ -29,6 +29,8 @@ export default {
       name: "android",
       engine: mobile({
         platform: "android",
+        // Separate pinned devices must not share agent-device's default session.
+        session: `fivefold-${process.env.E2E_DEVICE ?? "android"}`,
         ...(process.env.E2E_DEVICE ? { device: process.env.E2E_DEVICE } : {}),
       }),
       app: { bundleId: "app.fivefold.lifts" },

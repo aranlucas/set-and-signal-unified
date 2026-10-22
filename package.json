@@ -1,7 +1,7 @@
 {
   "name": "fivefold",
   "license": "0BSD",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "index.ts",
   "dependencies": {
     "@expo/material-symbols": "^0.1.1",
