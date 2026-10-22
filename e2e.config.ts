@@ -7,8 +7,9 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 //
 // Agent steps are optional: the suite is deterministic locators and
 // assertions. When a test does use `agent.act`, this endpoint serves the
-// model. Set FREELLM_API_KEY in the shell that runs e2e; FREELLM_MODEL
-// overrides the model id when the endpoint names it differently.
+// model. Set FREELLM_API_KEY in the shell that runs e2e. The endpoint's `auto`
+// model routes to the best model in the account's active chain, so no model
+// id has to be pinned here.
 const freellm = createOpenAICompatible({
   name: "freellm",
   baseURL:
@@ -20,7 +21,7 @@ const freellm = createOpenAICompatible({
 export default {
   agents: {
     default: {
-      model: freellm.chatModel(process.env.FREELLM_MODEL ?? "gpt-4o-mini"),
+      model: freellm.chatModel("auto"),
     },
   },
   targets: [

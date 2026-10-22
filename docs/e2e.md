@@ -78,19 +78,20 @@ const freellm = createOpenAICompatible({
     "https://freellmapi-production-1175.up.railway.app/v1",
   apiKey: process.env.FREELLM_API_KEY,
 });
+
+// `auto` lets the endpoint route to the best model in the active chain.
+model: freellm.chatModel("auto")
 ```
 
-Set those variables in the shell that runs e2e when adding a test that uses
+Set the key in the shell that runs e2e when adding a test that uses
 `agent.act`:
 
 ```sh
 export FREELLM_API_KEY=...
-export FREELLM_MODEL=gpt-4o-mini   # optional; must match the endpoint's id
 ```
 
-The deterministic suites never acquire the model, so they pass without these
-variables. If the endpoint serves a different model id, only the agent tests
-are affected.
+No model id is pinned: the endpoint's `auto` model selects one. The
+deterministic suites never acquire a model, so they pass without the key.
 
 ## What it covers
 
