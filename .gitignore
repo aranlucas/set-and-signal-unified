@@ -43,3 +43,6 @@ yarn-error.*
 # Installable artifacts are generated locally, not source control inputs.
 /artifacts/*.apk
 /artifacts/*.idsig
+
+# Installed-app E2E runs (report, traces, screenshots)
+.e2e/

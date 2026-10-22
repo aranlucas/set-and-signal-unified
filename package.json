@@ -22,9 +22,11 @@
     "react-native": "0.88.0"
   },
   "devDependencies": {
+    "@e2e-dev/mobile": "^0.12.3",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.5",
     "@types/react": "~19.3.0",
+    "e2e": "^0.21.2",
     "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
@@ -39,6 +41,7 @@
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "E2E_TELEMETRY_DISABLED=1 e2e run --target android",
     "check": "npm run lint && npm run typecheck && npm test",
     "build:apk": "node scripts/build-apk.mjs",
     "lint": "eslint . --max-warnings=0"

@@ -58,3 +58,5 @@ node scripts/android-smoke.mjs /absolute/path/to/agent-device \
 ```
 
 `artifacts/qa-redesign/` contains the 1.1.0 smoke run; `artifacts/design/` contains before/after native screenshots and design reviews live in `docs/design/`. `artifacts/qa/` contains the earlier release’s native screenshots and structured acceptance results. Android is the implemented and tested platform; this repository does not claim an iOS or web build.
+
+Installed-app E2E lives in `tests/e2e/` and drives the installed release APK with `npm run test:e2e` — no Metro and no model key. See [installed-app E2E](docs/e2e.md).
