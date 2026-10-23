@@ -91,6 +91,6 @@ export const workoutWidget = createWidget<WorkoutWidgetProps>(
     title: "Fivefold",
     progress: -1,
     lifts: [],
-    footer: "Open Fivefold to set up your 5×5",
+    footer: "Set up your 5×5",
   },
 );

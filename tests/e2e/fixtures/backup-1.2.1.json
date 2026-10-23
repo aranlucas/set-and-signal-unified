@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "onboarded": true,
+  "next": "B",
+  "plans": {
+    "squat": {
+      "weight": 22.5,
+      "increment": 2.5,
+      "failures": 0
+    },
+    "bench": {
+      "weight": 22.5,
+      "increment": 2.5,
+      "failures": 0
+    },
+    "row": {
+      "weight": 32.5,
+      "increment": 2.5,
+      "failures": 0
+    },
+    "press": {
+      "weight": 20,
+      "increment": 2.5,
+      "failures": 0
+    },
+    "deadlift": {
+      "weight": 40,
+      "increment": 5,
+      "failures": 0
+    }
+  },
+  "settings": {
+    "unit": "kg",
+    "bar": 20,
+    "restSeconds": 90,
+    "failedRestSeconds": 180,
+    "autoProgress": true,
+    "autoDeload": true,
+    "haptics": true,
+    "keepAwake": true,
+    "restAlerts": false,
+    "theme": "system"
+  },
+  "active": null,
+  "history": [
+    {
+      "id": "workout-1792695945034-0",
+      "kind": "A",
+      "startedAt": 1792695945034,
+      "finishedAt": 1792695991033,
+      "unit": "kg",
+      "notes": "Felt strong. Belt on from set 3.",
+      "exercises": [
+        {
+          "lift": "squat",
+          "weight": 20,
+          "sets": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ]
+        },
+        {
+          "lift": "bench",
+          "weight": 20,
+          "sets": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ]
+        },
+        {
+          "lift": "row",
+          "weight": 30,
+          "sets": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ]
+        }
+      ]
+    }
+  ],
+  "rest": null
+}

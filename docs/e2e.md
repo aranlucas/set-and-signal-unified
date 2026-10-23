@@ -164,3 +164,87 @@ documents for E2E, and it would work here, but its YAML has no loops or
 assertions computed in code, which is why the 15-set loop and the counter
 assertions live in TypeScript instead. `e2e` also records nothing in the app
 and needs no separate binary install beyond the npm package.
+
+## Release regression gates
+
+The release checks run on QA data and deliberately clear it. Pin the device:
+
+```sh
+E2E_DEVICE=emulator-5556 pnpm run test:e2e
+E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/upgrade.e2e.ts
+E2E_DEVICE=emulator-5556 FIVEFOLD_PREVIOUS_APK=artifacts/Fivefold-1.2.1.apk pnpm exec e2e run tests/e2e/upgrade.e2e.ts
+E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/backup.e2e.ts
+E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/large-text.e2e.ts
+E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/accessibility.e2e.ts
+```
+
+- `upgrade.e2e.ts` verifies the matching SHA-256 sidecar of the previous
+  signed APK, installs it with fresh data, saves one set/workout through UI
+  shared by both versions, explicitly selects kg when offered, then installs
+  the current APK **without** reinstalling. It checks History, next B, kg,
+  and Standard gym plates. Its `finally` reinstalls the current APK cleanly.
+  Missing APKs/checksums fail with their required paths; they never skip.
+- `backup.e2e.ts` pushes the byte-exact real 1.2.1 backup fixture to Documents
+  and restores through Android DocumentsUI. It checks kg, History and the
+  missing-plates migration, then exports a custom inventory, clears state,
+  restores, exports again and compares both the full JSON documents and
+  bytes. Case-insensitive folder/permission controls support Android 15/17.
+  Cleanup removes only files created by this run, including exported backups.
+- `large-text.e2e.ts` sets system text to 200%, checks single-line tabs and
+  non-overlap, plate button columns and the 20-pair cap, equal non-overlapping
+  set widths, and the unachievable-load warning and tools copy within screen
+  bounds. An `afterAll` restores font scale to 1.0 even on failure.
+- `accessibility.e2e.ts` checks names and enabled 48×48 dp interactive targets
+  across first-run home, Settings and all its sheets, weight editing, active
+  workout, rest dock, rep editing, tools, finish, History list/detail and
+  Progress. It collects all violations rather than stopping at the first
+  target. It enumerates engine roles first; the Android adapter maps clickable
+  Compose View rows to generic groups and does not expose their clickable flag
+  or name through locator attributes, so UIAutomator supplements those nodes
+  and merged descendant names. A subsequent engine query verifies dumping did
+  not break the session. Sizes use `wm density`; targets touching scroll/app
+  bar/rest dock clipping edges are excluded until fully exposed. Failure
+  messages list screen, label, class, bounds and dp size. This deterministic
+  audit complements a human TalkBack pass.
+- `plates.e2e.ts` covers the bounded solver's UI, the zero-pair boundary,
+  standard/custom inventory guidance and applying a closest load.
+
+| Environment variable | Meaning |
+| --- | --- |
+| `E2E_DEVICE` | adb serial for one already-running device. Required when more than one device is online. Each serial has its own engine session. |
+| `FIVEFOLD_PREVIOUS_APK` | Previous signed APK for the upgrade suite. Defaults to the highest `artifacts/Fivefold-X.Y.Z.apk` version below `package.json`. The matching `<apk>.sha256` is required. |
+| `FIVEFOLD_APK` | Current signed APK for upgrade and matrix runs. Defaults to `artifacts/Fivefold-<package version>.apk`. |
+| `FIVEFOLD_E2E_AVDS` | Comma-separated distinct AVD names for the matrix. Defaults to `Pixel_API_35,Agents_Android_17_API_37_2`. |
+
+The `adb()` helper resolves `$ANDROID_HOME/platform-tools/adb`, then
+`~/Library/Android/sdk/platform-tools/adb`, then `adb` on PATH. With no
+`E2E_DEVICE` it requires exactly one online device. It is used only for
+operations missing from the engine: shared files, display metrics and font
+scale, and the accessibility fallback described above.
+
+```sh
+pnpm run verify:apk
+node verify-apk.mjs artifacts/Fivefold-1.3.0.apk
+pnpm run test:e2e:matrix
+FIVEFOLD_E2E_AVDS=Pixel_API_35 FIVEFOLD_PREVIOUS_APK=artifacts/Fivefold-1.2.1.apk pnpm run test:e2e:matrix
+```
+
+`verify:apk` uses the latest stable SDK build-tools under `$ANDROID_HOME`
+(or the standard macOS SDK directory). It fails on a wrong signing
+certificate, failed signature/alignment, wrong package/version/code, target
+SDK below 36, a debuggable APK, missing ABIs, non-portrait launcher, measurement
+instrumentation in the Hermes bundle or a mismatched checksum when a sidecar
+exists. An explicit historical `Fivefold-X.Y.Z.apk` path checks the filename
+version; versionCode is checked against `app.json` when that version matches
+`package.json`. Default invocations require the current package version/code.
+The pure gates and matrix parsing have SDK-free Vitest coverage in
+`tests/verify-apk.test.ts`.
+
+The matrix boots each AVD read-only on an unused even port starting at 5560,
+waits for boot, installs the APK and runs the full suite with a pinned serial.
+It preserves all environment variables, including both upgrade APK overrides,
+and tees output to `artifacts/release-<version>/e2e-android<Android version>.log`.
+Each device prints API level, passed/failed/skipped counts and duration. It
+kills only the emulator it started, and fails clearly if an AVD is already
+running rather than reusing or killing it. Shut down those QA AVDs yourself
+before running the matrix; their persistent installs survive read-only boots.

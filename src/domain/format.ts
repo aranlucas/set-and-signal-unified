@@ -8,6 +8,8 @@ let shortDates: Intl.DateTimeFormat | undefined;
 let dates: Intl.DateTimeFormat | undefined;
 let clocks: Intl.DateTimeFormat | undefined;
 
+export const count = (n: number, one: string, other = `${one}s`) =>
+  `${n} ${n === 1 ? one : other}`;
 export const formatWeight = (n: number) =>
   (numbers ??= new Intl.NumberFormat()).format(Number(n.toFixed(2)));
 export const sessionDate = (session: Session) =>

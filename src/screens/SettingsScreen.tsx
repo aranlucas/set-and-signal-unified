@@ -1,8 +1,10 @@
 import { countMyPlates, stepPlatePair } from "../data/actions";
+import { count } from "../domain/format";
 import { PLATE_SIZES } from "../domain/plates";
 import { useAppState } from "../data/store";
 import { version } from "../../package.json";
 import { useState } from "react";
+import { useWindowDimensions } from "react-native";
 import {
   Column,
   ListItem,
@@ -24,6 +26,7 @@ import {
   toggleable,
   verticalScroll,
   weight,
+  width,
 } from "@expo/ui/jetpack-compose/modifiers";
 import {
   Action,
@@ -75,12 +78,12 @@ export function SettingsScreen({
   onDone: () => void;
 }) {
   const settings = useAppState((s) => s.settings);
+  const historyCount = useAppState((s) => s.history.length);
   const state = {
     settings,
     plans: useAppState((s) => s.plans),
     onboarded: useAppState((s) => s.onboarded),
     active: useAppState((s) => s.active !== null),
-    history: { length: useAppState((s) => s.history.length) },
   };
   const [group, setGroup] = useState<Group | null>(null);
   const c = useMaterialColors();
@@ -106,7 +109,7 @@ export function SettingsScreen({
     },
     {
       group: "appearance",
-      detail: "Light, dark or follow your device",
+      detail: "Light, dark or system",
       value:
         settings.theme === "system"
           ? "System"
@@ -116,8 +119,8 @@ export function SettingsScreen({
     },
     {
       group: "data",
-      detail: "Save, restore or share your workouts",
-      value: `${state.history.length} logs`,
+      detail: "Back up, restore or export",
+      value: count(historyCount, "workout"),
     },
   ];
   return (
@@ -126,9 +129,7 @@ export function SettingsScreen({
         {!state.onboarded ? (
           <Panel>
             <Heading>Before your first workout</Heading>
-            <Caption>
-              Choose your units and starting weights, then you’re ready to lift.
-            </Caption>
+            <Caption>Pick your unit and starting weights.</Caption>
           </Panel>
         ) : null}
         <ListGroup>
@@ -159,13 +160,9 @@ export function SettingsScreen({
           ))}
         </ListGroup>
         {!state.onboarded ? (
-          <Action onPress={onDone}>Save setup & start lifting</Action>
+          <Action onPress={onDone}>Save & start</Action>
         ) : null}
-        <Caption>Fivefold {version} · Independent 5×5 training log</Caption>
-        <Caption>
-          Workouts stay on this device. Export a backup before switching phones
-          or uninstalling.
-        </Caption>
+        <Caption>Fivefold {version}</Caption>
       </Page>
       {group ? (
         <ModalBottomSheet
@@ -194,8 +191,8 @@ export function SettingsScreen({
                 />
                 <Caption>
                   {state.active
-                    ? "Finish or discard your workout before changing units."
-                    : "Future weights convert and round to standard increments. History keeps its original units."}
+                    ? "Finish your workout to change units."
+                    : "Planned weights are converted and rounded."}
                 </Caption>
                 <Row
                   modifiers={[fillMaxWidth()]}
@@ -224,7 +221,7 @@ export function SettingsScreen({
                     <Text>
                       {settings.plates === null
                         ? "Standard gym"
-                        : `My plates · ${settings.plates[settings.unit].filter((n) => n > 0).length} sizes`}
+                        : `My plates · ${count(settings.plates[settings.unit].filter((n) => n > 0).length, "size")}`}
                     </Text>
                   </ListItem.SupportingContent>
                 </ListItem>
@@ -252,10 +249,7 @@ export function SettingsScreen({
                     </TextButton>
                   </Row>
                 ))}
-                <Caption>
-                  All weights include the bar. Choose loads you can lift with
-                  good form.
-                </Caption>
+                <Caption>Weights include the bar.</Caption>
               </>
             ) : null}
             {group === "plates" ? <PlatesEditor /> : null}
@@ -263,14 +257,14 @@ export function SettingsScreen({
               <>
                 <SettingSwitch
                   label="Automatic increases"
-                  detail="Add the chosen increment after completing every rep."
+                  detail="Add weight after you complete every rep."
                   value={settings.autoProgress}
                   onChange={(v) => onSettings({ autoProgress: v })}
                 />
                 <Divider />
                 <SettingSwitch
                   label="Deload after 3 misses"
-                  detail="Reduce by 10%, rounded down to the increment. Skipped lifts do not add misses."
+                  detail="Lower the weight 10% after 3 missed sessions."
                   value={settings.autoDeload}
                   onChange={(v) => onSettings({ autoDeload: v })}
                 />
@@ -301,19 +295,19 @@ export function SettingsScreen({
                 <Divider />
                 <SettingSwitch
                   label="Workout notifications"
-                  detail="Shows your workout in the notification shade and alerts when rest ends, even with the screen off."
+                  detail="Alert when rest ends, even with the screen off."
                   value={settings.restAlerts}
                   onChange={onAlerts}
                 />
                 <SettingSwitch
                   label="Haptic feedback"
-                  detail="Feedback when you log a set."
+                  detail="Vibrate when you log a set."
                   value={settings.haptics}
                   onChange={(v) => onSettings({ haptics: v })}
                 />
                 <SettingSwitch
                   label="Keep screen awake"
-                  detail="During an active workout."
+                  detail="During workouts."
                   value={settings.keepAwake}
                   onChange={(v) => onSettings({ keepAwake: v })}
                 />
@@ -333,8 +327,7 @@ export function SettingsScreen({
             {group === "data" ? (
               <>
                 <Caption>
-                  JSON backups include your history, active workout, and
-                  settings. CSV is a readable set-by-set log.
+                  Backups include everything. CSV is for spreadsheets.
                 </Caption>
                 <Action
                   onPress={() => {
@@ -361,7 +354,7 @@ export function SettingsScreen({
                   }}
                   subtle
                 >
-                  Export readable CSV
+                  Export CSV
                 </Action>
                 <Action
                   onPress={() => {
@@ -419,15 +412,14 @@ const time = (seconds: number) =>
 function PlatesEditor() {
   const plates = useAppState((s) => s.settings.plates);
   const unit = useAppState((s) => s.settings.unit);
+  const { fontScale } = useWindowDimensions();
+  // Reserve room for "20 pairs" so every row's buttons share the same columns.
+  const countWidth = 72 * Math.max(1, fontScale);
   return (
     <>
       <SettingSwitch
         label="Count my plates"
-        detail={
-          plates === null
-            ? "Standard gym"
-            : "Use the pairs available in your gym."
-        }
+        detail={plates === null ? "Standard gym" : "Use the pairs you have."}
         value={plates !== null}
         onChange={countMyPlates}
       />
@@ -465,14 +457,14 @@ function PlatesEditor() {
                   <Text>−</Text>
                 </FilledTonalButton>
                 <Column
-                  modifiers={[defaultMinSize({ minWidth: 48, minHeight: 48 })]}
+                  modifiers={[
+                    width(countWidth),
+                    defaultMinSize({ minHeight: 48 }),
+                  ]}
                   verticalArrangement="center"
                   horizontalAlignment="center"
                 >
-                  <Text>
-                    {formatWeight(plates[unit][index])}{" "}
-                    {plates[unit][index] === 1 ? "pair" : "pairs"}
-                  </Text>
+                  <Text>{count(plates[unit][index], "pair")}</Text>
                 </Column>
                 <FilledTonalButton
                   enabled={plates[unit][index] < 20}
@@ -491,7 +483,7 @@ function PlatesEditor() {
             </FlowRow>
           ))
         : null}
-      <Caption>A pair is one plate for each side of the bar.</Caption>
+      <Caption>One pair is one plate per side.</Caption>
     </>
   );
 }

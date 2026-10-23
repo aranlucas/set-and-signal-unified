@@ -23,13 +23,13 @@ export async function exportData(
       throw error;
     }
     directory.createFile(filename, mimeType).write(contents);
-    return `${format === "json" ? "Backup" : "CSV"} saved in your selected folder.`;
+    return `${format === "json" ? "Backup" : "CSV"} saved.`;
   }
   const file = new File(Paths.cache, filename);
   file.create({ overwrite: true });
   file.write(contents);
   if (!(await Sharing.isAvailableAsync()))
-    throw new Error("Sharing is unavailable on this device.");
+    throw new Error("Sharing isn't available.");
   await Sharing.shareAsync(file.uri, {
     mimeType,
     dialogTitle: "Save your Fivefold data",

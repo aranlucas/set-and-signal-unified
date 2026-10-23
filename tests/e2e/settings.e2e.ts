@@ -23,11 +23,9 @@ describe("settings", { serial: true }, () => {
     await expect(screen.getByText("On")).toBeVisible();
     await expect(screen.getByText("1:30 / 3:00")).toBeVisible();
     await expect(screen.getByText("System")).toBeVisible();
-    await expect(screen.getByText("0 logs")).toBeVisible();
+    await expect(screen.getByText("0 workouts")).toBeVisible();
 
-    const version = screen.getByText(
-      `Fivefold ${packageInfo.version} · Independent 5×5 training log`,
-    );
+    const version = screen.getByText(`Fivefold ${packageInfo.version}`);
     await screen.scrollUntilVisible(version);
     await expect(version).toBeVisible();
     await screen.scrollUntilVisible(screen.getByText("Weights & equipment"), {
@@ -152,12 +150,10 @@ describe("settings", { serial: true }, () => {
 
   test("offers the backup and export actions", async ({ screen }) => {
     await tap(screen, screen.getByText("Backup & export"));
-    await expect(
-      screen.getByText(/JSON backups include your history/),
-    ).toBeVisible();
+    await expect(screen.getByText(/Backups include everything/)).toBeVisible();
     await expect(screen.getByText("Export backup")).toBeVisible();
     await expect(screen.getByText("Restore backup")).toBeVisible();
-    await expect(screen.getByText("Export readable CSV")).toBeVisible();
+    await expect(screen.getByText("Export CSV")).toBeVisible();
     await expect(screen.getByText("Share backup")).toBeVisible();
 
     const done = screen.getByText("Done");

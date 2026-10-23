@@ -185,7 +185,7 @@ describe("persistent workout storage", () => {
     const s = savedWorkout();
     s.history[0].finishedAt = NOW - 1;
     saveState(s);
-    expect(() => loadState()).toThrow("not a supported Fivefold backup");
+    expect(() => loadState()).toThrow("This isn't a Fivefold backup.");
   });
   it("imports the initial prototype storage format without losing history", () => {
     const s = savedWorkout();

@@ -30,6 +30,7 @@ import * as actions from "../data/actions";
 import { bindSnackbar, notify } from "../data/notices";
 import type { UndoSet } from "../domain/commands";
 import { nextSetLabel } from "../domain/surfaces";
+import { count } from "../domain/format";
 import { planPreview } from "../domain/planPreview";
 import { WorkoutScreen } from "../screens/WorkoutScreen";
 import { HistoryScreen, SessionDetail } from "../screens/HistoryScreen";
@@ -54,11 +55,8 @@ export function Application() {
       <Column modifiers={[fillMaxSize(), background(c.background)]}>
         <Page>
           <Panel>
-            <Heading>Could not open your data</Heading>
+            <Heading>Couldn't open your data</Heading>
             <Caption>{error}</Caption>
-            <Caption>
-              Your saved data has not been replaced. Try reopening storage.
-            </Caption>
             <Action onPress={retry}>Try again</Action>
           </Panel>
         </Page>
@@ -112,7 +110,7 @@ function AppShell() {
         loggedSets(active) === totalSets(active)
           ? "Finish this workout?"
           : "Save an unfinished workout?",
-      text: `${loggedSets(active)} of ${totalSets(active)} sets logged.${loggedSets(active) < totalSets(active) ? " Unlogged sets will be saved as skipped. Partly skipped lifts will repeat their weight." : ""}\n\nNext time:\n${summary}`,
+      text: `${loggedSets(active)} of ${totalSets(active)} sets logged.${loggedSets(active) < totalSets(active) ? " Unlogged sets count as skipped." : ""}\n\nNext time:\n${summary}`,
       confirm: "Save workout",
       action: () => {
         if (actions.finishWorkout()) {
@@ -130,14 +128,14 @@ function AppShell() {
     if (!backup) return;
     setDialog({
       title: "Restore this backup?",
-      text: `Replace the data on this device (${state.history.length} saved workouts${state.active ? " and an active workout" : ""}) with ${backup.history.length} workouts${backup.active ? " and the saved active workout" : ""} from the backup? Export your current data first if you want to keep it.`,
+      text: `Replace ${count(state.history.length, "workout")}${state.active ? " and an active workout" : ""} on this device with ${count(backup.history.length, "workout")} from the backup?`,
       confirm: "Replace & restore",
       destructive: true,
       action: () => {
         if (actions.restoreBackup(backup)) {
           setSelectedId(null);
           setTab("Train");
-          notify("Backup restored. Your workouts are ready.");
+          notify("Backup restored.");
         }
       },
     });
@@ -166,7 +164,7 @@ function AppShell() {
           onDiscard={() =>
             setDialog({
               title: "Discard this workout?",
-              text: "The active sets and note will be removed. Your planned weights and completed history will stay as they are.",
+              text: "Logged sets and notes will be lost.",
               confirm: "Discard workout",
               destructive: true,
               action: actions.discardWorkout,
@@ -187,7 +185,7 @@ function AppShell() {
           onDelete={(id) =>
             setDialog({
               title: "Delete this workout?",
-              text: "This removes the workout from your history. Planned weights and the next workout will not change.",
+              text: "This can't be undone.",
               confirm: "Delete workout",
               destructive: true,
               action: () => {
