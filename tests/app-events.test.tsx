@@ -8,8 +8,10 @@ import {
   type ReactTestRenderer,
 } from "react-test-renderer";
 import { BackHandler } from "react-native";
+import * as native from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import App from "../App";
+import { ToolsSheet } from "../src/components/Sheets";
 import { commit, retry } from "../src/data/store";
 import * as actions from "../src/data/actions";
 import * as surfaces from "../src/data/surfaces";
@@ -79,6 +81,122 @@ afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
+it("shows a singular set in the home Last workout card", async () => {
+  resetStorage({ ...savedState(), active: null, rest: null });
+  retry();
+  await act(async () => {
+    renderer = create(<App />);
+  });
+  expect(host("Text", "Last workout")).toBeDefined();
+  expect(
+    renderer.root.findAll(
+      (node) => String(node.type) === "Text" && text(node).endsWith("· 1 set"),
+    ),
+  ).toHaveLength(1);
+});
+it.each([
+  ["unloadable", 22.5, true, "Bar: 20 kg"],
+  ["below-bar", 10, true, "Bar: 20 kg"],
+  ["loadable", 25, true, "Bar: 20 kg · Plates on each side"],
+  ["empty-bar", 20, true, "Bar: 20 kg · Plates on each side"],
+  ["standard gym", 23, false, "Bar: 20 kg · Plates on each side"],
+] as const)(
+  "describes only the plates shown for a %s weight",
+  async (_, weight, counted, caption) => {
+    const state = initialState("kg");
+    const plates = defaultPlateInventory();
+    plates.kg[6] = 0;
+    resetStorage({
+      ...state,
+      settings: { ...state.settings, plates: counted ? plates : null },
+      plans: { ...state.plans, squat: { ...state.plans.squat, weight } },
+    });
+    retry();
+    await act(async () => {
+      renderer = create(<ToolsSheet lift="squat" onDismiss={() => {}} />);
+    });
+    const captions = renderer.root.findAll(
+      (node) => String(node.type) === "Text" && text(node).startsWith("Bar:"),
+    );
+    expect(captions.map(text)).toEqual([caption]);
+    if (weight === 22.5)
+      expect(
+        host("Text", "You can't load 22.5 kg with your plates."),
+      ).toBeDefined();
+    if (weight === 25) expect(host("Text", "1 × 2.5 kg")).toBeDefined();
+    if (weight === 20) expect(host("Text", "Empty bar")).toBeDefined();
+  },
+);
+it.each([1, 2])(
+  "aligns plate count slots for 0–20 pairs at %ix font scale",
+  async (fontScale) => {
+    vi.spyOn(native, "useWindowDimensions").mockReturnValue({
+      ...native.useWindowDimensions(),
+      fontScale,
+    });
+    const state = savedState();
+    const plates = defaultPlateInventory();
+    plates.kg = [0, 1, 4, 9, 10, 19, 20];
+    resetStorage({ ...state, settings: { ...state.settings, plates } });
+    retry();
+    await act(async () => {
+      renderer = create(<App />);
+    });
+    await act(async () =>
+      host("NavigationBarItem", "Settings").props.onClick(),
+    );
+    for (const label of ["Weights & equipment", "Plates"]) {
+      const row = renderer.root.findAll(
+        (node) =>
+          String(node.type) === "ListItem" && text(node).startsWith(label),
+      )[0];
+      await act(async () =>
+        row.props.modifiers.find((m: any) => m.name === "clickable").args[0](),
+      );
+    }
+    const slots = renderer.root.findAll(
+      (node) =>
+        String(node.type) === "Column" &&
+        node.children.length === 1 &&
+        /^\d+ pairs?$/.test(text(node)),
+    );
+    expect(slots.map(text)).toEqual([
+      "0 pairs",
+      "1 pair",
+      "4 pairs",
+      "9 pairs",
+      "10 pairs",
+      "19 pairs",
+      "20 pairs",
+    ]);
+    for (const slot of slots) {
+      expect(slot.props.modifiers).toContainEqual({
+        name: "width",
+        args: [72 * fontScale],
+      });
+      expect(slot.props.horizontalAlignment).toBe("center");
+    }
+    const buttons = renderer.root.findAll(
+      (node) =>
+        String(node.type) === "FilledTonalButton" &&
+        node.props.modifiers?.some((m: any) => m.name === "semantics"),
+    );
+    expect(buttons).toHaveLength(14);
+    for (const button of buttons)
+      expect(button.props.modifiers).toContainEqual({
+        name: "defaultMinSize",
+        args: [{ minWidth: 48, minHeight: 48 }],
+      });
+    expect(buttons[0].props.modifiers).toContainEqual({
+      name: "semantics",
+      args: [{ contentDescription: "Remove a pair of 25 kg plates" }],
+    });
+    expect(buttons[1].props.modifiers).toContainEqual({
+      name: "semantics",
+      args: [{ contentDescription: "Add a pair of 25 kg plates" }],
+    });
+  },
+);
 it("keeps one Android Back registration while reading the latest dialog, details and tab", async () => {
   const registration = vi.spyOn(BackHandler, "addEventListener");
   await act(async () => {

@@ -69,7 +69,7 @@ describe("workout recovery", { serial: true }, () => {
     await expect(
       screen.getByLabel(/^Squat, set 2 of 5, skipped/),
     ).toBeVisible();
-    const skippedHint = screen.getByText(/– means skipped/);
+    const skippedHint = screen.getByText(/– skipped · 0 no reps/);
     await screen.scrollUntilVisible(skippedHint);
     await expect(skippedHint).toBeVisible();
   });

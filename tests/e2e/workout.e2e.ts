@@ -64,9 +64,7 @@ describe("workout A", { serial: true }, () => {
   test("corrects reps, records zero and clears a set", async ({ screen }) => {
     const set = () => screen.getByLabel(/^Squat, set 1 of 5/).first();
     await tap(screen, set());
-    await expect(
-      screen.getByText("Currently: 5 reps. Choose the correct result."),
-    ).toBeVisible();
+    await expect(screen.getByText("Logged: 5 reps.")).toBeVisible();
 
     await tap(screen, screen.getByText("3 reps"));
     await expect(
@@ -132,7 +130,7 @@ describe("workout A", { serial: true }, () => {
     const deadliftRecord = screen.getByLabel("View Deadlift progress");
     await screen.scrollUntilVisible(deadliftRecord);
     await tap(screen, deadliftRecord);
-    const prescription = screen.getByText("Best completed prescription");
+    const prescription = screen.getByText("Best with every rep");
     await screen.scrollUntilVisible(prescription);
     await expect(prescription).toBeVisible();
     await expect(screen.getByText("No record yet")).toBeVisible();

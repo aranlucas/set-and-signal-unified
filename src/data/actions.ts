@@ -59,7 +59,7 @@ export const changeWorkoutUnit = (unit: Unit) =>
   commit((state) => changeUnit(state, unit));
 export function setUnit(unit: Unit) {
   if (getSnapshot().state.active)
-    notify("Finish or discard your active workout before changing units.");
+    notify("Finish your workout to change units.");
   else changeWorkoutUnit(unit);
 }
 export function recordSet(
@@ -100,12 +100,9 @@ export async function setAlerts(enabled: boolean) {
   }
   try {
     if (await enableRestAlerts()) updateSettings({ restAlerts: true });
-    else
-      notify(
-        "Notifications are disabled. You can enable them in Android app settings. The in-app timer works without permission.",
-      );
+    else notify("Notifications are off. Turn them on in Android settings.");
   } catch {
-    notify("Notifications are unavailable. The in-app timer still works.");
+    notify("Notifications aren't available.");
   }
 }
 export async function exportWorkoutData(format: "json" | "csv" | "share") {
@@ -118,7 +115,7 @@ export async function exportWorkoutData(format: "json" | "csv" | "share") {
     if (message) notify(message);
   } catch (error) {
     notify(
-      error instanceof Error ? error.message : "Could not export your data.",
+      error instanceof Error ? error.message : "Couldn't export your data.",
     );
   }
 }
@@ -127,7 +124,7 @@ export async function readBackup() {
     return await importData();
   } catch (error) {
     notify(
-      error instanceof Error ? error.message : "Could not read this backup.",
+      error instanceof Error ? error.message : "Couldn't read this backup.",
     );
     return null;
   }

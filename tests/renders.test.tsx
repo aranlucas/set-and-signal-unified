@@ -346,9 +346,7 @@ it("records compiled component invocations for the 10,000-session interaction ba
     ).props.onClick(),
   );
   hasText("1 × 1.25 kg");
-  hasText(
-    "Assumes standard plates with enough pairs available: 25, 20, 15, 10, 5, 2.5, 1.25 kg. Check the plates available in your gym.",
-  );
+  hasText("Standard plates: 25, 20, 15, 10, 5, 2.5, 1.25 kg.");
   await cleanup();
 
   const baseline = JSON.parse(
@@ -487,7 +485,7 @@ it("records compiled component invocations for the 10,000-session interaction ba
           "AppBar": 1,
           "AppNavigation": 1,
           "AppShell": 1,
-          "Caption": 46,
+          "Caption": 44,
           "Divider": 10,
           "Page": 2,
           "Panel": 6,
@@ -495,20 +493,20 @@ it("records compiled component invocations for the 10,000-session interaction ba
           "SectionTitle": 14,
           "StatRow": 10,
         },
-        "total": 93,
+        "total": 91,
       },
       "tab-settings": {
         "byComponent": {
           "AppBar": 1,
           "AppNavigation": 1,
           "AppShell": 1,
-          "Caption": 2,
+          "Caption": 1,
           "Divider": 4,
           "ListGroup": 1,
           "Page": 1,
           "SettingsScreen": 1,
         },
-        "total": 12,
+        "total": 11,
       },
       "tab-train": {
         "byComponent": {

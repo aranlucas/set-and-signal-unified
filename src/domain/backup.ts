@@ -11,8 +11,7 @@ import {
 const finite = (x: unknown, min: number, max: number): x is number =>
   typeof x === "number" && Number.isFinite(x) && x >= min && x <= max;
 const bool = (x: unknown) => typeof x === "boolean";
-const unsupportedState =
-  "This is not a supported Fivefold backup. Your current data has not been changed.";
+const unsupportedState = "This isn't a Fivefold backup.";
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 function validSession(s: unknown, finished: boolean): s is Session {
@@ -113,7 +112,7 @@ export function parseBackup(text: string): AppState {
   try {
     s = JSON.parse(text);
   } catch {
-    throw new Error("This file is not valid JSON. Choose a Fivefold backup.");
+    throw new Error("This isn't a Fivefold backup.");
   }
   if (record(s) && Array.isArray(s.history) && s.history.length > 20000)
     throw new Error(unsupportedState);

@@ -364,7 +364,7 @@ describe("backup validation", () => {
     const text = JSON.stringify(s);
     expect(text.length).toBeLessThan(20_000_000);
     expect(validateState(s)).toBe(s);
-    expect(() => parseBackup(text)).toThrow("not a supported Fivefold backup");
+    expect(() => parseBackup(text)).toThrow("This isn't a Fivefold backup.");
   });
   it("retains the 20 MB size limit for external backups", () => {
     const s = initialState("kg");

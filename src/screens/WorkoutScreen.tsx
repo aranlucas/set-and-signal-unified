@@ -1,7 +1,7 @@
 import { loadPlates } from "../domain/plates";
 import { useAppState } from "../data/store";
 import { setNotes } from "../data/actions";
-import { sessionDate, workoutDate } from "../domain/format";
+import { count, sessionDate, workoutDate } from "../domain/format";
 import { useState } from "react";
 import MoreIcon from "@expo/material-symbols/more_vert.xml";
 import {
@@ -118,9 +118,6 @@ export function WorkoutScreen({
         {!onboarded ? (
           <Panel>
             <SectionTitle>Set your starting weights</SectionTitle>
-            <Caption>
-              Choose kg or lb and a comfortable load for each lift.
-            </Caption>
             <Choices
               values={[
                 { value: "lb", label: "Pounds" },
@@ -203,29 +200,29 @@ export function WorkoutScreen({
           />
         ) : (
           <>
-            <SectionTitle>Last workout</SectionTitle>
             {history[0] ? (
-              <Panel>
-                <SectionTitle>Workout {history[0].kind}</SectionTitle>
-                <Caption>
-                  {sessionDate(history[0])} · {loggedSets(history[0])} sets
-                </Caption>
-                <Caption>
-                  {history[0].exercises
-                    .map(
-                      (e) =>
-                        `${NAMES[e.lift]} ${formatWeight(e.weight)} ${history[0].unit}`,
-                    )
-                    .join(" · ")}
-                </Caption>
-              </Panel>
-            ) : (
-              <Caption>Your completed workouts will appear here.</Caption>
-            )}
-            <Caption>
-              Alternate A and B, three times a week, with a rest day between
-              sessions. Complete all reps to increase the load.
-            </Caption>
+              <>
+                <SectionTitle>Last workout</SectionTitle>
+                <Panel>
+                  <SectionTitle>Workout {history[0].kind}</SectionTitle>
+                  <Caption>
+                    {sessionDate(history[0])} ·{" "}
+                    {count(loggedSets(history[0]), "set")}
+                  </Caption>
+                  <Caption>
+                    {history[0].exercises
+                      .map(
+                        (e) =>
+                          `${NAMES[e.lift]} ${formatWeight(e.weight)} ${history[0].unit}`,
+                      )
+                      .join(" · ")}
+                  </Caption>
+                </Panel>
+              </>
+            ) : null}
+            {history.length === 0 ? (
+              <Caption>Alternate A and B, three days a week.</Caption>
+            ) : null}
           </>
         )}
       </Page>
@@ -242,8 +239,9 @@ export function WorkoutScreen({
               {NAMES[editing.lift]} · Set {editing.index + 1}
             </Heading>
             <Caption>
-              Currently: {editingReps ?? "not logged"} reps. Choose the correct
-              result.
+              {(editingReps ?? null) === null
+                ? "Not logged."
+                : `Logged: ${count(editingReps ?? 0, "rep")}.`}
             </Caption>
             <Column verticalArrangement={{ spacedBy: 8 }}>
               {[
@@ -303,7 +301,7 @@ function WorkoutNotes({
   const c = useMaterialColors();
   return (
     <Column verticalArrangement={{ spacedBy: 8 }}>
-      <Caption>Tap + to log 5 reps. Tap a logged set to edit.</Caption>
+      <Caption>Tap + to log a set. Tap it again to edit.</Caption>
       <Divider />
       <Row modifiers={[fillMaxWidth()]} horizontalArrangement="spaceBetween">
         <TextButton onClick={() => setShowNotes(!showNotes)}>

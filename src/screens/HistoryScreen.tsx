@@ -35,7 +35,7 @@ import {
   type Session,
   type WorkoutKind,
 } from "../domain/workout";
-import { sessionDate } from "../domain/format";
+import { count, sessionDate } from "../domain/format";
 
 export function HistoryScreen({
   onOpen,
@@ -106,10 +106,7 @@ export function HistoryScreen({
       contentPadding={{ start: inset, end: inset, top: 8, bottom: 24 }}
       verticalArrangement={{ spacedBy: 12 }}
     >
-      <Caption>
-        {state.history.length} saved workout
-        {state.history.length === 1 ? "" : "s"}
-      </Caption>
+      <Caption>{count(state.history.length, "saved workout")}</Caption>
       <Choices
         values={[
           { value: "All", label: "All" },
@@ -121,21 +118,18 @@ export function HistoryScreen({
       />
       {kind !== "All" ? (
         <Caption>
-          {sessions.length} workout{sessions.length === 1 ? "" : "s"} {kind}
+          {count(sessions.length, "workout")} {kind}
         </Caption>
       ) : null}
       {!state.history.length ? (
         <Panel>
           <Heading>No workouts yet</Heading>
-          <Caption>
-            Finish your first workout to see sets, weights, and notes here.
-          </Caption>
+          <Caption>Finished workouts show up here.</Caption>
         </Panel>
       ) : null}
       {state.history.length > 0 && sessions.length === 0 ? (
         <Panel>
           <Heading>No workout {kind} yet</Heading>
-          <Caption>Choose All to see your other workouts.</Caption>
         </Panel>
       ) : null}
       <LazyColumn.Items
@@ -171,7 +165,7 @@ export function SessionDetail({
         <Heading large>Workout {session.kind}</Heading>
         <Caption>{sessionDate(session)}</Caption>
         <Caption>
-          {duration(session)} min · {loggedSets(session)} sets ·{" "}
+          {duration(session)} min · {count(loggedSets(session), "set")} ·{" "}
           {formatWeight(volume(session))} {session.unit} volume
         </Caption>
       </Column>
@@ -198,9 +192,7 @@ export function SessionDetail({
           <Text>{session.notes}</Text>
         </Panel>
       ) : null}
-      <Caption>
-        – means skipped. 0 means attempted with no completed reps.
-      </Caption>
+      <Caption>– skipped · 0 no reps</Caption>
       <Row modifiers={[fillMaxWidth()]} horizontalArrangement="spaceBetween">
         <TextButton onClick={onBack}>
           <Text>Back to history</Text>

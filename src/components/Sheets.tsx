@@ -144,11 +144,9 @@ export function WeightSheet({
           />
         ) : null}
         {error ? <Text>{error}</Text> : null}
-        <Caption>
-          {state.active && lift !== "bar"
-            ? "This updates the active workout and the next planned weight. Already logged sets use this exercise weight."
-            : "This updates your next planned weight. Past workouts stay as logged."}
-        </Caption>
+        {state.active && lift !== "bar" ? (
+          <Caption>Also updates sets you've logged.</Caption>
+        ) : null}
         <Action onPress={save}>Save weight</Action>
         <Action onPress={onDismiss} subtle>
           Cancel
@@ -184,7 +182,7 @@ export function ToolsSheet({
       >
         <Heading>{NAMES[lift]} · Warm-up & plates</Heading>
         <Caption>{CUES[lift]}</Caption>
-        <Text style={{ typography: "titleMedium" }}>Suggested warm-up</Text>
+        <Text style={{ typography: "titleMedium" }}>Warm-up</Text>
         {warmup.length ? (
           <Caption>
             {warmup
@@ -195,15 +193,9 @@ export function ToolsSheet({
               .join("\n")}
           </Caption>
         ) : (
-          <Caption>
-            Your work weight is at or below the bar weight. Start with a lighter
-            training bar if you need one.
-          </Caption>
+          <Caption>No warm-up needed.</Caption>
         )}
-        <Caption>
-          Warm-ups are guidance and do not count toward your work sets. Tap a
-          weight to see the plates.
-        </Caption>
+        <Caption>Tap a weight to see its plates.</Caption>
         <FlowRow
           horizontalArrangement={{ spacedBy: 8 }}
           verticalArrangement={{ spacedBy: 4 }}
@@ -227,13 +219,13 @@ export function ToolsSheet({
           {formatWeight(selected)} {unit} total
         </Heading>
         <Caption>
-          Bar: {formatWeight(bar)} {unit} · Plates on each side
+          Bar: {formatWeight(bar)} {unit}
+          {!plates.belowBar && (inventory === null || plates.exact)
+            ? " · Plates on each side"
+            : ""}
         </Caption>
         {plates.belowBar ? (
-          <Text>
-            This target is lighter than your bar. Use a lighter bar or adjust
-            the weight.
-          </Text>
+          <Text>Lighter than the bar.</Text>
         ) : inventory !== null && !plates.exact ? (
           <>
             <Text>
@@ -279,7 +271,7 @@ export function ToolsSheet({
                     </Text>
                   ))
                 ) : (
-                  <Text>No plates · empty bar</Text>
+                  <Text>Empty bar</Text>
                 )}
               </Column>
             ) : null}
@@ -291,20 +283,17 @@ export function ToolsSheet({
             </Text>
           ))
         ) : (
-          <Text>No plates · empty bar</Text>
+          <Text>Empty bar</Text>
         )}
         {inventory === null && plates.remainder > 0 ? (
           <Text>
-            {formatWeight(plates.remainder)} {unit} cannot be loaded with these
-            plates. The combination above is{" "}
-            {formatWeight(selected - plates.remainder)} {unit}. Your logged
-            weight has not changed.
+            Closest load: {formatWeight(selected - plates.remainder)} {unit}.
           </Text>
         ) : null}
         <Caption>
           {inventory !== null
             ? "Using your plates."
-            : `Assumes standard plates with enough pairs available: ${unit === "kg" ? "25, 20, 15, 10, 5, 2.5, 1.25 kg" : "45, 35, 25, 10, 5, 2.5 lb"}. Check the plates available in your gym.`}
+            : `Standard plates: ${unit === "kg" ? "25, 20, 15, 10, 5, 2.5, 1.25 kg" : "45, 35, 25, 10, 5, 2.5 lb"}.`}
         </Caption>
         <Action onPress={onDismiss}>Back to workout</Action>
       </Column>

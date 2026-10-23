@@ -49,6 +49,7 @@ describe("my plates", { serial: true }, () => {
       { direction: "up" },
     );
     await tap(screen, screen.getByLabel("Warm-up & plates for Squat"));
+    await expect(screen.getByText("Bar: 20 kg", { exact: true })).toBeVisible();
     const guidance = screen.getByText(
       "You can't load 102.5 kg with your plates.",
     );
@@ -87,7 +88,7 @@ describe("my plates", { serial: true }, () => {
     await screen.scrollUntilVisible(screen.getByText("1 × 1.25 kg"));
     await expect(screen.getByText("1 × 1.25 kg")).toBeVisible();
     const standard = screen.getByText(
-      "Assumes standard plates with enough pairs available: 25, 20, 15, 10, 5, 2.5, 1.25 kg. Check the plates available in your gym.",
+      "Standard plates: 25, 20, 15, 10, 5, 2.5, 1.25 kg.",
     );
     await screen.scrollUntilVisible(standard);
     await expect(standard).toBeVisible();

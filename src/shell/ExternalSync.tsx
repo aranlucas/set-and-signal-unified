@@ -30,11 +30,7 @@ export function ExternalSync() {
     s.settings.restAlerts ? s.rest?.endsAt : undefined,
   );
   useEffect(() => {
-    syncRestAlert(rest, alerts, () =>
-      notify(
-        "Rest alerts could not be scheduled. The in-app timer still works.",
-      ),
-    );
+    syncRestAlert(rest, alerts, () => notify("Couldn't schedule rest alerts."));
   }, [rest, alerts]);
   useEffect(() => {
     syncWidget(getSnapshot().state);

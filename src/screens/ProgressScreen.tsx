@@ -1,5 +1,5 @@
 import { useAppState } from "../data/store";
-import { weekDate, chartDate, shortDate, date } from "../domain/format";
+import { count, weekDate, chartDate, shortDate, date } from "../domain/format";
 import { useState } from "react";
 import {
   Column,
@@ -116,9 +116,6 @@ export function ProgressScreen() {
             value={`${week.count} / 3 workouts`}
           />
         ))}
-        <Caption>
-          Current week and previous 3 weeks. Each saved workout counts once.
-        </Caption>
       </Panel>
       <SectionTitle>Weight history</SectionTitle>
       <FlowRow
@@ -141,7 +138,7 @@ export function ProgressScreen() {
       <Panel>
         <SectionTitle>{NAMES[selected]}</SectionTitle>
         <StatRow
-          label="Best completed prescription"
+          label="Best with every rep"
           value={
             best === null
               ? "No record yet"
@@ -157,7 +154,8 @@ export function ProgressScreen() {
         {chart.length ? (
           <>
             <Caption>
-              Last {chart.length} sessions · weight in {state.settings.unit}
+              Last {count(chart.length, "session")} · weight in{" "}
+              {state.settings.unit}
             </Caption>
             <Row
               modifiers={[fillMaxWidth()]}
@@ -191,10 +189,7 @@ export function ProgressScreen() {
                 </Column>
               ))}
             </Row>
-            <Caption>
-              Full-height scale starts at zero. Accent = all reps; muted =
-              missed or skipped reps.
-            </Caption>
+            <Caption>Muted bars: missed or skipped reps.</Caption>
             <Divider />
             {entries
               .slice(-10)
@@ -221,16 +216,9 @@ export function ProgressScreen() {
               ))}
           </>
         ) : (
-          <Caption>
-            Complete a workout with {NAMES[selected].toLowerCase()} to see your
-            history.
-          </Caption>
+          <Caption>No {NAMES[selected].toLowerCase()} workouts yet.</Caption>
         )}
       </Panel>
-      <Caption>
-        Records require every prescribed rep. Missed and skipped sets stay
-        visible in history. Previous weights are converted to your current unit.
-      </Caption>
     </Page>
   );
 }

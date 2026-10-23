@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest";
 import {
   chartDate,
   clock,
+  count,
   date,
   formatWeight,
   sessionDate,
@@ -10,6 +11,21 @@ import {
   workoutDate,
 } from "../src/domain/format";
 import { initialState, startSession } from "../src/domain/workout";
+it.each([
+  [0, "set", undefined, "0 sets"],
+  [1, "set", undefined, "1 set"],
+  [2, "set", undefined, "2 sets"],
+  [0, "workout", undefined, "0 workouts"],
+  [1, "workout", undefined, "1 workout"],
+  [2, "workout", undefined, "2 workouts"],
+  [1, "person", "people", "1 person"],
+  [2, "person", "people", "2 people"],
+] as const)(
+  "formats %i %s with the English count",
+  (n, one, other, expected) => {
+    expect(count(n, one, other)).toBe(expected);
+  },
+);
 it("matches the previous weight formatting byte for byte", () => {
   const weights = [
     ...Array.from({ length: 2001 }, (_, i) => i * 0.25),

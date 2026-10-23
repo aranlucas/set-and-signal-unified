@@ -7,11 +7,9 @@ async function expectTrainingWeeks(screen: Screen, saved: number) {
   await screen.scrollUntilVisible(heading);
   await expect(heading).toBeVisible();
 
-  const caption = screen.getByText(
-    "Current week and previous 3 weeks. Each saved workout counts once.",
-  );
-  await screen.scrollUntilVisible(caption);
-  await expect(caption).toBeVisible();
+  const currentWeek = screen.getByText("This week");
+  await screen.scrollUntilVisible(currentWeek);
+  await expect(currentWeek).toBeVisible();
   await expect(screen.getByText(/^(Week of .+|This week)$/)).toHaveText([
     /^Week of .+$/,
     /^Week of .+$/,
@@ -97,9 +95,6 @@ describe("training insights", { serial: true }, () => {
     await expect(screen.getByText("0 workouts B")).toBeVisible();
     await expect(screen.getByText("1 saved workout")).toBeVisible();
     await expect(screen.getByText("No workout B yet")).toBeVisible();
-    await expect(
-      screen.getByText("Choose All to see your other workouts."),
-    ).toBeVisible();
     await expect(screen.getByText("Workout A")).not.toBeVisible();
 
     await tap(screen, screen.getByText("All"));
@@ -130,7 +125,7 @@ describe("training insights", { serial: true }, () => {
     const history = screen.getByText("Weight history");
     await screen.scrollUntilVisible(history);
     await expect(history).toBeVisible();
-    const best = screen.getByText("Best completed prescription");
+    const best = screen.getByText("Best with every rep");
     await screen.scrollUntilVisible(best);
     await expect(best).toBeVisible();
     await expect(screen.getByText("20 kg").first()).toBeVisible();

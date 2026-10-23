@@ -1,7 +1,7 @@
 {
   "name": "fivefold",
   "license": "0BSD",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "main": "index.ts",
   "dependencies": {
     "@expo/material-symbols": "^0.1.1",
@@ -52,7 +52,9 @@
     "eas": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@25.3.0",
     "perf": "tsx check-performance.ts",
     "perf:renders": "vitest run tests/renders.test.tsx",
-    "format": "prettier --check \"**/*.{ts,tsx,js,mjs,cjs,json}\""
+    "format": "prettier --check \"**/*.{ts,tsx,js,mjs,cjs,json}\"",
+    "verify:apk": "node verify-apk.mjs",
+    "test:e2e:matrix": "node e2e-matrix.mjs"
   },
   "private": true,
   "packageManager": "pnpm@12.15.0",

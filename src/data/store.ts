@@ -22,9 +22,7 @@ function read(): StoreSnapshot {
     return {
       state: snapshot?.state ?? initialState(),
       error:
-        error instanceof Error
-          ? error.message
-          : "Could not open workout storage.",
+        error instanceof Error ? error.message : "Couldn't open your data.",
       ready: snapshot?.ready ?? false,
     };
   }
@@ -63,8 +61,7 @@ export function commit(update: (state: AppState) => AppState): boolean {
   } catch {
     publish({
       ...current,
-      error:
-        "This change could not be saved. Free some device storage and try again. Your previously saved workout is safe.",
+      error: "Couldn't save. Free up storage and try again.",
     });
     return false;
   }

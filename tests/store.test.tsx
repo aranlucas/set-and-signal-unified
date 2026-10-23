@@ -44,7 +44,7 @@ it("keeps the visible state after a failed save and publishes the storage error"
   expect(commit((s) => startSession(s, 1000))).toBe(false);
   expect(getSnapshot().state).toBe(previous);
   expect(getSnapshot().error).toBe(
-    "This change could not be saved. Free some device storage and try again. Your previously saved workout is safe.",
+    "Couldn't save. Free up storage and try again.",
   );
   expect(listener).toHaveBeenCalledOnce();
   storage.saveState.mockReset();

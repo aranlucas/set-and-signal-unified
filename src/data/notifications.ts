@@ -35,7 +35,7 @@ export function syncRestAlert(
         identifier: "fivefold-rest",
         content: {
           title: "Ready for your next set",
-          body: `${NAMES[rest.lift]} · Take a breath, brace, and lift.`,
+          body: NAMES[rest.lift],
           sound: "default",
         },
         trigger: {
