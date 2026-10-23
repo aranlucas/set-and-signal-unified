@@ -1,35 +1,57 @@
-# Fivefold 1.2.1 release verification
+# Fivefold 1.3.0 release verification
 
-Verification date: 22 October 2026. Follow-up starts from `origin/main` commit `60c7013`, which includes the 1.2 roadmap release and the pnpm/EAS migration. Version 1.2.1 uses Android versionCode 4. Prior release evidence is preserved in [1.1.0 verification](verification-1.1.0.md).
+Verification date: 23 October 2026. Source base: `e2e2455` (1.2.1) plus the 1.3.0 changes on `t3/react-performance-audit`. Version 1.3.0 uses Android versionCode 5. Earlier evidence is preserved in [1.2.1 verification](verification-1.2.1.md).
 
-## Navigation regression
+## Scope
 
-The installed 1.2.0 EAS APK reproducibly returned to the Android launcher when system Back was pressed from Settings or saved workout details on Android 15. The new navigation E2E test also failed against that APK. Evidence: `artifacts/roadmap/verification/back-before.log`.
+- **My plates**: optional available-pair inventories for kg and lb, a minimum-plate bounded solver, closest below and above loads, a native editor, and a warning on the workout card when the planned weight cannot be loaded.
+- **Units**: new installs default to pounds (45 lb bar; 45/45/65/45/90 lb loads; +5 lb, or +10 lb for deadlift). First-run setup offers a kg/lb choice. Existing installs keep their saved unit.
+- **Layout**: fixes for 200% text, compact phones and tablets (centred column of at most 640 dp); portrait lock on phones; a 48 dp rest dock on the navigation surface. Before/after captures were reviewed on the emulator.
+- **React architecture**: an external store with narrow subscriptions, pure commands, zero React Compiler bailouts, and lazily cached `Intl` formatters. The method and measurements are in the [React audit](react-audit.md).
 
-React Native 0.88 registers its AndroidX back callback only when both device and target SDK are at least 36 (`ReactActivity.java` and `AndroidVersion.kt` in the installed package). The app enabled predictive back on API 35, where its JavaScript `BackHandler` was bypassed. The correction sets Expo's `android.predictiveBackGestureEnabled` to `false`, preserving the existing navigation behavior. No custom native module or new runtime dependency is added. Expo documents the [configuration property](https://docs.expo.dev/versions/latest/config/app/#predictivebackgestureenabled); Android documents the [opt-out and callback behavior](https://developer.android.com/guide/navigation/custom-back/predictive-back-gesture#opt-out).
+## Automated checks
 
-## Automated source and performance checks
+`pnpm run check` passes: ESLint with zero warnings (React Hooks `recommended-latest` on `.ts` and `.tsx`), strict TypeScript, Prettier, and **211 Vitest tests across 18 files**. The suite includes:
 
-`pnpm run check` passes lint with zero warnings, strict TypeScript, and **130 Vitest tests across eight files**. The 10,000-session development-machine benchmark measured **2.135 ms fresh-summary CPU p95** against a 16 ms budget and **0.101 ms for 1,000 cached calls** against an 8 ms budget. Fresh-summary wall p95 was 2.213 ms. This measures synchronous computation, not native startup or Android frame rate. Evidence: `artifacts/roadmap/verification/check.log`.
+- the React Compiler gate (41 components and hooks compiled, no bailouts);
+- render-count snapshots for 13 interactions;
+- a strict Expo UI `Text` children check;
+- CPU budgets.
 
-The E2E suite now contains 35 tests. Compact-phone helper corrections keep swipe paths inside workout content instead of the persistent rest dock and scroll offscreen assertions into view. Assertions remain in place. System Back is checked from all secondary tabs and from saved workout details.
+The plate solver's worst case (2,000 kg target, 20 pairs of every size) measured 0.068 ms CPU p95 against a 1 ms budget.
 
-The navigation correction merged separately in [PR #7](https://github.com/aranlucas/stronglifts/pull/7) (`cf3588e`). Its exact committed snapshot passed all 130 unit tests and the Android 15 navigation regression with main’s original helper (16.81 seconds). The scoped Impeccable native technical verdict was **SHIP**. Evidence: `back-isolated-check.log` and `back-isolated-navigation.log` in the verification artifact directory.
+## Release build
 
-## Release and device gates
+- Signed EAS local build, `artifacts/Fivefold-1.3.0.apk`: versionCode 5, 78,173,799 bytes, SHA-256 `a95f00372e31e16d2b859813315ac0f6f9e7df97e831c4652fedd04b261583c7`.
+- The v2 signature verifies with certificate SHA-256 `aa7ad6eee903940e6867adaf2a0b0f2be466042ac00ecde27343f466e2cf321f`, the same certificate as 1.2.1, so it installs as an update.
+- 16 KB ZIP alignment passes. All four ABIs are present, target SDK is 36, the APK is not debuggable, and phones are portrait-only.
+- The Hermes bundle contains neither the measurement instrumentation (`FIVEFOLD_PERF`) nor the measurement seed code. The build ran from a cleared Metro cache.
 
-- Signed EAS local build: passed. APK `artifacts/Fivefold-1.2.1.apk`, versionCode 4, SHA-256 `37aa23f48f3bd94de38314d30d72b78f9fdc7237624608f49ebb5e7f2ef43571`. SDK 37 signature verification matches the existing signing certificate, 16 KB ZIP alignment passes, all four ABIs are present, and the app is non-debuggable. Evidence: `artifacts/roadmap/verification/build.log`.
-- Android 17 installed release: all six insights scenarios and the navigation regression pass. Evidence: `artifacts/roadmap/verification/e2e-android17-insights.log` and `e2e-android17-back.log`.
-- Android 15 installed release: **35 of 35 tests passed**, with zero failures, skips, flaky results, or interruptions, in **330.40 seconds**. The run used the same signed APK above and completed at 19:06:48 UTC. Evidence: `artifacts/roadmap/verification/e2e-android15-final-2.log`; run ID `01a164fd-27a4-717f-8569-53446bb78505`.
-- Light/dark and enlarged-font captures: passed on the final signed APK. All 14 captures and their checksums are in `artifacts/roadmap/after/`; landscape at 150% text confirms dialog-body scrolling with fixed actions.
-- Independent Impeccable finish review: **`disposition: ship`**, no material fixes. Scope and unverified accessibility/performance boundaries are in [the design review](design/roadmap-review.md).
+## Installed-app E2E
 
-Earlier runs are retained as diagnostic evidence: the initial run passed 28 of 34, with a combined A/B test reaching its 120-second budget and a Progress selector tapping a static heading. After splitting at the save boundary and selecting the labelled control, 34 of 35 passed; the remaining saved-workout caption was below the viewport. The final correction scrolls to that same caption before asserting it. All original behavioral assertions and the default per-test timeout remain. The complete final run passes on this corrected harness. Logs: `e2e-android15-initial.log`, `e2e-android15.log`, and `e2e-android15-final.log` in the verification artifact directory.
+Android 15 emulator, signed APK above: **36 of 36 tests passed** in 511.55 s, with zero failures, skips, flaky results or retries (run `01a16831-a0cc-7810-91af-ee5178d86fa1`). Log: `artifacts/release-1.3.0/e2e-android15.log`.
 
-The compact-phone test and verification increment is [PR #8](https://github.com/aranlucas/stronglifts/pull/8). The emulator was returned to font scale 1.0, system light appearance, and its original rotation settings after verification.
+Earlier runs on the way to this result are kept as evidence:
 
-## Scope and remaining work
+- `e2e-android15-initial.log` (25 passed, 3 failed, 8 skipped): two tests still expected text the 1.3.0 changes had altered ("1 saved workouts", and Deadlift now below the fold in the equipment sheet). The new plates test asserted a disabled state on a label node. In Expo UI, the label and the disabled button are sibling nodes, so the test now checks the zero boundary by tapping once more.
+- `e2e-android15-second.log` (35 passed, 1 failed): found a real regression. In Standard gym mode the Warm-up & plates caption rendered empty, because Expo UI `Text` drops Fragment children. The caption is now a single string. The render harness's `Text` mock now rejects unsupported children, so this class of bug fails in Node; the mock failed before the fix and passes after.
 
-The release includes All/A/B history filters, four local-calendar weeks, latest lift outcomes, next-load explanations, bounded cached progress aggregation, and durable storage boundary fixes. The [roadmap](roadmap.md) keeps measured physical-device profiling, asynchronous startup, expanded backup/restore E2E, explicit whole-exercise weight corrections, and coalesced note persistence in Next.
+Captures from the signed APK are in `artifacts/release-1.3.0/`: first-run unit choice, the plate editor, the workout-card warning, and the closest-load options.
 
-No physical-device frame/startup claims, complete human TalkBack audit, iOS build, or new backup/export round-trip verification are asserted here.
+## Performance
+
+Measured on the Android 15 emulator with 10,000 seeded sessions, using alternating release builds (see the [React audit](react-audit.md)):
+
+- JS per set tap: 12.4 → 8.5 ms median; 60.2 → 23.0 ms p95.
+- React render and reconcile: 7.0 → 3.3 ms median.
+- Startup to first ready commit: 543 → 551 ms median, within noise.
+- Memory: unchanged at about 120 MB PSS.
+
+## Not verified
+
+- Physical-device startup or frame pacing (emulator frame statistics are not meaningful).
+- A full human TalkBack pass.
+- Android 17.
+- 200% text on the new plate editor.
+- Backup/export round trips beyond the existing unit tests.
+- iOS.
