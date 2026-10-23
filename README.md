@@ -59,7 +59,15 @@ Dates use `YYYY-MM-DD`. Daily date range tools accept at most 31 calendar days p
 
 Every tool returns `{ source: "Garmin Connect", data }` in both `structuredContent` and a JSON text block. Response schemas stay inside the Garmin client; MCP tool definitions expose input schemas and annotations. Garmin responses are validated against models generated from the published API snapshot. Documented fields retain their types and optionality; additional fields are preserved. Invalid responses produce a safe tool error without including upstream values or Zod error details.
 
-No workout uploads, activity editing, course publishing, or arbitrary HTTP proxy tool is exposed. An activity’s associated workouts can be read. Availability of metrics and historical records depends on your Garmin account, device, and Garmin’s API.
+The Personal endpoint exposes no workout uploads, activity editing, course publishing, or arbitrary HTTP proxy. An activity’s associated workouts can be read. Availability of metrics and historical records depends on your Garmin account, device, and Garmin’s API.
+
+## Optional business workout publishing
+
+This branch adds a separate, **experimental and default-off** business Training API integration at `/training/mcp`. It uses Garmin sign-in and its own OAuth issuer, consent, write scope, and encrypted token grants. The existing `/mcp` endpoint continues to use Personal API keys.
+
+The intended flow is `create_workout` → `schedule_workout` → sync Garmin Connect with the watch. Read-back tools are `get_workout`, `get_workout_schedule`, and `list_workout_schedules`. A successful publish or schedule does **not** confirm delivery to a watch.
+
+Set `GARMIN_TRAINING_ENABLED=true` and `GARMIN_TRAINING_CLIENT_ID` to opt in, then install `GARMIN_TRAINING_CLIENT_SECRET` as a Worker secret. Missing credentials fail closed. The detailed Training API wire contract still needs verification against an approved application's developer-portal reference and a live device test. See [business setup, examples, and contract assumptions](docs/garmin-training.md) before enabling it.
 
 ## Disconnect
 

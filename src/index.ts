@@ -10,6 +10,7 @@ import * as z from "zod";
 import { authHandler, type AppEnv } from "./auth";
 import { createServer } from "./mcp";
 import { READ_SCOPE, WOMENS_SCOPE } from "./scopes";
+import { fetchTraining, isTrainingPath } from "./training/auth";
 
 /** Grant props saved by the consent flow in auth.ts. */
 const grantProps = z.object({ apiKey: z.string() });
@@ -83,6 +84,10 @@ export default {
     });
 
     try {
+      if (isTrainingPath(new URL(request.url).pathname)) {
+        return await fetchTraining(request, env, ctx);
+      }
+
       // SAFETY: OAuthProvider adds OAUTH_PROVIDER to env before it calls any handler.
       return await provider.fetch(request, env as AppEnv, ctx);
     } catch {
