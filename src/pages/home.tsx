@@ -1,5 +1,4 @@
 import { SiteLayout } from "./layout";
-import { garminKeyUrl } from "./links";
 import { Icon } from "./icon";
 
 type HomePageProps = { publicUrl: string };
@@ -21,7 +20,7 @@ export function HomePage({ publicUrl }: HomePageProps) {
           <a class="button" href="#connect">
             Connect your assistant <span aria-hidden="true">↗</span>
           </a>
-          <p class="hero-note">Read only · Your key stays private</p>
+          <p class="hero-note">Garmin sign-in · One connection</p>
         </div>
         <div class="conversation" aria-label="Example question using your Garmin data">
           <p class="conversation-label">A conversation with your data</p>
@@ -69,7 +68,7 @@ export function HomePage({ publicUrl }: HomePageProps) {
           <ul>
             <li>Runs, rides, and other activities</li>
             <li>Activity details and workouts</li>
-            <li>Recent and historical data</li>
+            <li>Data received since you connect</li>
           </ul>
         </article>
         <article class="feature">
@@ -82,19 +81,19 @@ export function HomePage({ publicUrl }: HomePageProps) {
           <ul>
             <li>Sleep data and sleep stages</li>
             <li>Heart rate variability (HRV)</li>
-            <li>Body Battery and daily health</li>
+            <li>Daily health and recovery summaries</li>
           </ul>
         </article>
         <article class="feature">
           <Icon name="lock" />
           <h2>Access, on your terms.</h2>
           <p>
-            You control what’s shared. Access is read only, your key is encrypted, and sensitive
-            data like women’s health requires separate consent.
+            You control what’s shared. Sign in through Auth and choose what Garmin can share.
+            Approve workout changes before your assistant sends them.
           </p>
           <ul>
-            <li>Encrypted key, read-only access</li>
-            <li>Separate women’s health consent</li>
+            <li>Encrypted Garmin tokens in Auth</li>
+            <li>Health, activities, and workout sending</li>
             <li>Disconnect at any time</li>
           </ul>
         </article>
@@ -108,21 +107,19 @@ export function HomePage({ publicUrl }: HomePageProps) {
               <span class="accent">More perspective.</span>
             </h2>
             <p>
-              Set up Garmin Personal MCP in a few simple steps and bring your own data into your
+              Set up Garmin MCP in a few simple steps and bring your own data into your
               MCP-compatible AI assistant.
             </p>
           </div>
           <div>
             <ol class="steps">
               <li>
-                <h3>Create your Garmin key</h3>
+                <h3>Sign in with Auth</h3>
                 <p>
-                  Create a Personal API key in Garmin Connect. Save it somewhere safe: Garmin shows
-                  it only once.
+                  Use your existing Auth account, then link Garmin on Garmin’s permission screen.
                 </p>
-                <a href={garminKeyUrl} target="_blank" rel="noopener noreferrer">
-                  Create a Garmin key <span aria-hidden="true">↗</span>
-                  <span class="sr-only"> (opens in a new tab)</span>
+                <a href="https://auth.aranlucas.workers.dev/account">
+                  Manage connected accounts <span aria-hidden="true">↗</span>
                 </a>
               </li>
               <li>
@@ -149,15 +146,15 @@ export function HomePage({ publicUrl }: HomePageProps) {
                 <h3>Approve your connection</h3>
                 <p>
                   Start the connection from your assistant. Check the client and return address,
-                  enter your Garmin key, and approve access.
+                  sign in through Auth, and approve Garmin access.
                 </p>
-                <p>Women’s health data requires separate consent.</p>
+                <p>Choose the Garmin permissions you want to share.</p>
               </li>
             </ol>
             <p class="setup-note">
-              This uses Garmin’s official Personal API. Your assistant receives its own MCP token.
-              Your Garmin key stays encrypted in the authorization grant and is never returned by
-              MCP tools.
+              This uses Garmin’s approved Health, Activity, and Training APIs. Auth keeps your
+              Garmin credentials private. Health and activity data starts arriving after you connect
+              and sync; Starter does not include historical backfill.
             </p>
           </div>
         </div>
@@ -167,7 +164,10 @@ export function HomePage({ publicUrl }: HomePageProps) {
           <Icon name="shield" />
           <div>
             <h2 id="privacy-cta-title">Your data stays yours.</h2>
-            <p>Read-only access. No health data stored by this server.</p>
+            <p>
+              Health summaries are retained for 90 days. Delete stored data or disconnect at any
+              time.
+            </p>
           </div>
           <a href="/privacy">
             Read the privacy details <span aria-hidden="true">↗</span>

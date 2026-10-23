@@ -3,14 +3,18 @@ import {
   InMemoryTransport,
   type CallToolRequestParams,
 } from "@modelcontextprotocol/client";
-import { afterEach, describe, expect, expectTypeOf, it, onTestFinished, vi } from "vitest";
-import * as z from "zod";
 import {
-  exchangeTrainingCode,
-  refreshTrainingToken,
-  TrainingClient,
-  TrainingError,
-} from "../src/training/client";
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
+import * as z from "zod";
+import { TrainingClient, TrainingError } from "../src/training/client";
 import { createTrainingServer } from "../src/training/mcp";
 import {
   createWorkoutInput,
@@ -20,6 +24,9 @@ import {
   trainingId,
   workoutInput,
   workoutResponse,
+  workoutWriteResponse,
+  scheduleWriteResponse,
+  mutationAccepted,
   workoutStep,
   type WorkoutInput,
 } from "../src/training/schemas";
@@ -29,16 +36,9 @@ const accessToken = "fake-training-access-token-test-only";
 
 const privateValue = "fake-private-upstream-value-test-only";
 
-const permissionsUrl = "https://apis.garmin.com/wellness-api/rest/user/permissions";
+const permissionsUrl = "https://apis.garmin.com/partner-gateway/rest/user/permissions";
 
-const tokenUrl = "https://diauth.garmin.com/di-oauth2-service/oauth/token";
-
-const credentials = {
-  clientId: "fake-training-client-id-test-only",
-  clientSecret: "fake-training-client-secret-test-only",
-};
-
-// These are mocked adapter fixtures; live Garmin portal schema validation is separate.
+// Fixtures follow Training API V2 2.0 sections 3–4 and OAuth2PKCE 2.0 section 8.
 const activeStep = {
   type: "WorkoutStep",
   stepOrder: 1,
@@ -51,42 +51,40 @@ const activeStep = {
 const workout = {
   workoutName: "Test interval session",
   sport: "RUNNING",
-  steps: [
-    { ...activeStep, intensity: "WARMUP" },
+  segments: [
     {
-      type: "WorkoutRepeatStep",
-      stepOrder: 2,
-      repeatType: "REPEAT_UNTIL_STEPS_CMPLT",
-      repeatValue: 4,
+      segmentOrder: 1,
+      sport: "RUNNING",
       steps: [
+        { ...activeStep, intensity: "WARMUP" },
         {
-          ...activeStep,
-          stepOrder: 3,
-          durationValue: 60,
-          targetType: "PACE",
-          targetValueLow: 3,
-          targetValueHigh: 3.5,
+          type: "WorkoutRepeatStep",
+          stepOrder: 2,
+          repeatType: "REPEAT_UNTIL_STEPS_CMPLT",
+          repeatValue: 4,
+          steps: [
+            {
+              ...activeStep,
+              stepOrder: 3,
+              durationValue: 60,
+              targetType: "PACE",
+              targetValueLow: 3,
+              targetValueHigh: 3.5,
+            },
+            { ...activeStep, stepOrder: 4, intensity: "RECOVERY", durationValue: 90 },
+          ],
         },
-        { ...activeStep, stepOrder: 4, intensity: "RECOVERY", durationValue: 90 },
+        { ...activeStep, stepOrder: 5, intensity: "COOLDOWN" },
       ],
     },
-    { ...activeStep, stepOrder: 5, intensity: "COOLDOWN" },
   ],
 } satisfies WorkoutInput;
 
-const publishedWorkout = { ...workout, workoutId: 871 };
+const publishedWorkout = { ...workout, ownerId: 52, workoutId: 871 };
 
 const schedule = { workoutId: publishedWorkout.workoutId, date: "2026-10-25" };
 
 const publishedSchedule = { ...schedule, scheduleId: 472 };
-
-const tokenPayload = {
-  access_token: accessToken,
-  refresh_token: "fake-training-refresh-token-test-only",
-  token_type: "Bearer",
-  expires_in: 3600,
-  refresh_token_expires_in: 7_776_000,
-};
 
 function responses(...values: Response[]) {
   const fetcher = vi.fn<typeof fetch>();
@@ -119,6 +117,18 @@ type ToolScenario = CallToolRequestParams & { response: unknown };
 
 const toolCalls = [
   { name: "create_workout", arguments: { workout }, response: publishedWorkout },
+  {
+    name: "update_workout",
+    arguments: { workoutId: 871, ownerId: 52, workout },
+    response: publishedWorkout,
+  },
+  { name: "delete_workout", arguments: { workoutId: 871 }, response: { accepted: true } },
+  {
+    name: "update_workout_schedule",
+    arguments: { scheduleId: 472, ...schedule },
+    response: publishedSchedule,
+  },
+  { name: "delete_workout_schedule", arguments: { scheduleId: 472 }, response: { accepted: true } },
   { name: "get_workout", arguments: { workoutId: 871 }, response: publishedWorkout },
   { name: "schedule_workout", arguments: schedule, response: publishedSchedule },
   {
@@ -133,13 +143,17 @@ const toolCalls = [
   },
 ] satisfies ToolScenario[];
 
+beforeEach(() => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
 describe("Training MCP protocol", () => {
-  it("lists exactly five separate tools with write and read annotations", async () => {
+  it("lists all nine separate tools with write and read annotations", async () => {
     const fetcher = responses();
     const client = await connect(fetcher);
     const list = await client.listTools();
@@ -149,11 +163,13 @@ describe("Training MCP protocol", () => {
     );
 
     for (const tool of list.tools) {
-      const write = ["create_workout", "schedule_workout"].includes(tool.name);
+      const write = !["get_workout", "get_workout_schedule", "list_workout_schedules"].includes(
+        tool.name,
+      );
 
       expect(tool.annotations, tool.name).toEqual({
         readOnlyHint: !write,
-        destructiveHint: false,
+        destructiveHint: tool.name.startsWith("delete_") || tool.name.startsWith("update_"),
         idempotentHint: !write,
         openWorldHint: true,
       });
@@ -166,9 +182,9 @@ describe("Training MCP protocol", () => {
 
   it("creates then schedules the returned workout ID with exact official requests and structured results", async () => {
     const fetcher = responses(
-      Response.json(["WORKOUT_IMPORT"]),
+      Response.json({ permissions: ["WORKOUT_IMPORT"] }),
       Response.json(publishedWorkout),
-      Response.json(["WORKOUT_IMPORT"]),
+      Response.json({ permissions: ["WORKOUT_IMPORT"] }),
       Response.json(publishedSchedule),
     );
 
@@ -212,13 +228,13 @@ describe("Training MCP protocol", () => {
     ).toEqual([
       { url: permissionsUrl, method: "GET", body: undefined },
       {
-        url: "https://apis.garmin.com/training-api/workout",
+        url: "https://apis.garmin.com/workoutportal/workout/v2",
         method: "POST",
-        body: JSON.stringify(workout),
+        body: JSON.stringify(workoutInput.parse(workout)),
       },
       { url: permissionsUrl, method: "GET", body: undefined },
       {
-        url: "https://apis.garmin.com/training-api/schedule",
+        url: "https://apis.garmin.com/training-api/schedule/",
         method: "POST",
         body: JSON.stringify(schedule),
       },
@@ -230,7 +246,7 @@ describe("Training MCP protocol", () => {
       expect(headers.get("Authorization")).toBe(`Bearer ${accessToken}`);
       expect(headers.get("Accept")).toBe("application/json");
       expect(headers.get("Content-Type")).toBe(init?.method === "POST" ? "application/json" : null);
-      expect(init?.redirect).toBe("error");
+      expect(init?.redirect).toBe("manual");
       expect(init?.signal).toBeInstanceOf(AbortSignal);
     }
   });
@@ -239,7 +255,7 @@ describe("Training MCP protocol", () => {
     { name: "create_workout", arguments: { workout } },
     { name: "schedule_workout", arguments: schedule },
   ])("makes no $name write request when Workout Import permission is absent", async (call) => {
-    const fetcher = responses(Response.json(["ACTIVITY_EXPORT"]));
+    const fetcher = responses(Response.json({ permissions: ["ACTIVITY_EXPORT"] }));
     const client = await connect(fetcher);
     const result = await client.callTool(call);
 
@@ -251,9 +267,9 @@ describe("Training MCP protocol", () => {
 
   it.each(toolCalls)("checks permission again after revocation for $name", async (call) => {
     const fetcher = responses(
-      Response.json(["WORKOUT_IMPORT"]),
+      Response.json({ permissions: ["WORKOUT_IMPORT"] }),
       Response.json(call.response),
-      Response.json([]),
+      Response.json({ permissions: [] }),
     );
 
     const client = await connect(fetcher);
@@ -272,11 +288,11 @@ describe("Training MCP protocol", () => {
 
   it("reads IDs and an inclusive calendar range through their fixed paths", async () => {
     const fetcher = responses(
-      Response.json(["WORKOUT_IMPORT"]),
+      Response.json({ permissions: ["WORKOUT_IMPORT"] }),
       Response.json(publishedWorkout),
-      Response.json(["WORKOUT_IMPORT"]),
+      Response.json({ permissions: ["WORKOUT_IMPORT"] }),
       Response.json(publishedSchedule),
-      Response.json(["WORKOUT_IMPORT"]),
+      Response.json({ permissions: ["WORKOUT_IMPORT"] }),
       Response.json([publishedSchedule]),
     );
 
@@ -313,7 +329,7 @@ describe("Training MCP protocol", () => {
     expect(
       fetcher.mock.calls.filter((_, index) => index % 2 === 1).map(([input]) => requestUrl(input)),
     ).toEqual([
-      "https://apis.garmin.com/training-api/workout/871",
+      "https://apis.garmin.com/training-api/workout/v2/871",
       "https://apis.garmin.com/training-api/schedule/472",
       "https://apis.garmin.com/training-api/schedule?startDate=2026-10-01&endDate=2026-10-31",
     ]);
@@ -340,14 +356,27 @@ describe("Training MCP protocol", () => {
     },
     {
       name: "create_workout",
-      arguments: { workout: { ...workout, steps: [{ ...activeStep, durationValue: 0 }] } },
+      arguments: {
+        workout: {
+          ...workout,
+          segments: [
+            { segmentOrder: 1, sport: "RUNNING", steps: [{ ...activeStep, durationValue: 0 }] },
+          ],
+        },
+      },
     },
     {
       name: "create_workout",
       arguments: {
         workout: {
           ...workout,
-          steps: [{ ...activeStep, targetType: "PACE", targetValueLow: 4, targetValueHigh: 3 }],
+          segments: [
+            {
+              segmentOrder: 1,
+              sport: "RUNNING",
+              steps: [{ ...activeStep, targetType: "PACE", targetValueLow: 4, targetValueHigh: 3 }],
+            },
+          ],
         },
       },
     },
@@ -367,7 +396,7 @@ describe("Training MCP protocol", () => {
         scenario === "missing permission array"
           ? responses(Response.json({ permissions: privateValue }))
           : responses(
-              Response.json(["WORKOUT_IMPORT"]),
+              Response.json({ permissions: ["WORKOUT_IMPORT"] }),
               Response.json(
                 scenario === "malformed workout"
                   ? { ...publishedWorkout, workoutId: privateValue }
@@ -434,7 +463,9 @@ describe("Training client request boundaries", () => {
       await expect(request).rejects.not.toThrow(privateValue);
       expect(fetcher).toHaveBeenCalledOnce();
       expect(cancel).toHaveBeenCalledOnce();
-      expect(required(fetcher.mock.calls[0], "failed outbound request")[1]?.redirect).toBe("error");
+      expect(required(fetcher.mock.calls[0], "failed outbound request")[1]?.redirect).toBe(
+        "manual",
+      );
     },
   );
 
@@ -583,138 +614,224 @@ describe("Training client request boundaries", () => {
   });
 });
 
-describe("Training upstream tokens", () => {
-  it("exchanges PKCE form fields and maps expiry durations, then replaces both tokens on refresh", async () => {
-    const now = 1_800_000_000_000;
-    vi.spyOn(Date, "now").mockReturnValue(now);
+describe("Training v2 contract regressions", () => {
+  it("normalizes Garmin's numeric schedule ID without guessing a date or workout", async () => {
+    const fetcher = responses(
+      Response.json({ permissions: ["WORKOUT_IMPORT"] }),
+      Response.json(472),
+    );
 
-    const rotated = {
-      ...tokenPayload,
-      access_token: "fake-rotated-training-access-test-only",
-      refresh_token: "fake-rotated-training-refresh-test-only",
-      expires_in: 1800,
-      refresh_token_expires_in: 86_400,
+    const client = await connect(fetcher);
+    const result = await client.callTool({ name: "schedule_workout", arguments: schedule });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      source: "Garmin Connect",
+      data: { scheduleId: 472 },
+    });
+    expect(result.content).toEqual([
+      { type: "text", text: JSON.stringify(result.structuredContent) },
+    ]);
+    expect(scheduleWriteResponse.safeParse(0).success).toBe(false);
+    expect(scheduleWriteResponse.safeParse(Number.MAX_SAFE_INTEGER + 1).success).toBe(false);
+  });
+
+  it("constructs supported Workers Requests for data calls without following redirects", async () => {
+    const fetcher = vi.fn<typeof fetch>((input, init) => {
+      const request = new Request(input, init);
+      expect(request.redirect).toBe("manual");
+
+      return Promise.resolve(Response.json(publishedSchedule));
+    });
+
+    const client = new TrainingClient(accessToken, fetcher);
+    expect(await client.getSchedule(scheduleResponse, 472)).toEqual(publishedSchedule);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects legacy top-level steps and server-assigned create identifiers", () => {
+    const segment = required(workout.segments[0], "fixture segment");
+    expect(
+      workoutInput.safeParse({ workoutName: "Legacy", sport: "RUNNING", steps: segment.steps })
+        .success,
+    ).toBe(false);
+    expect(workoutInput.safeParse({ ...workout, workoutId: 871 }).success).toBe(false);
+    expect(workoutInput.safeParse({ ...workout, ownerId: 52 }).success).toBe(false);
+    expect(workoutInput.safeParse({ ...workout, workoutProvider: "x".repeat(21) }).success).toBe(
+      false,
+    );
+  });
+
+  it("validates multisport ordering, matching single-sport segments and the documented total step budgets", () => {
+    const running = { segmentOrder: 1, sport: "RUNNING", steps: [activeStep] };
+    const cycling = { segmentOrder: 2, sport: "CYCLING", steps: [{ ...activeStep, stepOrder: 2 }] };
+    expect(
+      workoutInput.safeParse({ ...workout, sport: "MULTI_SPORT", segments: [running, cycling] })
+        .success,
+    ).toBe(true);
+    expect(workoutInput.safeParse({ ...workout, segments: [cycling] }).success).toBe(false);
+    expect(
+      workoutInput.safeParse({
+        ...workout,
+        sport: "MULTI_SPORT",
+        segments: [running, { ...cycling, steps: [activeStep] }],
+      }).success,
+    ).toBe(false);
+
+    const steps = Array.from({ length: 100 }, (_, index) => ({
+      ...activeStep,
+      stepOrder: index + 1,
+    }));
+
+    expect(workoutInput.safeParse({ ...workout, segments: [{ ...running, steps }] }).success).toBe(
+      true,
+    );
+    const extra = { ...activeStep, stepOrder: 101 };
+    expect(
+      workoutInput.safeParse({
+        ...workout,
+        segments: [
+          {
+            ...running,
+            steps: [
+              ...steps.slice(0, 99),
+              {
+                type: "WorkoutRepeatStep",
+                stepOrder: 100,
+                repeatType: "REPEAT_UNTIL_STEPS_CMPLT",
+                repeatValue: 2,
+                steps: [extra],
+              },
+            ],
+          },
+        ],
+      }).success,
+    ).toBe(false);
+
+    const segments = Array.from({ length: 3 }, (_, index) => ({
+      ...running,
+      segmentOrder: index + 1,
+      steps: steps
+        .slice(0, index === 2 ? 50 : 100)
+        .map((step, offset) => ({ ...step, stepOrder: index * 100 + offset + 1 })),
+    }));
+
+    expect(workoutInput.safeParse({ ...workout, sport: "MULTI_SPORT", segments }).success).toBe(
+      true,
+    );
+
+    const overBudget = segments.map((segment, index) =>
+      index === 2
+        ? { ...segment, steps: [...segment.steps, { ...activeStep, stepOrder: 250 }] }
+        : segment,
+    );
+
+    expect(
+      workoutInput.safeParse({ ...workout, sport: "MULTI_SPORT", segments: overBudget }).success,
+    ).toBe(false);
+  });
+
+  it("supports unspecified swim pools and documented strokes without accepting running targets or mismatched multisport pools", () => {
+    const swim = {
+      segmentOrder: 1,
+      sport: "LAP_SWIMMING",
+      steps: [{ ...activeStep, targetType: "SWIM_STROKE", strokeType: "CHOICE" }],
     };
 
-    const fetcher = responses(Response.json(tokenPayload), Response.json(rotated));
-    vi.stubGlobal("fetch", fetcher);
-    const redirectUri = "https://mcp.example.test/training/callback";
+    expect(
+      workoutInput.safeParse({
+        workoutName: "Swim",
+        sport: "LAP_SWIMMING",
+        poolLength: null,
+        poolLengthUnit: null,
+        segments: [swim],
+      }).success,
+    ).toBe(true);
+    expect(
+      workoutInput.safeParse({
+        workoutName: "Swim",
+        sport: "LAP_SWIMMING",
+        segments: [{ ...swim, steps: [activeStep] }],
+      }).success,
+    ).toBe(false);
+    expect(
+      workoutInput.safeParse({
+        workoutName: "Triathlon",
+        sport: "MULTI_SPORT",
+        poolLength: 25,
+        poolLengthUnit: "METER",
+        segments: [{ ...swim, poolLength: 50, poolLengthUnit: "METER" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      workoutStep.safeParse({ ...activeStep, targetType: "HEART_RATE", targetValue: 6 }).success,
+    ).toBe(false);
+    expect(
+      workoutStep.safeParse({ ...activeStep, targetType: "POWER", targetValue: 8 }).success,
+    ).toBe(false);
+  });
 
-    const tokens = await exchangeTrainingCode(
-      credentials,
-      "fake-code+a&b",
-      "fake-pkce-verifier-test-only",
-      redirectUri,
-    );
+  it.each([200, 204])(
+    "accepts empty HTTP %s mutation successes without inventing identifiers and rejects empty reads",
+    async (status) => {
+      const fetcher = responses(...Array.from({ length: 6 }, () => new Response(null, { status })));
 
-    expect(tokens).toEqual({
-      accessToken,
-      refreshToken: tokenPayload.refresh_token,
-      accessTokenExpiresAt: now + tokenPayload.expires_in * 1000,
-      refreshTokenExpiresAt: now + tokenPayload.refresh_token_expires_in * 1000,
-    });
-    expect(await refreshTrainingToken(credentials, tokens.refreshToken)).toEqual({
-      accessToken: rotated.access_token,
-      refreshToken: rotated.refresh_token,
-      accessTokenExpiresAt: now + rotated.expires_in * 1000,
-      refreshTokenExpiresAt: now + rotated.refresh_token_expires_in * 1000,
-    });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+      const client = new TrainingClient(accessToken, fetcher);
+      expect(await client.createWorkout(workoutWriteResponse, workout)).toEqual({ accepted: true });
+      expect(await client.scheduleWorkout(scheduleWriteResponse, schedule)).toEqual({
+        accepted: true,
+      });
+      expect(await client.updateWorkout(workoutWriteResponse, 871, 52, workout)).toEqual({
+        accepted: true,
+      });
+      expect(await client.updateSchedule(scheduleWriteResponse, 472, schedule)).toEqual({
+        accepted: true,
+      });
+      expect(await client.deleteWorkout(mutationAccepted, 871)).toEqual({ accepted: true });
+      expect(await client.deleteSchedule(mutationAccepted, 472)).toEqual({ accepted: true });
 
-    const forms = fetcher.mock.calls.map(([input, init]) => {
-      expect(requestUrl(input)).toBe(tokenUrl);
-      expect(init?.method).toBe("POST");
-      expect(init?.redirect).toBe("error");
-      expect(init?.signal).toBeInstanceOf(AbortSignal);
-      expect(new Headers(init?.headers).get("Content-Type")).toBe(
-        "application/x-www-form-urlencoded",
+      const readClient = new TrainingClient(
+        accessToken,
+        responses(new Response(null, { status: 204 })),
       );
-      expect(new Headers(init?.headers).get("Authorization")).toBeNull();
 
-      return Object.fromEntries(z.instanceof(URLSearchParams).parse(init?.body));
-    });
-
-    expect(forms).toEqual([
-      {
-        grant_type: "authorization_code",
-        code: "fake-code+a&b",
-        code_verifier: "fake-pkce-verifier-test-only",
-        redirect_uri: redirectUri,
-        client_id: credentials.clientId,
-        client_secret: credentials.clientSecret,
-      },
-      {
-        grant_type: "refresh_token",
-        refresh_token: tokenPayload.refresh_token,
-        client_id: credentials.clientId,
-        client_secret: credentials.clientSecret,
-      },
-    ]);
-  });
-
-  it.each([
-    { ...tokenPayload, access_token: "" },
-    { ...tokenPayload, access_token: "fake header\r\ninjection" },
-    { ...tokenPayload, access_token: "fake\u0000token" },
-    { ...tokenPayload, access_token: "fake\u0100token" },
-    { ...tokenPayload, refresh_token: "" },
-    { ...tokenPayload, token_type: "MAC" },
-    { ...tokenPayload, expires_in: -1 },
-    { ...tokenPayload, expires_in: "3600" },
-    { ...tokenPayload, refresh_token_expires_in: 0 },
-  ])("rejects malformed token payloads without exposing credentials: %j", async (payload) => {
-    const fetcher = responses(Response.json({ ...payload, privateValue }));
-    vi.stubGlobal("fetch", fetcher);
-    const request = refreshTrainingToken(credentials, tokenPayload.refresh_token);
-
-    await expect(request).rejects.toThrow("unrecognized response");
-    await expect(request).rejects.not.toThrow(privateValue);
-    await expect(request).rejects.not.toThrow(credentials.clientSecret);
-    expect(fetcher).toHaveBeenCalledOnce();
-  });
-
-  it("cancels token responses over 64 KiB", async () => {
-    const cancel = vi.fn();
-
-    const stream = new ReadableStream<Uint8Array>({
-      pull(controller) {
-        controller.enqueue(new Uint8Array(64 * 1024 + 1));
-      },
-      cancel,
-    });
-
-    const fetcher = responses(new Response(stream));
-    vi.stubGlobal("fetch", fetcher);
-
-    await expect(refreshTrainingToken(credentials, tokenPayload.refresh_token)).rejects.toThrow(
-      "unrecognized response",
-    );
-    expect(cancel).toHaveBeenCalledOnce();
-    expect(fetcher).toHaveBeenCalledOnce();
-  });
+      await expect(readClient.getWorkout(workoutResponse, 871)).rejects.toThrow(
+        "unrecognized response",
+      );
+    },
+  );
 });
 
 describe("Training schema boundaries", () => {
   it("accepts a common repeat block and preserves strength exercise, repetitions, and kilogram fields", () => {
-    expect(createWorkoutInput.parse({ workout })).toEqual({ workout });
+    expect(createWorkoutInput.parse({ workout }).workout).toEqual({
+      ...workout,
+      workoutProvider: "Garmin MCP",
+      workoutSourceId: "Garmin MCP",
+    });
 
     const strength = {
       workoutName: "Test strength session",
       sport: "STRENGTH_TRAINING",
-      steps: [
+      segments: [
         {
-          ...activeStep,
-          durationType: "REPS",
-          durationValue: 8,
-          exerciseCategory: "SQUAT",
-          exerciseName: "BARBELL_BACK_SQUAT",
-          weightValue: 60,
-          weightDisplayUnit: "POUND",
+          segmentOrder: 1,
+          sport: "STRENGTH_TRAINING",
+          steps: [
+            {
+              ...activeStep,
+              durationType: "REPS",
+              durationValue: 8,
+              exerciseCategory: "SQUAT",
+              exerciseName: "BARBELL_BACK_SQUAT",
+              weightValue: 60,
+              weightDisplayUnit: "POUND",
+            },
+          ],
         },
       ],
     };
 
-    expect(workoutInput.parse(strength)).toEqual(strength);
+    expect(workoutInput.parse(strength)).toMatchObject(strength);
     expect(
       workoutStep.parse({ ...activeStep, durationType: "OPEN", durationValue: undefined })
         .durationType,
@@ -734,14 +851,14 @@ describe("Training schema boundaries", () => {
     { targetType: "HEART_RATE", targetValue: 2, targetValueLow: 120, targetValueHigh: 140 },
     { weightValue: -1 },
     { weightDisplayUnit: "STONE" },
-    { stepOrder: 201 },
+    { stepOrder: 251 },
   ])("rejects incompatible duration, target, or strength fields: %j", (fields) => {
     expect(workoutStep.safeParse({ ...activeStep, ...fields }).success).toBe(false);
   });
 
   it("enforces global step ordering and bounds repeat blocks", () => {
     const repeat = required(
-      workout.steps.find((step) => step.type === "WorkoutRepeatStep"),
+      workout.segments[0]?.steps.find((step) => step.type === "WorkoutRepeatStep"),
       "repeat step",
     );
 
@@ -758,7 +875,12 @@ describe("Training schema boundaries", () => {
         ],
       },
     ]) {
-      expect(workoutInput.safeParse({ ...workout, steps: [invalid] }).success).toBe(false);
+      expect(
+        workoutInput.safeParse({
+          ...workout,
+          segments: [{ segmentOrder: 1, sport: "RUNNING", steps: [invalid] }],
+        }).success,
+      ).toBe(false);
     }
   });
 

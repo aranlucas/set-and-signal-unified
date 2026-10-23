@@ -1,7 +1,5 @@
 import type { PropsWithChildren } from "hono/jsx";
 import siteStyles from "../site.css?raw";
-import consentStyles from "./consent.css?raw";
-import trainingStyles from "./training.css?raw";
 import { Icon } from "./icon";
 import { garminFaqUrl } from "./links";
 
@@ -18,7 +16,7 @@ function Document({
   styles,
   description,
   themeColor,
-  serviceName = "Garmin Personal MCP",
+  serviceName = "Garmin MCP",
   children,
 }: DocumentProps) {
   return (
@@ -45,7 +43,7 @@ function Brand() {
       <span class="brand-icon">
         <Icon name="pulse" />
       </span>
-      <span>Garmin Personal MCP</span>
+      <span>Garmin MCP</span>
     </>
   );
 }
@@ -57,8 +55,8 @@ export function SiteLayout({ kind, children }: SiteLayoutProps) {
   const setupUrl = isPrivacy ? "/#connect" : "#connect";
 
   const description = isPrivacy
-    ? "What Garmin Personal MCP stores, how authorization expires, and how to disconnect your Garmin data."
-    : "Connect your Garmin activities, sleep, and recovery to your MCP-compatible AI assistant with read-only access and Garmin’s official Personal API.";
+    ? "What Garmin MCP stores, how authorization expires, and how to disconnect your Garmin data."
+    : "Connect Garmin Health, Activity, and Training to your MCP-compatible assistant with shared Auth sign-in.";
 
   return (
     <Document
@@ -71,7 +69,7 @@ export function SiteLayout({ kind, children }: SiteLayoutProps) {
         Skip to content
       </a>
       <header class="site-header wrap">
-        <a class="brand" href="/" aria-label="Garmin Personal MCP home">
+        <a class="brand" href="/" aria-label="Garmin MCP home">
           <Brand />
         </a>
         <nav aria-label="Main navigation">
@@ -106,35 +104,6 @@ export function SiteLayout({ kind, children }: SiteLayoutProps) {
           </a>
         </nav>
       </footer>
-    </Document>
-  );
-}
-
-type ConsentLayoutProps = PropsWithChildren<{ title: string }>;
-
-export function ConsentLayout({ title, children }: ConsentLayoutProps) {
-  return (
-    <Document title={title} styles={consentStyles}>
-      <main>
-        <div class="eyebrow">Personal data · Read only</div>
-        {children}
-        <hr />
-        <small>
-          Independent integration. Not affiliated with Garmin. Data supplied by Garmin Connect.
-        </small>
-      </main>
-    </Document>
-  );
-}
-
-export function TrainingLayout({ title, children }: ConsentLayoutProps) {
-  return (
-    <Document title={title} serviceName="Garmin Training MCP" styles={trainingStyles}>
-      <main>
-        <div class="eyebrow">Training · Workout sending</div>
-        {children}
-        <small>Independent integration. Not affiliated with Garmin.</small>
-      </main>
     </Document>
   );
 }

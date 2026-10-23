@@ -1,88 +1,73 @@
-import { createHash, randomBytes } from "node:crypto";
 import { expect, it } from "vitest";
-import * as z from "zod";
-import { required } from "./support";
+import { z } from "zod";
 
-const registeredClient = z.object({ client_id: z.string() });
+const base = process.env.SMOKE_BASE_URL ?? "https://garmin-mcp.aranlucas.workers.dev";
 
-const base = process.env.SMOKE_URL ?? "https://garmin-mcp.aranlucas.workers.dev";
+const issuer = "https://auth.aranlucas.workers.dev/api/auth";
 
-const get = (path: string, init?: RequestInit) =>
-  fetch(new URL(path, base), { ...init, redirect: "manual" });
-
-it("serves health, setup page, protected MCP, and OAuth discovery", async () => {
-  const health = await get("/health");
-  expect(health.status).toBe(200);
-  expect(await health.json()).toMatchObject({ status: "ok" });
-  const landing = await get("/");
-  expect(landing.status).toBe(200);
-  expect(await landing.text()).toMatch(/Personal API key/);
-  const challenge = await get("/mcp", { method: "POST" });
-  expect(challenge.status).toBe(401);
-  expect(challenge.headers.get("www-authenticate")).toMatch(/resource_metadata=/);
-  expect(await (await get("/.well-known/oauth-protected-resource/mcp")).json()).toMatchObject({
-    resource: `${base}/mcp`,
-  });
-  expect(await (await get("/.well-known/oauth-authorization-server")).json()).toMatchObject({
-    code_challenge_methods_supported: ["S256"],
-    authorization_endpoint: `${base}/authorize`,
-  });
+const metadataSchema = z.object({
+  issuer: z.literal(issuer),
+  authorization_endpoint: z.url(),
+  token_endpoint: z.url(),
+  registration_endpoint: z.url(),
+  revocation_endpoint: z.url(),
+  jwks_uri: z.url(),
+  scopes_supported: z.array(z.string()),
 });
 
-// Creates an expiring smoke-test OAuth client, never a Garmin grant.
-it("registers a public client, binds consent to the browser, and redirects on deny", async () => {
-  const registered = await get("/oauth/register", {
+it("advertises shared Auth and protects the single merged MCP endpoint", async () => {
+  const r = await fetch(`${base}/mcp`, { method: "POST" });
+  expect(r.status).toBe(401);
+  expect(r.headers.get("WWW-Authenticate")).toContain("resource_metadata=");
+  expect(
+    await (await fetch(`${base}/.well-known/oauth-protected-resource/mcp`)).json(),
+  ).toMatchObject({
+    resource: `${base}/mcp`,
+    authorization_servers: [issuer],
+    scopes_supported: ["garmin:access"],
+  });
+
+  const metadata = metadataSchema.parse(
+    await (await fetch(`${issuer}/.well-known/oauth-authorization-server`)).json(),
+  );
+
+  expect(metadata.scopes_supported).toContain("garmin:access");
+
+  const registration = await fetch(metadata.registration_endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_name: "Deployment smoke test",
+      client_name: "Garmin deployment smoke",
       redirect_uris: ["http://localhost:9876/callback"],
       token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
+      scope: "garmin:access offline_access",
     }),
   });
 
-  expect(registered.status).toBe(201);
-  const { client_id: clientId } = registeredClient.parse(await registered.json());
-  const verifier = randomBytes(48).toString("base64url");
+  expect(registration.status).toBe(201);
+});
 
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: "http://localhost:9876/callback",
-    response_type: "code",
-    scope: "garmin:read offline_access",
-    state: "deployment-smoke",
-    resource: `${base}/mcp`,
-    code_challenge: createHash("sha256").update(verifier).digest("base64url"),
-    code_challenge_method: "S256",
-  });
+it("serves keyless setup, honest privacy, and app branding", async () => {
+  const home = await (await fetch(base)).text();
+  expect(home).toContain("Sign in with Auth");
+  expect(home).not.toContain("Create your Garmin key");
+  const privacy = await (await fetch(`${base}/privacy`)).text();
+  expect(privacy).toContain("90 days");
+  expect(privacy).toContain("historical backfill");
+  expect(privacy).toContain("AI transparency");
+  const icon = await fetch(`${base}/icon.svg`);
+  expect(icon.status).toBe(200);
+  expect(icon.headers.get("Content-Type")).toContain("image/svg+xml");
+});
 
-  const consent = await get(`/authorize?${params}`);
-  expect(consent.status).toBe(200);
-  expect(consent.headers.get("content-security-policy")).toMatch(/frame-ancestors 'none'/);
-  expect(consent.headers.get("referrer-policy")).toBe("same-origin");
-  const html = await consent.text();
-  expect(html).toMatch(/Garmin Personal API key/);
-  expect(html).toMatch(/localhost/);
-  const handle = html.match(/name="handle" value="([^"]+)"/)?.[1];
-  expect(handle).toBeTruthy();
+it("retires the Personal and separate Training issuers", async () => {
+  const statuses = await Promise.all(
+    ["/authorize", "/oauth/register", "/oauth/token", "/training/mcp", "/training/oauth/token"].map(
+      async (path) => (await fetch(base + path)).status,
+    ),
+  );
 
-  const denied = await get("/authorize", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Origin: base,
-      Cookie: required(
-        required(consent.headers.get("set-cookie"), "consent cookie").split(";")[0],
-        "consent cookie value",
-      ),
-    },
-    body: new URLSearchParams({ handle: required(handle, "consent handle"), decision: "deny" }),
-  });
-
-  expect(denied.status).toBe(302);
-  expect(
-    new URL(required(denied.headers.get("location"), "deny redirect")).searchParams.get("error"),
-  ).toBe("access_denied");
+  expect(statuses).toEqual([404, 404, 404, 404, 404]);
 });

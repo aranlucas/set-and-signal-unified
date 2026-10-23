@@ -2,7 +2,7 @@
   "name": "garmin-mcp",
   "version": "1.0.0",
   "private": true,
-  "description": "Official Garmin Personal API MCP on Cloudflare Workers with OAuth consent",
+  "description": "Garmin Health, Activity, and Training MCP with shared Auth sign-in",
   "keywords": [],
   "type": "module",
   "scripts": {
@@ -22,10 +22,10 @@
     "format:check": "oxfmt --check"
   },
   "dependencies": {
-    "@cloudflare/workers-oauth-provider": "1.2.3",
     "@modelcontextprotocol/hono": "2.0.2",
     "@modelcontextprotocol/server": "2.3.1",
     "hono": "4.13.13",
+    "jose": "^6.2.13",
     "zod": "4.6.7"
   },
   "devDependencies": {

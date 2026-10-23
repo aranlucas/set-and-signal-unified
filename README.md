@@ -1,108 +1,66 @@
-<img src="assets/icon.svg" width="64" height="64" alt="">
+# Garmin MCP
 
-# Garmin Personal MCP
+One Garmin connector using the shared [Auth service](https://auth.aranlucas.workers.dev). Sign into Auth and link Garmin; no Personal API key is accepted or required.
 
-A read-only MCP server for Garmin’s **official Personal API**, deployed on Cloudflare Workers. Built with TypeScript MCP SDK **v2.3.1** (`@modelcontextprotocol/server`), Zod 4, and Cloudflare’s OAuth provider. Dependencies are pinned in `pnpm-lock.yaml`.
+Add this remote HTTP connector with OAuth authentication:
 
-**Live MCP URL:** `https://garmin-mcp.aranlucas.workers.dev/mcp`
-
-**Setup page:** <https://garmin-mcp.aranlucas.workers.dev>
-
-## Connect
-
-1. Open [Garmin Connect → Personal API Key](https://connect.garmin.com/app/settings/personalApiToken), choose **Create Key**, accept Garmin’s terms, choose an expiration, and save the key. Garmin displays it once.
-2. Add the live MCP URL to your MCP client using remote HTTP and OAuth. Clients must support OAuth authorization code flow with S256 PKCE and either dynamic client registration or Client ID Metadata Documents.
-3. In the browser consent screen, check the requesting client and return destination, paste your **Personal API key**, and click **Connect and allow**. Do not use a Garmin password or short-lived access token.
-4. Optionally enable women’s health access. Those two tools are absent without this permission.
-
-For clients that accept MCP JSON configuration, the remote server entry usually looks like this (the exact schema depends on your client):
-
-```json
-{
-  "mcpServers": {
-    "garmin": {
-      "url": "https://garmin-mcp.aranlucas.workers.dev/mcp"
-    }
-  }
-}
+```text
+https://garmin-mcp.aranlucas.workers.dev/mcp
 ```
 
-The server supports the current MCP per-request protocol and stateless 2025 Streamable HTTP clients. It does not implement the obsolete HTTP+SSE `/sse` transport.
+Auth handles client registration, PKCE, consent, access/refresh tokens, and Garmin account linking. The Garmin callback is `https://auth.aranlucas.workers.dev/api/auth/callback/garmin`. Existing Personal and Training connections must be removed and connected again at `/mcp`; their issuers and grants are retired. `/training/mcp`, `/authorize`, and the old local token/registration endpoints are no longer served.
 
-## How authentication works
+## Tools and data availability
 
-Garmin’s Personal API uses a self-generated key, **not a Garmin authorization-code redirect**. The consent screen here is the MCP server’s own OAuth flow:
+- Nine Training tools: create/get/update/delete workout; schedule/get/update/delete calendar entry; list calendar entries.
+- `list_garmin_summaries`: paginate Health/Activity push summaries by category and a date range of at most 31 days.
+- `get_garmin_summary`: retrieve a received record by category and summary ID.
+- `delete_stored_garmin_data`: delete this connector's retained Health/Activity data after explicit confirmation.
 
-1. The MCP client starts OAuth, opens the browser, and presents its identity, return destination, and permissions.
-2. The browser posts your Garmin key over HTTPS to this Worker. Cloudflare’s library binds the consent transaction to that browser, validates PKCE, and encrypts the key in the OAuth grant in KV. The key is verified with Garmin before a grant is saved.
-3. The assistant receives a separate MCP bearer token. The Worker decrypts the grant and exchanges the Garmin key for a Garmin access token when a data tool runs. Garmin credentials never appear in tool results.
+Health categories include dailies (steps and daily heart rate), epochs, sleeps, bodyComps, stressDetails, userMetrics, pulseox, allDayRespiration, healthSnapshot, hrv, bloodPressures, skinTemp, nutrition, hydration, and breathingVariations. Activity categories include activities, activityDetails, manuallyUpdatedActivities, and moveIQActivities. Responses use Garmin's approved push models, rather than the retired Personal API response models.
 
-Garmin’s access tokens last up to 24 hours; Garmin supports no refresh token for Personal API access. This implementation obtains a new Garmin token per data-bearing MCP request, shares it within that request, and does not persist it. MCP access tokens last one hour. Clients requesting `offline_access` can refresh their MCP session for up to 30 days. When a Garmin key expires, reconnect with a replacement key.
+**Garmin Starter has no historical backfill.** Summaries start arriving after the user authorizes sharing and syncs their device. Empty results mean no received records, not zero activity. Records expire 90 days after their latest accepted delivery. Original activity-file downloads, profile/settings, goals, fitness age, and women's health tools from the Personal API are not exposed by this connector.
 
-The key is encrypted at rest by the OAuth library, but the Worker must decrypt it to call Garmin. Use a deployment you trust. Health responses are not saved in KV. Logging avoids credentials and upstream payloads; Worker invocation URL logs are disabled.
+Workout mutations require user approval of details and dates. Do not repeat an ambiguous write automatically. A successful schedule operation does not confirm watch delivery.
 
-## Tools
+## Architecture
 
-The tools follow Garmin’s published [Personal API schema](https://developer.garmin.com/gc-developer-program/personal/swagger-docs/), not undocumented website endpoints. There are **24 standard tools and 2 optional women’s health tools**:
+The connector verifies Auth's RS256 access JWTs with exact issuer, `/mcp` audience, expiry, and `garmin:access` scope, using `jose`. Auth stores encrypted Garmin credentials with Better Auth's native generic OAuth plugin. A private `GarminTokens` service binding returns a usable Garmin access token and immutable Garmin user ID. A per-user Durable Object in Auth serializes rotating Garmin refresh tokens and rechecks current linking/banned status before returning a credential.
 
-| Data                   | Tools                                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Activities             | `list_activities`, `get_activity`, `get_activity_workouts`, `download_activity_file`, `get_wellness_activities` |
-| Daily health           | `get_daily_summary`, `get_daily_summaries`, `get_steps`, `get_stress`, `get_hydration`, `get_body_battery`      |
-| Sleep and recovery     | `get_sleep`, `get_sleep_range`, `get_hrv`, `get_hrv_range`                                                      |
-| Heart rate and fitness | `get_heart_rate`, `get_heart_rate_zones`, `get_fitness_age`, `get_spo2_acclimation`                             |
-| Weight and nutrition   | `get_weight_measurements`, `get_weight_range`, `get_weight_goals`, `get_nutrition`                              |
-| Profile                | `get_profile`                                                                                                   |
-| Separate consent       | `get_menstrual_summary`, `get_menstrual_day`                                                                    |
+Garmin push delivery is persisted in one SQLite Durable Object per immutable Garmin user ID. Records are upserted; more complete Health summaries replace earlier summaries for the same start time. A daily alarm deletes expired records, and reads also exclude them immediately. Tools cannot choose another user's store. Each Health/Activity read checks current Garmin permissions. Deregistration purges records and blocks late retries; permission changes purge and block only the withdrawn category. Reconnecting through Auth starts collection again.
 
-Dates use `YYYY-MM-DD`. Daily date range tools accept at most 31 calendar days per call; split larger requests. `list_activities` date filters are not capped because results are paged at up to 100 items per call. JSON responses are capped at 1 MiB, and original activity downloads at 2 MiB. Downloads return base64 and the upstream media type; Garmin may return a FIT archive. These are local safety limits, not claims about Garmin’s API quotas or history retention.
+Garmin's endpoint configuration supports URLs, without a custom authentication-header field. The private delivery URL contains an HMAC credential derived from the Garmin app secret with the fixed context `garmin-mcp/push/v1`. Keep that configured URL private. The server validates it with constant-time comparison. Do not use the public client ID as authentication. Delivery credentials and callback URLs are stripped from returned data. The service disables automatic invocation logs and URL tracing, and logs only fixed operational event names.
 
-Every tool returns `{ source: "Garmin Connect", data }` in both `structuredContent` and a JSON text block. Response schemas stay inside the Garmin client; MCP tool definitions expose input schemas and annotations. Garmin responses are validated against models generated from the published API snapshot. Documented fields retain their types and optionality; additional fields are preserved. Invalid responses produce a safe tool error without including upstream values or Zod error details.
+Auth's Disconnect action calls Garmin's required `DELETE /partner-gateway/rest/user/registration`, purges retained summaries via an authenticated server request, and removes the linked account. Removing only an MCP client stops that client's access; disconnect Garmin to stop collection. Review [privacy and AI processing](https://garmin-mcp.aranlucas.workers.dev/privacy) before connecting an assistant.
 
-The Personal endpoint exposes no workout uploads, activity editing, course publishing, or arbitrary HTTP proxy. An activity’s associated workouts can be read. Availability of metrics and historical records depends on your Garmin account, device, and Garmin’s API.
+## Configuration and development
 
-## Optional business workout publishing
+The matching Auth changes are in `~/Projects/auth`. Auth requires `GARMIN_CLIENT_ID`, private `GARMIN_CLIENT_SECRET`, `GARMIN_MCP_RESOURCE`, the `GarminTokens` RPC export, and its `GARMIN_BROKER` binding. The connector needs `AUTH_ISSUER` including `/api/auth`, an `AUTH` binding to Auth's `GarminTokens`, `USER_DATA`, and the private `GARMIN_PUSH_TOKEN`. Application credentials are server configuration, never user-supplied API keys.
 
-This branch adds a separate, **experimental and default-off** business Training API integration at `/training/mcp`. It uses Garmin sign-in and its own OAuth issuer, consent, write scope, and encrypted token grants. The existing `/mcp` endpoint continues to use Personal API keys.
-
-The intended flow is `create_workout` → `schedule_workout` → sync Garmin Connect with the watch. Read-back tools are `get_workout`, `get_workout_schedule`, and `list_workout_schedules`. A successful publish or schedule does **not** confirm delivery to a watch.
-
-Set `GARMIN_TRAINING_ENABLED=true` and `GARMIN_TRAINING_CLIENT_ID` to opt in, then install `GARMIN_TRAINING_CLIENT_SECRET` as a Worker secret. Missing credentials fail closed. The detailed Training API wire contract still needs verification against an approved application's developer-portal reference and a live device test. See [business setup, examples, and contract assumptions](docs/garmin-training.md) before enabling it.
-
-## Disconnect
-
-- Delete the key in [Garmin Connect](https://connect.garmin.com/app/settings/personalApiToken) to stop Garmin access. Garmin says deletion also invalidates associated access tokens.
-- Revoke the MCP **refresh token** using the advertised OAuth `revocation_endpoint` to revoke the whole grant, then remove the connector from your client. Revoking just an access token does not revoke the entire refreshable session.
-- The deployment’s [privacy page](https://garmin-mcp.aranlucas.workers.dev/privacy) explains storage. Deleting the upstream key does not itself erase the encrypted MCP grant; it expires or can be revoked. The owner can erase the dedicated KV namespace to remove every authorization record.
-
-## Develop and deploy
-
-Requires Node 24.22+ (pinned in `.node-version`) and pnpm (pinned in `packageManager`). Deployment uses Cloudflare’s [`cf` CLI](https://developers.cloudflare.com/cf/) with `cloudflare.config.ts`. No Garmin secret belongs in `.env`, source, config variables, MCP config, or this chat. Enter it through the consent page.
+Use Garmin's API Configuration Tool to enable Health, Activity, and Training. Configure the supported push categories and both common notification endpoints with the private delivery URL. Do not configure ping or activity-file delivery: the receiver deliberately does not fetch callback URLs.
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm run check
-pnpm run build
-pnpm run deploy
-pnpm run smoke
+pnpm install
+pnpm check
+pnpm build
+pnpm deploy
+pnpm smoke
 ```
 
-`pnpm run check` type-checks, lints and format-checks with [Oxforge](https://www.npmjs.com/package/@aranlucas/oxforge) (Oxlint and Oxfmt), and runs tests inside the Cloudflare Workers runtime with **local isolated KV** and mocked outbound Garmin calls. `pnpm run typecheck` regenerates `.cloudflare/types` from `cloudflare.config.ts` before `tsc`. `pnpm run build` invokes Vite and the Cloudflare Vite plugin directly; `pnpm run deploy` builds and passes the output to `cf deploy --prebuilt`. Use `pnpm exec cf deploy --prebuilt --dry-run` after building to check the upload and bindings without deploying. `pnpm run smoke` checks the live deployment: health, protected MCP access, OAuth discovery, client registration, browser-bound consent, and deny. It creates an expiring smoke-test OAuth client, never a Garmin grant; set `SMOKE_URL` to check another deployment.
+`pnpm check` runs Worker type generation, TypeScript, Oxlint, formatting, and Worker tests. The Cloudflare Vitest project provides fake secrets and a local store; it never uses production data. `jose` is a direct dependency for maintained, typed JWT/JWKS verification; Better Auth owns authorization and consent in the shared Auth service. MCP transport/registration uses `@modelcontextprotocol/server`, and inputs/provider payloads use Zod.
 
-Pushes deploy through Cloudflare Workers Builds: every build runs `pnpm run check`, then `main` runs `pnpm exec vite build && pnpm exec cf deploy --prebuilt` and other branches run `CLOUDFLARE_PREVIEW_BUILD=true pnpm exec vite build && pnpm exec cf previews deploy --prebuilt`. These explicit Vite commands avoid the current `cf` CLI misidentifying Hono and the code-generation workspace as additional application frameworks. Previews use the separate `garmin-mcp-preview-oauth` KV namespace (`isPreview` in `cloudflare.config.ts`). The Worker derives its public URL from each request, so branch and version Preview URLs work without a per-Preview URL setting. Page links, OAuth metadata, resource audiences, and consent origin checks all use that request’s origin. Locally, `pnpm run deploy:preview` uses the same preview build and deploy commands.
+For the opt-in real-account lifecycle test, prepare a private session file outside the repository containing `base`, `issuer`, `clientId`, and `refreshToken` through the real browser OAuth flow. Then run:
 
-For another Cloudflare account, change `accountId` in `cloudflare.config.ts`, create your own KV namespace with `pnpm exec cf kv namespaces create`, replace the `OAUTH_KV` ID, and regenerate types. Tokens are bound to the origin used to connect, at `<origin>/mcp`.
+```sh
+GARMIN_E2E_SESSION_FILE=/private/path/session.json pnpm exec vitest run --project training-live
+```
 
-For local interactive development, run `pnpm run dev`. Use `pnpm run lint:fix` and `pnpm run format` to apply fixes. `pnpm run dev` uses Vite at `http://localhost:5173`; `vite.config.ts` pins that port. The OAuth library uses `Secure`, `__Host-` consent cookies, so use a localhost-capable browser or an HTTPS development origin for browser testing. The automated tests exercise the complete authorization flow without relying on a browser’s localhost cookie policy.
+The live test creates a clearly named 60-second workout, reads and edits it, schedules and moves it, deletes both fixtures, verifies the two-day calendar is clean, and revokes its test refresh grant. It writes a private cleanup journal beside the session file. Auth access JWTs have a 15-minute lifetime; revoking a refresh grant prevents refresh immediately, while disconnecting Garmin blocks the broker on the next request.
 
-Page templates live in `src/pages/*.tsx`, with shared document, public-site, consent, and Training layouts in `layout.tsx`. Routes call `c.render()` directly; Hono’s `jsxRenderer()` handles the doctype and serialization with automatic escaping and no browser JavaScript. Only trusted CSS imports bypass escaping. `src/app.tsx` defines one shared Hono app for pages, consent, and MCP, supplied as both personal OAuth provider handlers. OAuth verifies protected requests before dispatch; each personal MCP request reads its own grant and scopes from the execution context and creates its own SDK handler. The official [`@modelcontextprotocol/hono` adapter](https://ts.sdk.modelcontextprotocol.io/v2/serving/hono.html) parses JSON and enforces the existing 64 KiB limit. HTML response middleware applies the shared security policy, with consent cookies and validated form-action destinations kept in the current Hono request context. The opt-in business Training API uses the same app and JSX renderer, with its own authorization and resource servers; its feature gate runs before app dispatch.
+The isolated production delivery test is also opt-in:
 
-Tool inputs are direct Zod declarations in `src/endpoints.ts`. `GarminClient.get(schema, path, signal)` validates JSON and infers its return type from the schema; `download(path, signal)` returns a typed base64 file. Both propagate MCP cancellation to Garmin. The small JSON fetch implementation follows the schema-first concept from `zod-fetch` and is kept inline.
+```sh
+GARMIN_E2E_PUSH_SECRET_FILE=/private/path/push-secrets.json pnpm exec vitest run --project push-live
+```
 
-Run `pnpm run generate:api` after updating `docs/garmin-personal-openapi.json`. [Hey API’s Zod plugin](https://heyapi.dev/docs/openapi/typescript/plugins/zod) generates `src/garmin-api/zod.gen.ts` and formats it with the existing Oxfmt configuration; do not edit that file manually. The `codegen` workspace isolates the generator and its TypeScript 6 compiler API dependency. The application and tests use TypeScript **7.1.0-beta** with strict indexed access, exact optional properties, explicit overrides, and return-path checks. See the [code quality audit](docs/code-quality.md) for the decisions and sources.
-
-## Verification and research
-
-The test suite exercises an SDK client end to end, encrypted grant storage, browser binding, PKCE, denied/forged/replayed consent, scoped tool exposure, refresh/revocation, input contracts for all 26 published paths, typed response validation, structured MCP results, cancellation, bounded responses, and redacted upstream errors. **Live Garmin reads remain unverified until a real key is entered through consent.** Garmin’s public token instructions do not publish a response schema; the adapter accepts the standard `access_token` and Garmin-style `accessToken` field names and fails closed for other payloads.
-
-See [the research and source links](docs/research.md) for the new access plans, existing integrations, architectural choices, and remaining uncertainties. [The OpenAPI snapshot](docs/garmin-personal-openapi.json) was extracted from Garmin’s public Swagger page on 2026-10-21. Data supplied by Garmin Connect. Independent project, not affiliated with Garmin.
+Its private JSON file contains the configured `GARMIN_PUSH_TOKEN`. The test submits a synthetic Garmin user ID, checks authenticated delivery and duplicate acceptance, rejects invalid delivery, and purges that isolated store in a `finally` block. It never uses the signed-in account's ID. See [verification evidence and limits](docs/verification.md).
