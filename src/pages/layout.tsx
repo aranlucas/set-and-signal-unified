@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from "hono/jsx";
 import siteStyles from "../site.css?raw";
 import consentStyles from "./consent.css?raw";
+import trainingStyles from "./training.css?raw";
 import { Icon } from "./icon";
 import { garminFaqUrl } from "./links";
 
@@ -9,9 +10,17 @@ type DocumentProps = PropsWithChildren<{
   styles: string;
   description?: string;
   themeColor?: string;
+  serviceName?: string;
 }>;
 
-function Document({ title, styles, description, themeColor, children }: DocumentProps) {
+function Document({
+  title,
+  styles,
+  description,
+  themeColor,
+  serviceName = "Garmin Personal MCP",
+  children,
+}: DocumentProps) {
   return (
     <html lang="en">
       <head>
@@ -19,7 +28,9 @@ function Document({ title, styles, description, themeColor, children }: Document
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         {description && <meta name="description" content={description} />}
         {themeColor && <meta name="theme-color" content={themeColor} />}
-        <title>{title} · Garmin Personal MCP</title>
+        <title>
+          {title} · {serviceName}
+        </title>
         {/* Only trusted, build-time CSS bypasses escaping. Page content always uses JSX. */}
         <style dangerouslySetInnerHTML={{ __html: styles }} />
       </head>
@@ -111,6 +122,18 @@ export function ConsentLayout({ title, children }: ConsentLayoutProps) {
         <small>
           Independent integration. Not affiliated with Garmin. Data supplied by Garmin Connect.
         </small>
+      </main>
+    </Document>
+  );
+}
+
+export function TrainingLayout({ title, children }: ConsentLayoutProps) {
+  return (
+    <Document title={title} serviceName="Garmin Training MCP" styles={trainingStyles}>
+      <main>
+        <div class="eyebrow">Training · Workout sending</div>
+        {children}
+        <small>Independent integration. Not affiliated with Garmin.</small>
       </main>
     </Document>
   );

@@ -35,9 +35,13 @@ type ExpectedFetch = {
 
 const describedParameter = z.object({ description: z.string() });
 
-async function dispatch(path: string, init?: RequestInit): Promise<Response> {
+async function dispatch(
+  path: string,
+  init?: RequestInit,
+  origin: string = base,
+): Promise<Response> {
   const ctx = createExecutionContext();
-  const response = await worker.fetch(new Request(new URL(path, base), init), env, ctx);
+  const response = await worker.fetch(new Request(new URL(path, origin), init), env, ctx);
   await waitOnExecutionContext(ctx);
 
   return response;
@@ -194,6 +198,80 @@ afterEach(() => {
 });
 
 describe("Cloudflare OAuth and MCP integration", () => {
+  it.each([
+    "https://t3-shared-hono-app-garmin-mcp.aranlucas.workers.dev",
+    "https://c96c0f07-garmin-mcp.aranlucas.workers.dev",
+  ])("uses the request origin for pages and OAuth at %s", async (origin) => {
+    const landing = await dispatch("/", undefined, origin);
+
+    expect(landing.status).toBe(200);
+    expect(await landing.text()).toContain(`${origin}/mcp`);
+
+    const metadata = await dispatch("/.well-known/oauth-protected-resource/mcp", undefined, origin);
+
+    expect(await metadata.json()).toMatchObject({
+      resource: `${origin}/mcp`,
+      authorization_servers: [origin],
+    });
+
+    const challenge = await dispatch("/mcp", { method: "POST" }, origin);
+
+    expect(challenge.status).toBe(401);
+    expect(challenge.headers.get("WWW-Authenticate")).toContain(
+      `${origin}/.well-known/oauth-protected-resource/mcp`,
+    );
+    expect(env.PUBLIC_URL).toBe(base);
+  });
+
+  it("keeps consent headers and cookies local to each shared-app request", async () => {
+    await startConsent();
+    const response = await dispatch("/");
+
+    expect(response.headers.get("content-security-policy")).toContain("form-action 'self';");
+    expect(response.headers.get("content-security-policy")).not.toContain("localhost:9876");
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(await response.text()).toMatch(/^<!doctype html>/i);
+  });
+
+  it("isolates concurrent MCP scopes on the shared app", async () => {
+    mockGarmin(GARMIN_TOKEN_PATH, "POST", { access_token: "mock-access" });
+    const standard = await approve();
+
+    const standardTokens = await (
+      await exchange(standard.clientId, standard.code)
+    ).json<AccessToken>();
+
+    mockGarmin(GARMIN_TOKEN_PATH, "POST", { access_token: "mock-access" });
+    const optional = await approve(true);
+
+    const optionalTokens = await (
+      await exchange(optional.clientId, optional.code)
+    ).json<AccessToken>();
+
+    const responses = await Promise.all(
+      [standardTokens, optionalTokens].map((tokens) =>
+        dispatch("/mcp", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${tokens.access_token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json, text/event-stream",
+          },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+        }),
+      ),
+    );
+
+    expect(responses.every((response) => response.status === 200)).toBe(true);
+
+    const [standardTools, optionalTools] = await Promise.all(
+      responses.map((response) => response.text()),
+    );
+
+    expect(standardTools).not.toContain("get_menstrual_summary");
+    expect(optionalTools).toContain("get_menstrual_summary");
+  });
+
   it.each(["/", "/privacy"])(
     "serves %s through Hono with the existing page security headers",
     async (path) => {

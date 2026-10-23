@@ -1,6 +1,6 @@
 import { bindings, defineConfig } from "cf/config";
 
-// Vite dev runs in development mode; PUBLIC_URL must match the port pinned in vite.config.ts.
+// PUBLIC_URL supplies the SDK's default host; request-local origins are derived at dispatch.
 // Worker Previews (`cf previews deploy`) get their own KV so branch builds never touch production grants.
 export default defineConfig(({ mode, isPreview }) => ({
   accountId: "d93c650f72e597f96785abba389b0ce4",
@@ -10,7 +10,7 @@ export default defineConfig(({ mode, isPreview }) => ({
     compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
     entrypoint: "src/index.ts",
     workersDev: true,
-    previewUrls: false,
+    previewUrls: true,
     observability: {
       enabled: true,
       logs: {

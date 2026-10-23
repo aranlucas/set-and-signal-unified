@@ -3,7 +3,7 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { OAuthAuthorizationServer } from "@cloudflare/workers-oauth-provider";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as z from "zod";
-import { fetchTraining, isTrainingPath } from "../src/training/auth";
+import { isTrainingPath } from "../src/training/auth";
 import { TRAINING_BASE, TRAINING_TOKEN_URL, type TokenSet } from "../src/training/client";
 import type { GarminJson } from "../src/garmin";
 import worker from "../src/index";
@@ -51,7 +51,7 @@ async function dispatch(
   bindings: Env = trainingEnv,
 ): Promise<Response> {
   const ctx = createExecutionContext();
-  const response = await fetchTraining(new Request(new URL(path, base), init), bindings, ctx);
+  const response = await worker.fetch(new Request(new URL(path, base), init), bindings, ctx);
   await waitOnExecutionContext(ctx);
 
   return response;
@@ -432,11 +432,45 @@ describe("Training routing and configuration", () => {
   });
 });
 
+describe("Training JSX rendering", () => {
+  it.each(["/training", "/training/privacy", "/training/authorize"])(
+    "renders %s through the shared renderer and security policy",
+    async (path) => {
+      const response = await dispatch(path);
+      const body = await response.text();
+
+      expect(body).toMatch(/^<!doctype html>/i);
+      expect(body.match(/<!doctype html>/gi)).toHaveLength(1);
+      expect(body).toContain("· Garmin Training MCP</title>");
+      expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(response.headers.get("Content-Security-Policy")).toContain("form-action 'self';");
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(response.headers.get("Referrer-Policy")).toBe("same-origin");
+    },
+  );
+
+  it("keeps Training consent cookies and redirect permissions out of later page responses", async () => {
+    await startConsent();
+
+    await Promise.all(
+      ["/training", "/training/privacy", "/"].map(async (path) => {
+        const response = await dispatch(path);
+
+        expect(response.headers.get("Set-Cookie")).toBeNull();
+        expect(response.headers.get("Content-Security-Policy")).toContain("form-action 'self';");
+        expect(response.headers.get("Content-Security-Policy")).not.toContain("connect.garmin.com");
+        expect(response.headers.get("Content-Security-Policy")).not.toContain("localhost:9876");
+      }),
+    );
+  });
+});
+
 describe("Training browser authorization", () => {
   it("escapes per-client consent and permits the browser redirect to Garmin", async () => {
     const consent = await startConsent("<script>untrusted</script>");
     expect(consent.body).not.toContain("<script>");
-    expect(consent.body).toContain("&#60;script&#62;");
+    expect(consent.body).toContain("&lt;script&gt;");
     expect(consent.body).toContain("localhost");
     expect(consent.body).toContain("app on your computer");
     expect(consent.body).toContain(scope);

@@ -1,27 +1,14 @@
-import {
-  insufficientScope,
-  OAuthProvider,
-  type OAuthResourceContext,
-} from "@cloudflare/workers-oauth-provider";
-import { createMcpHandler } from "@modelcontextprotocol/server";
-import { createMcpHonoApp } from "@modelcontextprotocol/hono";
-import type { Context } from "hono";
-import * as z from "zod";
-import { authHandler, type AppEnv } from "./auth";
-import { createServer } from "./mcp";
+import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
+import { app } from "./app";
+import type { AppEnv } from "./auth";
 import { READ_SCOPE, WOMENS_SCOPE } from "./scopes";
-import { fetchTraining, isTrainingPath } from "./training/auth";
-
-/** Grant props saved by the consent flow in auth.ts. */
-const grantProps = z.object({ apiKey: z.string() });
+import { isTrainingPath } from "./training/auth";
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const publicUrl = new URL(env.PUBLIC_URL);
-
-    if (new URL(request.url).origin !== publicUrl.origin) {
-      return new Response("Unknown host", { status: 421 });
-    }
+  async fetch(request: Request, bindings: Env, ctx: ExecutionContext): Promise<Response> {
+    const publicUrl = new URL(request.url);
+    // Each branch or version alias uses its own origin without changing shared bindings.
+    const env = { ...bindings, PUBLIC_URL: publicUrl.origin };
 
     const provider = new OAuthProvider<AppEnv>({
       apiRoute: "/mcp",
@@ -38,54 +25,18 @@ export default {
         authorization_servers: [publicUrl.origin],
         resource_name: "Garmin Personal MCP",
       },
-      defaultHandler: authHandler,
-      apiHandler: {
-        fetch(req, _env, context) {
-          if (new URL(req.url).pathname !== "/mcp") {
-            return new Response("Not found", { status: 404 });
-          }
-          // SAFETY: OAuthProvider passes its documented resource context to the protected handler.
-
-          const { props, auth } = context as OAuthResourceContext<unknown>;
-
-          if (!auth.scope.includes(READ_SCOPE)) {
-            return insufficientScope(auth, [READ_SCOPE]);
-          }
-
-          const grant = grantProps.safeParse(props);
-
-          if (!grant.success) {
-            return Response.json({ error: "invalid_token" }, { status: 401 });
-          }
-
-          const key = grant.data.apiKey;
-
-          // SDK v2 serves current per-request MCP and stateless 2025 clients.
-          const handler = createMcpHandler(() => createServer(key, auth.scope), {
-            maxRequestBodySize: 64 * 1024,
-          });
-
-          const app = createMcpHonoApp({
-            host: publicUrl.hostname,
-            maxRequestBodySize: 64 * 1024,
-          });
-
-          app.all("/mcp", (c: Context) =>
-            handler.fetch(c.req.raw, { parsedBody: c.get("parsedBody") }),
-          );
-          // Let the Worker's redacted error handler own unexpected failures.
-          app.onError((error) => {
-            throw error;
-          });
-
-          return app.fetch(req);
-        },
-      },
+      defaultHandler: app,
+      apiHandler: app,
     });
 
     try {
       if (isTrainingPath(new URL(request.url).pathname)) {
-        return await fetchTraining(request, env, ctx);
+        // Gate before the app parses bodies or constructs Training OAuth handlers.
+        if (env.GARMIN_TRAINING_ENABLED !== "true") {
+          return new Response("Not found", { status: 404 });
+        }
+
+        return await app.fetch(request, env, ctx);
       }
 
       // SAFETY: OAuthProvider adds OAUTH_PROVIDER to env before it calls any handler.

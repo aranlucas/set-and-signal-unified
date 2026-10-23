@@ -3,68 +3,41 @@ import {
   CimdFetchError,
   type OAuthHelpers,
 } from "@cloudflare/workers-oauth-provider";
-import { Hono } from "hono";
+import type { Context } from "hono";
 import { obtainToken, readBounded } from "./garmin";
 import { GarminError } from "./garmin-error";
+import { consentFormAction } from "./page-headers";
 import { READ_SCOPE, WOMENS_SCOPE } from "./scopes";
-import { authorizationErrorPage, consentPage, home, keyErrorPage, privacyPage } from "./pages";
+import { ConsentPage } from "./pages/consent";
+import { AuthorizationErrorPage, KeyErrorPage } from "./pages/errors";
 
 export type AppEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
 
-export function html(
-  body: string,
-  status = 200,
-  headers = new Headers(),
-  formAction = "'self'",
-): Response {
-  headers.set("Content-Type", "text/html; charset=utf-8");
-  headers.set("Cache-Control", "no-store");
-  headers.set(
-    "Content-Security-Policy",
-    `default-src 'none'; style-src 'unsafe-inline'; form-action ${formAction}; base-uri 'none'; frame-ancestors 'none'`,
-  );
-  headers.set("X-Content-Type-Options", "nosniff");
-  // Not no-referrer: browsers then send `Origin: null` on form posts, failing the Origin check.
-  headers.set("Referrer-Policy", "same-origin");
+export type AppBindings = {
+  Bindings: Env;
+  Variables: { formAction?: string; parsedBody?: unknown };
+};
 
-  return new Response(body, { status, headers });
-}
-
-/** Browsers apply form-action to the redirect after a form post, so allow the validated client redirect. */
-export function consentFormAction(redirectUri: string): string {
-  const url = new URL(redirectUri);
-
-  return `'self' ${url.origin === "null" ? url.protocol : url.origin}`;
-}
-
-type AuthBindings = { Bindings: AppEnv };
-
-export const authHandler = new Hono<AuthBindings>();
-
-authHandler.get("/", (c) => html(home(c.env.PUBLIC_URL)));
-
-authHandler.get("/privacy", () => html(privacyPage()));
-
-authHandler.get("/health", (c) => c.json({ status: "ok", service: "garmin-personal-mcp" }));
-
-authHandler.all("/authorize", async (c) => {
+export async function authorize(c: Context<AppBindings>) {
   const request = c.req.raw;
   const env = c.env;
 
   try {
-    const oauth = env.OAUTH_PROVIDER;
+    // SAFETY: OAuthProvider supplies this helper before dispatching /authorize.
+    const oauth = (env as AppEnv).OAUTH_PROVIDER;
 
     if (request.method === "GET") {
       const authRequest = await oauth.parseAuthRequest(request);
       const details = await oauth.describeConsent(authRequest);
       const consent = await oauth.beginConsent(authRequest);
 
-      return html(
-        consentPage(details, consent.handle),
-        200,
-        consent.headers,
-        consentFormAction(details.redirectUri),
-      );
+      for (const [name, value] of consent.headers) {
+        c.header(name, value, { append: name === "set-cookie" });
+      }
+
+      c.set("formAction", consentFormAction(details.redirectUri));
+
+      return await c.render(<ConsentPage details={details} handle={consent.handle} />);
     }
 
     if (request.method !== "POST") {
@@ -103,7 +76,13 @@ authHandler.all("/authorize", async (c) => {
     const apiKey = form.get("apiKey")?.trim() ?? "";
 
     if (apiKey.length < 8 || apiKey.length > 4096 || /\s/.test(apiKey)) {
-      return html(keyErrorPage(), 400, approved.headers);
+      for (const [name, value] of approved.headers) {
+        c.header(name, value, { append: name === "set-cookie" });
+      }
+
+      c.status(400);
+
+      return await c.render(<KeyErrorPage />);
     }
 
     // Verify before persisting the encrypted grant. Never save an unverified key.
@@ -140,15 +119,11 @@ authHandler.all("/authorize", async (c) => {
           ? error.message
           : "This authorization request is invalid or expired. Start again from your assistant.";
 
-      return html(authorizationErrorPage(message), error instanceof GarminError ? 502 : 400);
+      c.status(error instanceof GarminError ? 502 : 400);
+
+      return c.render(<AuthorizationErrorPage message={message} />);
     }
 
     throw error;
   }
-});
-
-authHandler.notFound(() => new Response("Not found", { status: 404 }));
-
-authHandler.onError((error) => {
-  throw error;
-});
+}
