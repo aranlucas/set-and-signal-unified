@@ -1,107 +1,57 @@
 import * as z from "zod";
-import type { Parameter } from "./endpoints";
 import { GarminError } from "./garmin-error";
 
-/** Values the parameter schemas below accept. */
 export type ToolArgument = string | number | boolean | string[];
 
 export type ToolArguments = Readonly<Record<string, ToolArgument | undefined>>;
 
-export type ToolArgumentSchema = z.ZodType<ToolArgument | undefined>;
-
-const optionalDate = z.iso.date().optional();
-
 export const MAX_RANGE_DAYS = 31;
 
-export function parameterSchema(parameter: Parameter): ToolArgumentSchema {
-  const { name, schema } = parameter;
-  let result: z.ZodType<ToolArgument>;
+export const DATE_RANGE_MESSAGE = `Use a date range in order, covering at most ${MAX_RANGE_DAYS} calendar days. Split larger requests.`;
 
-  if (schema.format === "date") {
-    result = z.iso.date();
-  } else if (schema.type === "boolean") {
-    result = z.boolean();
-  } else if (schema.type === "integer" || schema.type === "number") {
-    let number = schema.type === "integer" ? z.number().int().safe() : z.number().finite();
+export const calendarDate = z.iso.date().describe("Calendar date as YYYY-MM-DD.");
 
-    if (name === "limit") {
-      number = number.min(1).max(100);
-    } else if (name === "activityId") {
-      number = number.positive();
-    } else if (
-      name === "start" ||
-      name.startsWith("min") ||
-      name.startsWith("max") ||
-      name === "chunks"
-    ) {
-      number = number.nonnegative();
-    }
+export const activityId = z.number().int().positive().describe("Garmin activity ID.");
 
-    result = number;
-  } else if (schema.type === "array") {
-    result = z.array(z.string().max(200)).max(50);
-  } else if (name === "sortOrder") {
-    result = z.enum(["asc", "desc"]);
-  } else {
-    result = z.string().max(500);
-  }
-
-  const description =
-    schema.format === "date"
-      ? [parameter.description, "Calendar date as YYYY-MM-DD."].filter(Boolean).join(" ")
-      : parameter.description;
-
-  if (description) {
-    result = result.describe(description);
-  }
-
-  if (schema.default !== undefined) {
-    return result.default(schema.default);
-  }
-
-  return parameter.required ? result : result.optional();
+export function isOrderedDateRange(start: string | undefined, end: string | undefined): boolean {
+  return start === undefined || end === undefined || start <= end;
 }
 
-export function validateDateRange(args: ToolArguments): void {
-  const start = optionalDate.parse(args.startDate ?? args.fromDate);
-  const end = optionalDate.parse(args.endDate ?? args.toDate ?? args.untilDate);
-
+export function isBoundedDateRange(start: string | undefined, end: string | undefined): boolean {
   if (start === undefined || end === undefined) {
-    return;
+    return true;
   }
 
   const days = (Date.parse(end) - Date.parse(start)) / 86_400_000;
 
-  if (days < 0 || days >= MAX_RANGE_DAYS) {
-    throw new GarminError(
-      `Use a date range in order, covering at most ${MAX_RANGE_DAYS} calendar days. Split larger requests.`,
-      400,
-    );
-  }
+  return days >= 0 && days < MAX_RANGE_DAYS;
 }
 
+/** Only catalogued path parameters are interpolated; all other inputs become query parameters. */
 export function endpointPath(
   path: string,
-  parameters: readonly Parameter[],
+  pathParameters: readonly string[],
   args: ToolArguments,
 ): string {
+  for (const name of pathParameters) {
+    const value = args[name];
+
+    if (value === undefined || Array.isArray(value)) {
+      throw new GarminError(`Missing path parameter: ${name}.`, 400);
+    }
+
+    path = path.replace(`{${name}}`, encodeURIComponent(String(value)));
+  }
+
   const query = new URLSearchParams();
 
-  for (const parameter of parameters) {
-    const value = args[parameter.name];
-
-    if (value === undefined) {
+  for (const [name, value] of Object.entries(args)) {
+    if (value === undefined || pathParameters.includes(name)) {
       continue;
     }
 
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        query.append(parameter.name, item);
-      }
-    } else if (parameter.in === "path") {
-      path = path.replace(`{${parameter.name}}`, encodeURIComponent(String(value)));
-    } else {
-      query.set(parameter.name, String(value));
+    for (const item of Array.isArray(value) ? value : [value]) {
+      query.append(name, String(item));
     }
   }
 

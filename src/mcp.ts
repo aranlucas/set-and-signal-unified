@@ -1,14 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
-import * as z from "zod";
+import type { ZodType } from "zod";
 import { endpoints } from "./endpoints";
-import { WOMENS_SCOPE } from "./scopes";
-import {
-  endpointPath,
-  MAX_RANGE_DAYS,
-  parameterSchema,
-  validateDateRange,
-  type ToolArgumentSchema,
-} from "./tool-input";
+import { endpointPath, MAX_RANGE_DAYS, type ToolArguments } from "./tool-input";
 import { GarminClient } from "./garmin";
 import { GarminError } from "./garmin-error";
 
@@ -20,32 +13,25 @@ export function createServer(
   const server = new McpServer(
     { name: "garmin-personal", version: "1.0.0" },
     {
-      instructions: `Read-only Garmin Connect Personal API. Data is supplied by Garmin Connect. Dates refer to Garmin calendar dates, not UTC timestamps. Use ranges of at most ${MAX_RANGE_DAYS} days. Missing data is not zero. Do not infer medical diagnoses. Activity file downloads return base64, up to 2 MiB.`,
+      instructions: `Read-only Garmin Connect Personal API. Data is supplied by Garmin Connect. Dates refer to Garmin calendar dates, not UTC timestamps. Daily range tools accept at most ${MAX_RANGE_DAYS} calendar days. list_activities uses start/limit pagination and allows wider date filters. Missing data is not zero. Do not infer medical diagnoses. Activity file downloads return base64, up to 2 MiB.`,
     },
   );
 
   const client = new GarminClient(apiKey, fetcher);
 
   for (const endpoint of endpoints) {
-    if (endpoint.sensitive && !scopes.includes(WOMENS_SCOPE)) {
+    if (!scopes.includes(endpoint.requiredScope)) {
       continue;
     }
 
-    const inputFields: Record<string, ToolArgumentSchema> = {};
+    const inputSchema: ZodType<ToolArguments> = endpoint.inputSchema;
+    const responseSchema: ZodType = endpoint.responseSchema;
 
-    for (const parameter of endpoint.parameters) {
-      inputFields[parameter.name] = parameterSchema(parameter);
-    }
-
-    // Paged results are bounded by `limit`; their date filters need no range cap.
-
-    const paged = "limit" in inputFields;
-    const ranged = !paged && ["endDate", "toDate", "untilDate"].some((name) => name in inputFields);
     server.registerTool(
       endpoint.name,
       {
-        description: `${endpoint.description} Source: Garmin Connect.${ranged ? ` Date ranges are limited to ${MAX_RANGE_DAYS} days.` : ""}`,
-        inputSchema: z.object(inputFields).strict(),
+        description: `${endpoint.description} Source: Garmin Connect.`,
+        inputSchema,
         annotations: {
           readOnlyHint: true,
           destructiveHint: false,
@@ -53,21 +39,20 @@ export function createServer(
           openWorldHint: true,
         },
       },
-      async (args) => {
+      async (args, ctx) => {
         try {
-          if (ranged) {
-            validateDateRange(args);
-          }
+          const path = endpointPath(endpoint.path, endpoint.pathParameters, args);
 
-          const data = await client.get(
-            endpointPath(endpoint.path, endpoint.parameters, args),
-            endpoint.binary,
-          );
+          const data =
+            endpoint.responseType === "file"
+              ? await client.download(path, ctx.mcpReq.signal)
+              : await client.get(responseSchema, path, ctx.mcpReq.signal);
+
+          const result = { source: "Garmin Connect", data };
 
           return {
-            content: [
-              { type: "text" as const, text: JSON.stringify({ source: "Garmin Connect", data }) },
-            ],
+            structuredContent: result,
+            content: [{ type: "text", text: JSON.stringify(result) }],
           };
         } catch (error) {
           const message =
@@ -75,7 +60,7 @@ export function createServer(
               ? error.message
               : "The Garmin request failed. Please try again.";
 
-          return { isError: true, content: [{ type: "text" as const, text: message }] };
+          return { isError: true, content: [{ type: "text", text: message }] };
         }
       },
     );

@@ -3,3 +3,6 @@ allowBuilds:
   workerd: false
 minimumReleaseAgeExclude:
   - vite@8.3.5
+packages:
+  - .
+  - codegen

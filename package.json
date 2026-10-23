@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "cf dev",
     "typegen": "cf workers types",
+    "generate:api": "pnpm --filter garmin-api-codegen generate",
     "typecheck": "cf workers types && tsc --noEmit",
     "test": "vitest run --project worker",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm test",
@@ -34,7 +35,7 @@
     "oxfmt": "0.74.0",
     "oxlint": "1.89.0",
     "oxlint-tsgolint": "7.0.2004",
-    "typescript": "7.0.2",
+    "typescript": "7.1.0-beta",
     "vite": "8.3.5",
     "vitest": "5.0.5"
   },

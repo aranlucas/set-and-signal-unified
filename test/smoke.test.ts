@@ -73,7 +73,10 @@ it("registers a public client, binds consent to the browser, and redirects on de
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       Origin: base,
-      Cookie: required(consent.headers.get("set-cookie"), "consent cookie").split(";")[0],
+      Cookie: required(
+        required(consent.headers.get("set-cookie"), "consent cookie").split(";")[0],
+        "consent cookie value",
+      ),
     },
     body: new URLSearchParams({ handle: required(handle, "consent handle"), decision: "deny" }),
   });

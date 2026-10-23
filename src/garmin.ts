@@ -53,9 +53,13 @@ async function checkedFetch(
     response = await fetcher(GARMIN_BASE + path, {
       ...init,
       redirect: "error",
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.any([AbortSignal.timeout(20_000), ...(init.signal ? [init.signal] : [])]),
     });
   } catch {
+    if (init.signal?.aborted) {
+      throw new GarminError("The Garmin request was cancelled.", 499);
+    }
+
     throw new GarminError("Garmin could not be reached. Try again shortly.", 502);
   }
 
@@ -75,67 +79,68 @@ async function checkedFetch(
   return response;
 }
 
-const TokenResponse = z.object({
-  access_token: z.string().optional(),
-  accessToken: z.string().optional(),
-});
+const headerToken = z.string().min(1).regex(/^\S+$/);
 
-/** Garmin JSON responses are relayed unchanged once they parse as JSON. */
+const tokenResponse = z.union([
+  z.object({ access_token: headerToken }).transform((data) => data.access_token),
+  z.object({ accessToken: headerToken }).transform((data) => data.accessToken),
+]);
+
 const garminJson = z.json();
 
 export type GarminJson = z.infer<typeof garminJson>;
 
-export type GarminFile = {
-  source: "Garmin Connect";
-  encoding: "base64";
-  contentType: string;
-  data: string;
-};
+export const garminFileSchema = z.strictObject({
+  source: z.literal("Garmin Connect"),
+  encoding: z.literal("base64"),
+  contentType: z.string(),
+  data: z.string(),
+});
 
-export type GarminPayload = GarminJson | GarminFile;
+export type GarminFile = z.infer<typeof garminFileSchema>;
 
-function parseJson(bytes: Uint8Array): GarminJson {
-  return garminJson.parse(JSON.parse(new TextDecoder().decode(bytes)));
+/** Schema-first fetching, following zod-fetch's API, with Garmin's bounded response handling. */
+async function fetchJson<Output>(
+  schema: z.ZodType<Output>,
+  path: string,
+  init: RequestInit,
+  fetcher: typeof fetch,
+  maxBytes = 1024 * 1024,
+): Promise<Output> {
+  const response = await checkedFetch(path, init, fetcher);
+  const bytes = await readBounded(response, maxBytes);
+  const data: unknown = JSON.parse(new TextDecoder().decode(bytes));
+
+  return schema.parse(data);
 }
 
-export async function obtainToken(apiKey: string, fetcher: typeof fetch = fetch): Promise<string> {
-  const response = await checkedFetch(
-    GARMIN_TOKEN_PATH,
-    {
-      method: "POST",
-      headers: { Authorization: `ApiKey ${apiKey}`, Accept: "application/json" },
-    },
-    fetcher,
-  );
-
-  let data: GarminJson;
-
+export async function obtainToken(
+  apiKey: string,
+  fetcher: typeof fetch = fetch,
+  signal?: AbortSignal,
+): Promise<string> {
   try {
-    data = parseJson(await readBounded(response, 64 * 1024));
-  } catch (e) {
-    if (e instanceof GarminError) {
-      throw e;
+    return await fetchJson(
+      tokenResponse,
+      GARMIN_TOKEN_PATH,
+      {
+        method: "POST",
+        headers: { Authorization: `ApiKey ${apiKey}`, Accept: "application/json" },
+        signal: signal ?? null,
+      },
+      fetcher,
+      64 * 1024,
+    );
+  } catch (error) {
+    if (error instanceof GarminError) {
+      throw error;
     }
 
-    throw new GarminError("Garmin returned an invalid token response.", 502);
-  }
-
-  const parsed = TokenResponse.safeParse(data);
-
-  if (!parsed.success) {
-    throw new GarminError("Garmin returned an invalid token response.", 502);
-  }
-
-  const token = parsed.data.access_token ?? parsed.data.accessToken;
-
-  if (!token || /[\r\n]/.test(token)) {
     throw new GarminError(
       "Garmin returned an unrecognized token response. No credential was saved.",
       502,
     );
   }
-
-  return token;
 }
 
 /** Request-local instance. No credentials, tokens, or health data in global state. */
@@ -147,35 +152,51 @@ export class GarminClient {
     private readonly fetcher: typeof fetch = fetch,
   ) {}
 
-  async get(path: string, binary = false): Promise<GarminPayload> {
-    this.token ??= obtainToken(this.apiKey, this.fetcher);
+  private async headers(accept: string, signal?: AbortSignal): Promise<HeadersInit> {
+    this.token ??= obtainToken(this.apiKey, this.fetcher, signal);
 
+    return { Authorization: `Bearer ${await this.token}`, Accept: accept };
+  }
+
+  async get<Output>(
+    schema: z.ZodType<Output>,
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<Output> {
+    try {
+      return await fetchJson(
+        schema,
+        path,
+        { headers: await this.headers("application/json", signal), signal: signal ?? null },
+        this.fetcher,
+      );
+    } catch (error) {
+      if (error instanceof GarminError) {
+        throw error;
+      }
+
+      // Zod issues can include personal data; only this fixed message may leave the boundary.
+      throw new GarminError(
+        "Garmin returned a response that does not match its published API schema.",
+        502,
+      );
+    }
+  }
+
+  async download(path: string, signal?: AbortSignal): Promise<GarminFile> {
     const response = await checkedFetch(
       path,
-      {
-        headers: {
-          Authorization: `Bearer ${await this.token}`,
-          Accept: binary ? "application/octet-stream" : "application/json",
-        },
-      },
+      { headers: await this.headers("application/octet-stream", signal), signal: signal ?? null },
       this.fetcher,
     );
 
-    const bytes = await readBounded(response, binary ? 2 * 1024 * 1024 : 1024 * 1024);
+    const bytes = await readBounded(response, 2 * 1024 * 1024);
 
-    if (binary) {
-      return {
-        source: "Garmin Connect",
-        encoding: "base64",
-        contentType: response.headers.get("content-type") ?? "application/octet-stream",
-        data: Buffer.from(bytes).toString("base64"),
-      };
-    }
-
-    try {
-      return parseJson(bytes);
-    } catch {
-      throw new GarminError("Garmin returned invalid JSON.", 502);
-    }
+    return {
+      source: "Garmin Connect",
+      encoding: "base64",
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      data: Buffer.from(bytes).toString("base64"),
+    };
   }
 }

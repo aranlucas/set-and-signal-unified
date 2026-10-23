@@ -57,6 +57,8 @@ The tools follow Garmin’s published [Personal API schema](https://developer.ga
 
 Dates use `YYYY-MM-DD`. Daily date range tools accept at most 31 calendar days per call; split larger requests. `list_activities` date filters are not capped because results are paged at up to 100 items per call. JSON responses are capped at 1 MiB, and original activity downloads at 2 MiB. Downloads return base64 and the upstream media type; Garmin may return a FIT archive. These are local safety limits, not claims about Garmin’s API quotas or history retention.
 
+Every tool returns `{ source: "Garmin Connect", data }` in both `structuredContent` and a JSON text block. Response schemas stay inside the Garmin client; MCP tool definitions expose input schemas and annotations. Garmin responses are validated against models generated from the published API snapshot. Documented fields retain their types and optionality; additional fields are preserved. Invalid responses produce a safe tool error without including upstream values or Zod error details.
+
 No workout uploads, activity editing, course publishing, or arbitrary HTTP proxy tool is exposed. An activity’s associated workouts can be read. Availability of metrics and historical records depends on your Garmin account, device, and Garmin’s API.
 
 ## Disconnect
@@ -85,8 +87,12 @@ For another Cloudflare account, change `accountId` and `PUBLIC_URL` in `cloudfla
 
 For local interactive development, run `pnpm run dev`. Use `pnpm run lint:fix` and `pnpm run format` to apply fixes. `cf dev` uses Vite in development mode, which sets `PUBLIC_URL` to `http://localhost:5173`; `vite.config.ts` pins that port. The OAuth library uses `Secure`, `__Host-` consent cookies, so use a localhost-capable browser or an HTTPS development origin for browser testing. The automated tests exercise the complete authorization flow without relying on a browser’s localhost cookie policy.
 
+Tool inputs are direct Zod declarations in `src/endpoints.ts`. `GarminClient.get(schema, path, signal)` validates JSON and infers its return type from the schema; `download(path, signal)` returns a typed base64 file. Both propagate MCP cancellation to Garmin. The small JSON fetch implementation follows the schema-first concept from `zod-fetch` and is kept inline.
+
+Run `pnpm run generate:api` after updating `docs/garmin-personal-openapi.json`. [Hey API’s Zod plugin](https://heyapi.dev/docs/openapi/typescript/plugins/zod) generates `src/garmin-api/zod.gen.ts` and formats it with the existing Oxfmt configuration; do not edit that file manually. The `codegen` workspace isolates the generator and its TypeScript 6 compiler API dependency. The application and tests use TypeScript **7.1.0-beta** with strict indexed access, exact optional properties, explicit overrides, and return-path checks. See the [code quality audit](docs/code-quality.md) for the decisions and sources.
+
 ## Verification and research
 
-The test suite exercises an SDK client end to end, encrypted grant storage, browser binding, PKCE, denied/forged/replayed consent, scoped tool exposure, refresh/revocation, date validation, bounded responses, and redacted upstream errors. **Live Garmin reads remain unverified until a real key is entered through consent.** Garmin’s public token instructions do not publish a response schema; the adapter accepts the standard `access_token` and Garmin-style `accessToken` field names and fails closed for other payloads.
+The test suite exercises an SDK client end to end, encrypted grant storage, browser binding, PKCE, denied/forged/replayed consent, scoped tool exposure, refresh/revocation, input contracts for all 26 published paths, typed response validation, structured MCP results, cancellation, bounded responses, and redacted upstream errors. **Live Garmin reads remain unverified until a real key is entered through consent.** Garmin’s public token instructions do not publish a response schema; the adapter accepts the standard `access_token` and Garmin-style `accessToken` field names and fails closed for other payloads.
 
 See [the research and source links](docs/research.md) for the new access plans, existing integrations, architectural choices, and remaining uncertainties. [The OpenAPI snapshot](docs/garmin-personal-openapi.json) was extracted from Garmin’s public Swagger page on 2026-10-21. Data supplied by Garmin Connect. Independent project, not affiliated with Garmin.

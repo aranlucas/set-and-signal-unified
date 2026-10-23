@@ -30,7 +30,7 @@ type ExpectedFetch = {
   method: string;
   status: number;
   body: GarminJson;
-  authorization?: string;
+  authorization: string | undefined;
 };
 
 const describedParameter = z.object({ description: z.string() });
@@ -85,7 +85,11 @@ async function startConsent() {
   const body = await consent.text();
   const handle = body.match(/name="handle" value="([^"]+)"/)?.[1];
   expect(handle).toBeTruthy();
-  const cookie = required(consent.headers.get("set-cookie"), "consent cookie").split(";")[0];
+
+  const cookie = required(
+    required(consent.headers.get("set-cookie"), "consent cookie").split(";")[0],
+    "consent cookie value",
+  );
 
   return {
     clientId,
@@ -328,6 +332,14 @@ describe("Cloudflare OAuth and MCP integration", () => {
     expect(list.tools).toHaveLength(24);
     expect(list.tools.some((tool) => tool.name === "get_menstrual_summary")).toBe(false);
 
+    for (const tool of list.tools) {
+      expect(tool, tool.name).not.toHaveProperty("outputSchema");
+      expect(tool.annotations, tool.name).toMatchObject({
+        readOnlyHint: true,
+        destructiveHint: false,
+      });
+    }
+
     const activities = required(
       list.tools.find((tool) => tool.name === "list_activities"),
       "list_activities tool",
@@ -346,6 +358,30 @@ describe("Cloudflare OAuth and MCP integration", () => {
 
     expect(JSON.stringify(data)).toContain("1234");
     expect(JSON.stringify(data)).not.toContain("mock-garmin-access");
+    expect(data.structuredContent).toEqual({
+      source: "Garmin Connect",
+      data: { totalSteps: 1234 },
+    });
+    expect(data.content).toEqual([
+      {
+        type: "text",
+        text: JSON.stringify(data.structuredContent),
+      },
+    ]);
+
+    mockGarmin(GARMIN_TOKEN_PATH, "POST", { access_token: "mock-garmin-access" });
+    mockGarmin("/usersummary-service/usersummary/daily?calendarDate=2026-10-20", "GET", {
+      totalSteps: "private health payload",
+    });
+
+    const malformed = await client.callTool({
+      name: "get_daily_summary",
+      arguments: { calendarDate: "2026-10-20" },
+    });
+
+    expect(malformed.isError).toBe(true);
+    expect(JSON.stringify(malformed)).toContain("published API schema");
+    expect(JSON.stringify(malformed)).not.toContain("private health payload");
 
     const invalid = await client.callTool({
       name: "get_steps",
@@ -353,6 +389,14 @@ describe("Cloudflare OAuth and MCP integration", () => {
     });
 
     expect(invalid.isError).toBe(true);
+    expect(JSON.stringify(invalid)).toContain("31 calendar days");
+
+    const unknownArgument = await client.callTool({
+      name: "get_daily_summary",
+      arguments: { calendarDate: "2026-10-20", apiKey: "unexpected" },
+    });
+
+    expect(unknownArgument.isError).toBe(true);
     await client.close();
 
     const refresh = await dispatch("/oauth/token", {

@@ -1,0 +1,12 @@
+{
+  "name": "garmin-api-codegen",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "openapi-ts"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,27 +1,19 @@
 import { describe, expect, it } from "vitest";
+import * as z from "zod";
 import snapshot from "../docs/garmin-personal-openapi.json";
 import { endpoints } from "../src/endpoints";
-import { endpointPath, parameterSchema, validateDateRange } from "../src/tool-input";
+import { endpointPath } from "../src/tool-input";
 import { required } from "./support";
 
-type PublishedParameter = {
-  name: string;
-  in: string;
-  required?: boolean;
-  schema: unknown;
-};
-
-function parameterContract(parameter: PublishedParameter) {
-  return {
-    name: parameter.name,
-    in: parameter.in,
-    required: parameter.required ?? false,
-    schema: parameter.schema,
-  };
+function tool(name: string) {
+  return required(
+    endpoints.find((endpoint) => endpoint.name === name),
+    name,
+  );
 }
 
-describe("Tool inputs", () => {
-  it("covers the published Garmin paths and preserves their parameter contracts", () => {
+describe("Tool contracts", () => {
+  it("covers every published path with matching parameters, defaults and required fields", () => {
     expect(endpoints).toHaveLength(Object.keys(snapshot.paths).length);
     expect(new Set(endpoints.map((endpoint) => endpoint.name)).size).toBe(endpoints.length);
 
@@ -32,68 +24,95 @@ describe("Tool inputs", () => {
       );
 
       const parameters = "parameters" in operation.get ? operation.get.parameters : [];
+      const schema = z.toJSONSchema(endpoint.inputSchema, { io: "input" });
+      const properties = schema.properties ?? {};
 
-      expect(endpoint.parameters.map(parameterContract), path).toEqual(
-        parameters.map(parameterContract),
+      expect(Object.keys(properties), path).toEqual(parameters.map((parameter) => parameter.name));
+      expect(schema.required ?? [], path).toEqual(
+        parameters
+          .filter((parameter) => "required" in parameter && parameter.required)
+          .map((parameter) => parameter.name),
       );
+      expect(endpoint.pathParameters, path).toEqual(
+        parameters
+          .filter((parameter) => parameter.in === "path")
+          .map((parameter) => parameter.name),
+      );
+      expect(schema.additionalProperties, path).toBe(false);
+
+      for (const parameter of parameters) {
+        const field = z
+          .object({
+            type: z.string(),
+            format: z.string().optional(),
+            default: z.json().optional(),
+          })
+          .parse(properties[parameter.name]);
+
+        expect(field.type, `${path}: ${parameter.name}`).toBe(parameter.schema.type);
+
+        expect(field.default, `${path}: ${parameter.name}`).toEqual(
+          "default" in parameter.schema ? parameter.schema.default : undefined,
+        );
+        expect(field.format === "date", `${path}: ${parameter.name}`).toBe(
+          "format" in parameter.schema && parameter.schema.format === "date",
+        );
+      }
     }
   });
 
-  it("validates calendar dates, safe activity IDs, query limits and ordered date windows", () => {
-    expect(
-      parameterSchema({
-        name: "date",
-        in: "query",
-        schema: { type: "string", format: "date" },
-      }).safeParse("2026-02-30").success,
-    ).toBe(false);
-    expect(
-      parameterSchema({
-        name: "activityId",
-        in: "path",
-        required: true,
-        schema: { type: "integer" },
-      }).safeParse(-1).success,
-    ).toBe(false);
-    expect(
-      parameterSchema({ name: "limit", in: "query", schema: { type: "integer" } }).safeParse(101)
-        .success,
-    ).toBe(false);
-    expect(() => validateDateRange({ fromDate: "2026-10-21", toDate: "2026-10-01" })).toThrow(
-      "date range in order",
-    );
-    expect(() =>
-      validateDateRange({ startDate: "2026-10-01", endDate: "2026-10-31" }),
-    ).not.toThrow();
-    expect(() => validateDateRange({ startDate: "2026-10-01", endDate: "2026-11-01" })).toThrow(
-      "31 calendar days",
-    );
+  it.each([
+    ["get_hrv", { calendarDate: "2026-02-30" }],
+    ["get_hrv", {}],
+    ["get_activity", { activityId: -1 }],
+    ["get_activity", { activityId: Number.MAX_SAFE_INTEGER + 1 }],
+    ["get_activity", { activityId: "123" }],
+    ["get_activity", { activityId: 123, apiKey: "unexpected" }],
+    ["list_activities", { limit: 0 }],
+    ["list_activities", { limit: 101 }],
+    ["list_activities", { favorite: 2 }],
+    ["list_activities", { upperLatitude: 91 }],
+    ["list_activities", { leftLongitude: -181 }],
+    ["list_activities", { sortOrder: "random" }],
+    ["list_activities", { startDate: "2026-10-21", endDate: "2026-10-01" }],
+  ])("rejects invalid %s arguments: %j", (name, args) => {
+    expect(tool(name).inputSchema.safeParse(args).success).toBe(false);
+  });
 
-    const optionalDate = parameterSchema({
-      name: "startDate",
-      in: "query",
-      schema: { type: "string", format: "date" },
-    });
-
-    // oxlint-disable-next-line unicorn/no-useless-undefined -- checks the absent-value case; safeParse requires an argument.
-    expect(optionalDate.safeParse(undefined).success).toBe(true);
+  it("validates date windows at the schema boundary while retaining paged activity filters", () => {
+    const steps = tool("get_steps").inputSchema;
+    expect(steps.safeParse({ startDate: "2026-10-21", endDate: "2026-10-01" }).success).toBe(false);
+    expect(steps.safeParse({ startDate: "2026-10-01", endDate: "2026-10-31" }).success).toBe(true);
+    expect(steps.safeParse({ startDate: "2026-10-01", endDate: "2026-11-01" }).success).toBe(false);
+    expect(steps.safeParse({ startDate: "2028-02-01", endDate: "2028-03-02" }).success).toBe(true);
+    expect(tool("get_sleep_range").inputSchema.safeParse({}).success).toBe(true);
     expect(
-      parameterSchema({
-        name: "date",
-        in: "path",
-        required: true,
-        schema: { type: "string", format: "date" },
-      }).safeParse(undefined).success, // oxlint-disable-line unicorn/no-useless-undefined -- same absent-value case.
+      tool("list_activities").inputSchema.safeParse({
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+        sortOrder: "ASC",
+      }).success,
+    ).toBe(true);
+    expect(
+      tool("get_wellness_activities").inputSchema.safeParse({
+        fromDate: "2026-10-01",
+        untilDate: "2026-11-01",
+      }).success,
     ).toBe(false);
+  });
+
+  it("encodes paths and repeated query values, including false and zero", () => {
     expect(
-      endpointPath(
-        "/x/{id}",
-        [
-          { name: "id", in: "path", schema: { type: "string" } },
-          { name: "search", in: "query", schema: { type: "string" } },
-        ],
-        { id: "a/b", search: "a&b" },
-      ),
-    ).toBe("/x/a%2Fb?search=a%26b");
+      endpointPath("/x/{id}", ["id"], {
+        id: "a/b",
+        search: "a&b",
+        start: 0,
+        excludeChildren: false,
+        requiredField: ["heartRate", "power"],
+      }),
+    ).toBe(
+      "/x/a%2Fb?search=a%26b&start=0&excludeChildren=false&requiredField=heartRate&requiredField=power",
+    );
+    expect(() => endpointPath("/x/{id}", ["id"], {})).toThrow("Missing path parameter");
   });
 });
