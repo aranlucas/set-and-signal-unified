@@ -34,7 +34,7 @@ import { loadState, saveState } from "../src/data/storage";
 
 const NOW = 1792650000000;
 function savedWorkout() {
-  let s = startSession(initialState(), NOW);
+  let s = startSession(initialState("kg"), NOW);
   for (const e of s.active!.exercises)
     for (let i = 0; i < e.sets.length; i++)
       s = logSet(s, e.lift, i, 5, NOW + 1000);
@@ -62,7 +62,7 @@ describe("persistent workout storage", () => {
   });
   it("resumes every counter, note, setting and deadline after reopening", () => {
     const s = logSet(
-      startSession(initialState(), NOW),
+      startSession(initialState("kg"), NOW),
       "squat",
       2,
       4,
@@ -80,7 +80,7 @@ describe("persistent workout storage", () => {
   });
   it("can reopen a workout finished after the device clock moves backward", () => {
     const active = logSet(
-      startSession(initialState(), NOW),
+      startSession(initialState("kg"), NOW),
       "squat",
       0,
       5,
@@ -99,9 +99,9 @@ describe("persistent workout storage", () => {
     const plan = db.getAllSync<{ detail: string }>(
       "EXPLAIN QUERY PLAN SELECT json FROM workouts ORDER BY finished_at DESC",
     );
-    expect(plan.some((row) => row.detail.includes("workouts_finished_at"))).toBe(
-      true,
-    );
+    expect(
+      plan.some((row) => row.detail.includes("workouts_finished_at")),
+    ).toBe(true);
     expect(plan.some((row) => row.detail.includes("TEMP B-TREE"))).toBe(false);
   });
   it("does not rewrite old workout rows when a counter changes", () => {
@@ -125,7 +125,7 @@ describe("persistent workout storage", () => {
     spy.mockRestore();
   });
   it("rolls back progression when writing a history row fails", () => {
-    const before = initialState();
+    const before = initialState("kg");
     saveState(before);
     const broken = savedWorkout();
     broken.history[0].finishedAt = null;
@@ -176,12 +176,15 @@ describe("persistent workout storage", () => {
   it.each([
     { name: "20,001 workouts", count: 20001, notes: "" },
     { name: "over 20 MB of history", count: 9000, notes: "n".repeat(2000) },
-  ])("saves and reopens $name beyond backup import limits", ({ count, notes }) => {
-    const s = stateWithHistory(count, notes);
-    if (notes) expect(JSON.stringify(s).length).toBeGreaterThan(20_000_000);
-    saveState(s);
-    expect(loadState()).toEqual(s);
-  });
+  ])(
+    "saves and reopens $name beyond backup import limits",
+    ({ count, notes }) => {
+      const s = stateWithHistory(count, notes);
+      if (notes) expect(JSON.stringify(s).length).toBeGreaterThan(20_000_000);
+      saveState(s);
+      expect(loadState()).toEqual(s);
+    },
+  );
   it("opens history without reserializing it and serializes only current state on a set save", () => {
     const s = stateWithHistory(1000);
     saveState(s);

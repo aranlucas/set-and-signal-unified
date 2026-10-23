@@ -1,7 +1,7 @@
 import { test } from "@e2e-dev/mobile";
 import packageInfo from "../../package.json";
 import { describe, expect } from "e2e";
-import { discardWorkout, startWorkout, tap } from "./support";
+import { chooseKilograms, discardWorkout, startWorkout, tap } from "./support";
 
 // Settings is the surface the database domain tests cannot see: native
 // switches, segmented controls, numeric text fields and bottom sheets.
@@ -9,6 +9,9 @@ describe("settings", { serial: true }, () => {
   test("lists the groups and their current values", async ({ app, screen }) => {
     await app.clearState();
     await app.open();
+    // New installs default to pounds; the rest of this suite uses kilograms.
+    await expect(screen.getByText("45 lb").first()).toBeVisible();
+    await chooseKilograms(screen);
     await tap(screen, screen.getByText("Settings"));
 
     await expect(screen.getByText("Weights & equipment")).toBeVisible();
@@ -77,7 +80,7 @@ describe("settings", { serial: true }, () => {
     ).toBeVisible();
     await expect(screen.getByText("1 × 20 kg")).toBeVisible();
     await expect(
-      screen.getByText("Bar: 20 kg · Plates on EACH side"),
+      screen.getByText("Bar: 20 kg · Plates on each side"),
     ).toBeVisible();
     await screen.scrollUntilVisible(screen.getByText("Back to workout"));
     await tap(screen, screen.getByText("Back to workout"));

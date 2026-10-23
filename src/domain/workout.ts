@@ -70,7 +70,7 @@ export interface AppState {
   history: Session[];
   rest: Rest | null;
 }
-export function initialState(unit: Unit = "kg"): AppState {
+export function initialState(unit: Unit = "lb"): AppState {
   const base = unit === "kg" ? 20 : 45;
   const step = unit === "kg" ? 2.5 : 5;
   return {

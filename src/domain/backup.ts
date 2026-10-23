@@ -57,7 +57,13 @@ export function validateState(value: unknown): AppState {
     !finite(settings.failedRestSeconds, 15, 600) ||
     !["system", "light", "dark"].includes(settings.theme) ||
     !(
-      ["autoProgress", "autoDeload", "haptics", "keepAwake", "restAlerts"] as const
+      [
+        "autoProgress",
+        "autoDeload",
+        "haptics",
+        "keepAwake",
+        "restAlerts",
+      ] as const
     ).every((k) => bool(settings[k])) ||
     !LIFTS.every(
       (l) =>

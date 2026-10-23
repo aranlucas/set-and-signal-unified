@@ -56,14 +56,14 @@ describe("workout recovery", { serial: true }, () => {
 
     await expect(screen.getByText("Start workout B")).toBeVisible();
     await tap(screen, screen.getByText("History"));
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
     await expect(screen.getByText("Workout A")).toBeVisible();
   });
 
   test("keeps the saved workout across a restart", async ({ app, screen }) => {
     await app.restart();
     await tap(screen, screen.getByText("History"));
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
 
     await tap(screen, screen.getByText("Workout A"));
     await expect(

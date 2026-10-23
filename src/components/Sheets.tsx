@@ -4,7 +4,6 @@ import {
   Row,
   ModalBottomSheet,
   Text,
-  TextButton,
   FlowRow,
   FilledTonalButton,
 } from "@expo/ui/jetpack-compose";
@@ -12,6 +11,7 @@ import {
   fillMaxWidth,
   paddingAll,
   verticalScroll,
+  weight,
 } from "@expo/ui/jetpack-compose/modifiers";
 import { Action, Caption, Field, Heading } from "./ui";
 import {
@@ -99,6 +99,7 @@ export function WeightSheet({
             {[-1, 1].map((direction) => (
               <FilledTonalButton
                 key={direction}
+                modifiers={[weight(1)]}
                 onClick={() => {
                   const currentValue = Number(value.replace(",", "."));
                   if (!Number.isFinite(currentValue)) return;
@@ -145,9 +146,9 @@ export function WeightSheet({
             : "This updates your next planned weight. Past workouts stay as logged."}
         </Caption>
         <Action onPress={save}>Save weight</Action>
-        <TextButton onClick={onDismiss}>
-          <Text>Cancel</Text>
-        </TextButton>
+        <Action onPress={onDismiss} subtle>
+          Cancel
+        </Action>
       </Column>
     </ModalBottomSheet>
   );
@@ -213,7 +214,7 @@ export function ToolsSheet({
           {formatWeight(selected)} {unit} total
         </Heading>
         <Caption>
-          Bar: {formatWeight(state.settings.bar)} {unit} · Plates on EACH side
+          Bar: {formatWeight(state.settings.bar)} {unit} · Plates on each side
         </Caption>
         {plates.belowBar ? (
           <Text>

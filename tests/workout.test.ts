@@ -19,15 +19,31 @@ import {
 import { parseBackup, validateState } from "../src/domain/backup";
 const NOW = 1792650000000;
 function completed(kind: "A" | "B" = "A") {
-  let s = startSession(initialState(), NOW, kind);
+  let s = startSession(initialState("kg"), NOW, kind);
   for (const e of s.active!.exercises)
     for (let i = 0; i < e.sets.length; i++)
       s = logSet(s, e.lift, i, 5, NOW + 1000);
   return s;
 }
+describe("new installs", () => {
+  it("default to pounds with standard bar, loads and increments", () => {
+    const s = initialState();
+    expect(s.settings.unit).toBe("lb");
+    expect(s.settings.bar).toBe(45);
+    expect(
+      Object.fromEntries(LIFTS.map((l) => [l, s.plans[l].weight])),
+    ).toEqual({ squat: 45, bench: 45, row: 65, press: 45, deadlift: 90 });
+    expect(
+      Object.fromEntries(LIFTS.map((l) => [l, s.plans[l].increment])),
+    ).toEqual({ squat: 5, bench: 5, row: 5, press: 5, deadlift: 10 });
+  });
+  it("switch to the kilogram defaults when kg is chosen before lifting", () => {
+    expect(changeUnit(initialState(), "kg")).toEqual(initialState("kg"));
+  });
+});
 describe("workout lifecycle", () => {
   it("starts A with three lifts and 15 unlogged work sets", () => {
-    const s = startSession(initialState(), NOW);
+    const s = startSession(initialState("kg"), NOW);
     expect(s.active!.exercises.map((e) => e.lift)).toEqual([
       "squat",
       "bench",
@@ -37,7 +53,7 @@ describe("workout lifecycle", () => {
     expect(loggedSets(s.active!)).toBe(0);
   });
   it("B prescribes deadlift 1×5 and 11 total sets", () => {
-    const s = startSession(initialState(), NOW, "B");
+    const s = startSession(initialState("kg"), NOW, "B");
     expect(s.active!.exercises[2].sets).toEqual([null]);
     expect(totalSets(s.active!)).toBe(11);
   });
@@ -46,7 +62,7 @@ describe("workout lifecycle", () => {
     expect(startSession(s, NOW + 5000, "B")).toBe(s);
   });
   it("cannot finish an empty workout", () => {
-    const s = startSession(initialState(), NOW);
+    const s = startSession(initialState("kg"), NOW);
     expect(finishSession(s, NOW + 10000)).toBe(s);
   });
   it("finishes atomically, advances A/B, and progresses only once", () => {
@@ -83,7 +99,7 @@ describe("workout lifecycle", () => {
     expect(s.plans.squat.weight).toBe(22.5);
   });
   it("counts attempted zero separately from unlogged", () => {
-    let s = startSession(initialState(), NOW);
+    let s = startSession(initialState("kg"), NOW);
     s = logSet(s, "squat", 0, 0, NOW);
     expect(loggedSets(s.active!)).toBe(1);
     expect(volume(s.active!)).toBe(0);
@@ -97,16 +113,16 @@ describe("workout lifecycle", () => {
     });
   });
   it("preserves other lift counters when a set changes", () => {
-    const s = logSet(startSession(initialState(), NOW), "squat", 2, 4, NOW);
+    const s = logSet(startSession(initialState("kg"), NOW), "squat", 2, 4, NOW);
     expect(s.active!.exercises[0].sets).toEqual([null, null, 4, null, null]);
     expect(s.active!.exercises[1].sets).toEqual([null, null, null, null, null]);
   });
   it.each([-1, 5, 0.5])("ignores invalid set index %s", (i) => {
-    const s = startSession(initialState(), NOW);
+    const s = startSession(initialState("kg"), NOW);
     expect(logSet(s, "squat", i, 5, NOW)).toBe(s);
   });
   it.each([-1, 6, 2.2, NaN])("ignores invalid rep count %s", (reps) => {
-    const s = startSession(initialState(), NOW);
+    const s = startSession(initialState("kg"), NOW);
     expect(logSet(s, "squat", 0, reps, NOW)).toBe(s);
   });
   it("calculates completed volume from reps and weight", () => {
@@ -114,7 +130,7 @@ describe("workout lifecycle", () => {
   });
 });
 describe("progression and deloads", () => {
-  const settings = initialState().settings;
+  const settings = initialState("kg").settings;
   const plan = { weight: 100, increment: 2.5, failures: 0 };
   it("adds one increment and clears failures on success", () => {
     expect(
@@ -200,7 +216,7 @@ describe("progression and deloads", () => {
 });
 describe("rest deadlines", () => {
   it("starts the normal timer on a successful set", () => {
-    const s = logSet(startSession(initialState(), NOW), "squat", 0, 5, NOW);
+    const s = logSet(startSession(initialState("kg"), NOW), "squat", 0, 5, NOW);
     expect(s.rest).toEqual({
       lift: "squat",
       setIndex: 0,
@@ -209,31 +225,31 @@ describe("rest deadlines", () => {
     });
   });
   it("extends to missed-rep rest when correcting the just-logged set", () => {
-    let s = logSet(startSession(initialState(), NOW), "squat", 0, 5, NOW);
+    let s = logSet(startSession(initialState("kg"), NOW), "squat", 0, 5, NOW);
     s = logSet(s, "squat", 0, 4, NOW + 1000);
     expect(s.rest!.duration).toBe(180);
     expect(s.rest!.endsAt).toBe(NOW + 181000);
   });
   it("does not restart a timer repeatedly while reducing reps", () => {
-    let s = logSet(startSession(initialState(), NOW), "squat", 0, 4, NOW);
+    let s = logSet(startSession(initialState("kg"), NOW), "squat", 0, 4, NOW);
     const end = s.rest!.endsAt;
     s = logSet(s, "squat", 0, 3, NOW + 5000);
     expect(s.rest!.endsAt).toBe(end);
   });
   it("does not disturb the current set timer when correcting an older set", () => {
-    let s = logSet(startSession(initialState(), NOW), "squat", 0, 5, NOW);
+    let s = logSet(startSession(initialState("kg"), NOW), "squat", 0, 5, NOW);
     s = logSet(s, "squat", 1, 5, NOW + 1000);
     const rest = s.rest;
     s = logSet(s, "squat", 0, 3, NOW + 2000);
     expect(s.rest).toBe(rest);
   });
   it("clears the matching timer when the matching set is cleared", () => {
-    let s = logSet(startSession(initialState(), NOW), "squat", 0, 0, NOW);
+    let s = logSet(startSession(initialState("kg"), NOW), "squat", 0, 0, NOW);
     s = logSet(s, "squat", 0, null, NOW + 1000);
     expect(s.rest).toBeNull();
   });
   it("retains the absolute deadline in a backup/restart", () => {
-    const s = logSet(startSession(initialState(), NOW), "squat", 0, 5, NOW);
+    const s = logSet(startSession(initialState("kg"), NOW), "squat", 0, 5, NOW);
     expect(parseBackup(JSON.stringify(s)).rest!.endsAt).toBe(NOW + 90000);
   });
 });
@@ -351,7 +367,7 @@ describe("backup validation", () => {
     expect(() => parseBackup(text)).toThrow("not a supported Fivefold backup");
   });
   it("retains the 20 MB size limit for external backups", () => {
-    const s = initialState();
+    const s = initialState("kg");
     const text = JSON.stringify(s).padEnd(20_000_000, " ");
     expect(parseBackup(text)).toEqual(s);
     expect(() => parseBackup(`${text} `)).toThrow("too large");
@@ -364,11 +380,11 @@ describe("backup validation", () => {
   );
   it("rejects future schema versions", () => {
     expect(() =>
-      parseBackup(JSON.stringify({ ...initialState(), version: 2 })),
+      parseBackup(JSON.stringify({ ...initialState("kg"), version: 2 })),
     ).toThrow();
   });
   it.each([NaN, -1, Infinity, 2001])("rejects invalid weights %s", (w) => {
-    const s = initialState();
+    const s = initialState("kg");
     s.plans.squat.weight = w;
     expect(() => parseBackup(JSON.stringify(s))).toThrow();
   });
@@ -391,7 +407,7 @@ describe("backup validation", () => {
     expect(() => parseBackup(JSON.stringify(s))).toThrow();
   });
   it("validates the result of a full training cycle", () => {
-    let s: AppState = initialState();
+    let s: AppState = initialState("kg");
     for (let n = 0; n < 30; n++) {
       s = startSession(s, NOW + n * 86400000);
       for (const e of s.active!.exercises)
@@ -414,13 +430,13 @@ describe("backup validation", () => {
 
 describe("state remains restorable at input limits", () => {
   it("keeps a maximum-weight success inside the backup schema", () => {
-    const settings = initialState().settings;
+    const settings = initialState("kg").settings;
     const next = nextPlan(
       { weight: 2000, increment: 50, failures: 0 },
       { lift: "squat", weight: 2000, sets: [5, 5, 5, 5, 5] },
       settings,
     );
-    const s = initialState();
+    const s = initialState("kg");
     s.plans.squat = next;
     expect(() => parseBackup(JSON.stringify(s))).not.toThrow();
   });

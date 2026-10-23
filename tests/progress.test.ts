@@ -47,7 +47,7 @@ function finished(
 }
 describe("progress records", () => {
   it("includes failed and skipped sessions in chronological history without counting them as records", () => {
-    const state = initialState();
+    const state = initialState("kg");
     state.history = [
       session(null, 100, "kg", 300000),
       session(3, 80, "kg", 200000),
@@ -60,7 +60,7 @@ describe("progress records", () => {
     expect(record.latest?.sets).toEqual([null, null, null, null, null]);
   });
   it("converts historical units before comparing records", () => {
-    const state = initialState();
+    const state = initialState("kg");
     state.history = [
       session(5, 135, "lb", 200000),
       session(5, 60, "kg", 100000),
@@ -69,7 +69,7 @@ describe("progress records", () => {
     expect(liftEntries(state, "squat", "lb")[0].weight).toBeCloseTo(132.277, 3);
   });
   it("distinguishes an actual zero-weight completed record from no record", () => {
-    const state = initialState();
+    const state = initialState("kg");
     expect(liftRecord(state, "squat").best).toBeNull();
     state.history = [session(5, 0, "kg", 100000)];
     expect(liftRecord(state, "squat").best).toBe(0);
@@ -91,7 +91,7 @@ describe("progress overview", () => {
   });
 
   it("preserves misses and skips, converts mixed units, and handles both prescriptions", () => {
-    const state = initialState();
+    const state = initialState("kg");
     state.history = [
       session(null, 100, "kg", 300000),
       finished(
@@ -154,7 +154,7 @@ describe("progress overview", () => {
       (index) => chronological[index],
     );
     Object.freeze(history);
-    const state = { ...initialState(), history };
+    const state = { ...initialState("kg"), history };
     const overview = getProgressOverview(history, "kg");
     for (const lift of LIFTS) {
       const legacy = liftRecord(state, lift);
@@ -210,7 +210,7 @@ describe("progress overview", () => {
 
   it("reuses results by history identity and unit across active edits and lift selection", () => {
     let state = startSession(
-      { ...initialState(), history: [session(5, 60, "kg", 100000)] },
+      { ...initialState("kg"), history: [session(5, 60, "kg", 100000)] },
       200000,
     );
     const kg = getProgressOverview(state.history, "kg");

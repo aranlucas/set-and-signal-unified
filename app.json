@@ -3,7 +3,7 @@
     "name": "Fivefold",
     "slug": "fivefold-5x5",
     "version": "1.2.1",
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "fivefold",
     "userInterfaceStyle": "automatic",

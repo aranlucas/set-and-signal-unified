@@ -8,12 +8,12 @@ import {
   Text,
   TextButton,
   ModalBottomSheet,
-  FlowRow,
   FilledTonalButton,
   LinearProgressIndicator,
   useMaterialColors,
 } from "@expo/ui/jetpack-compose";
 import {
+  defaultMinSize,
   fillMaxWidth,
   paddingAll,
   weight,
@@ -23,6 +23,7 @@ import {
 import {
   Action,
   Caption,
+  Choices,
   Divider,
   Field,
   Heading,
@@ -41,6 +42,7 @@ import {
   type AppState,
   type Lift,
   type Session,
+  type Unit,
 } from "../domain/workout";
 
 export interface WorkoutProps {
@@ -54,6 +56,7 @@ export interface WorkoutProps {
   onNotes: (notes: string) => void;
   onSwitch: () => void;
   onSetup: () => void;
+  onUnit: (unit: Unit) => void;
 }
 export function WorkoutScreen(p: WorkoutProps) {
   const {
@@ -94,15 +97,21 @@ export function WorkoutScreen(p: WorkoutProps) {
               modifiers={[fillMaxWidth()]}
             />
           </Column>
-        ) : (
-          <WeekStrip history={state.history} />
-        )}
+        ) : null}
         {!state.onboarded ? (
           <Panel>
             <SectionTitle>Set your starting weights</SectionTitle>
             <Caption>
               Choose kg or lb and a comfortable load for each lift.
             </Caption>
+            <Choices
+              values={[
+                { value: "lb", label: "Pounds" },
+                { value: "kg", label: "Kilograms" },
+              ]}
+              value={settings.unit}
+              onChange={p.onUnit}
+            />
             <Action onPress={p.onSetup} secondary>
               Set up my 5×5
             </Action>
@@ -159,6 +168,7 @@ export function WorkoutScreen(p: WorkoutProps) {
             <Action onPress={p.onStart}>Start workout {state.next}</Action>
           </Panel>
         ) : null}
+        {!active ? <WeekStrip history={state.history} /> : null}
         {active?.exercises.map((e) => {
           const previous = state.history.find((s) =>
             s.exercises.some((x) => x.lift === e.lift),
@@ -298,27 +308,39 @@ export function WorkoutScreen(p: WorkoutProps) {
               ] ?? "not logged"}{" "}
               reps. Choose the correct result.
             </Caption>
-            <FlowRow
-              horizontalArrangement={{ spacedBy: 8 }}
-              verticalArrangement={{ spacedBy: 8 }}
-            >
-              {[5, 4, 3, 2, 1, 0].map((reps) => (
-                <FilledTonalButton
-                  key={reps}
-                  colors={
-                    active?.exercises.find((e) => e.lift === editing.lift)
-                      ?.sets[editing.index] === reps
-                      ? { containerColor: c.primary, contentColor: c.onPrimary }
-                      : undefined
-                  }
-                  onClick={() => record(editing.lift, editing.index, reps)}
+            <Column verticalArrangement={{ spacedBy: 8 }}>
+              {[
+                [5, 4, 3],
+                [2, 1, 0],
+              ].map((row) => (
+                <Row
+                  key={row[0]}
+                  modifiers={[fillMaxWidth()]}
+                  horizontalArrangement={{ spacedBy: 8 }}
                 >
-                  <Text>
-                    {reps} {reps === 1 ? "rep" : "reps"}
-                  </Text>
-                </FilledTonalButton>
+                  {row.map((reps) => (
+                    <FilledTonalButton
+                      key={reps}
+                      modifiers={[weight(1), defaultMinSize({ minHeight: 56 })]}
+                      colors={
+                        active?.exercises.find((e) => e.lift === editing.lift)
+                          ?.sets[editing.index] === reps
+                          ? {
+                              containerColor: c.primary,
+                              contentColor: c.onPrimary,
+                            }
+                          : undefined
+                      }
+                      onClick={() => record(editing.lift, editing.index, reps)}
+                    >
+                      <Text style={{ typography: "titleMedium" }} maxLines={1}>
+                        {reps} {reps === 1 ? "rep" : "reps"}
+                      </Text>
+                    </FilledTonalButton>
+                  ))}
+                </Row>
               ))}
-            </FlowRow>
+            </Column>
             <Action
               onPress={() => record(editing.lift, editing.index, null)}
               subtle

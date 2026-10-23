@@ -168,8 +168,8 @@ export function SettingsScreen({
                 <SectionTitle>Units</SectionTitle>
                 <Choices
                   values={[
-                    { value: "kg", label: "Kilograms" },
                     { value: "lb", label: "Pounds" },
+                    { value: "kg", label: "Kilograms" },
                   ]}
                   value={settings.unit}
                   onChange={onUnit}
@@ -191,7 +191,9 @@ export function SettingsScreen({
                       onBar();
                     }}
                   >
-                    <Text>
+                    <Text
+                      style={{ typography: "titleMedium", fontWeight: "600" }}
+                    >
                       {formatWeight(settings.bar)} {settings.unit}
                     </Text>
                   </TextButton>
@@ -212,7 +214,9 @@ export function SettingsScreen({
                       </Caption>
                     </Column>
                     <TextButton onClick={() => openWeight(lift)}>
-                      <Text>
+                      <Text
+                        style={{ typography: "titleMedium", fontWeight: "600" }}
+                      >
                         {formatWeight(state.plans[lift].weight)} {settings.unit}
                       </Text>
                     </TextButton>
@@ -319,27 +323,29 @@ export function SettingsScreen({
                 >
                   Restore backup
                 </Action>
-                <TextButton
-                  onClick={() => {
+                <Action
+                  onPress={() => {
                     setGroup(null);
                     onExport("csv");
                   }}
+                  subtle
                 >
-                  <Text>Export readable CSV</Text>
-                </TextButton>
-                <TextButton
-                  onClick={() => {
+                  Export readable CSV
+                </Action>
+                <Action
+                  onPress={() => {
                     setGroup(null);
                     onExport("share");
                   }}
+                  subtle
                 >
-                  <Text>Share backup</Text>
-                </TextButton>
+                  Share backup
+                </Action>
               </>
             ) : null}
-            <TextButton onClick={() => setGroup(null)}>
-              <Text color={c.primary}>Done</Text>
-            </TextButton>
+            <Action onPress={() => setGroup(null)} subtle>
+              Done
+            </Action>
           </Column>
         </ModalBottomSheet>
       ) : null}

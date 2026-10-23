@@ -23,6 +23,7 @@ import {
   Page,
   Panel,
   SectionTitle,
+  useContentInset,
 } from "../components/ui";
 import { SetCounters } from "../components/SetCounters";
 import {
@@ -55,6 +56,7 @@ export function HistoryScreen({
         : state.history.filter((s) => s.kind === kind),
     [state.history, kind],
   );
+  const inset = useContentInset();
   const renderItem = useCallback(
     ({ item: s }: { item: Session }) => (
       <Column
@@ -69,25 +71,19 @@ export function HistoryScreen({
         ]}
       >
         <Panel>
-          <Row
-            modifiers={[fillMaxWidth()]}
-            horizontalArrangement="spaceBetween"
-            verticalAlignment="center"
-          >
-            <Column modifiers={[weight(1)]}>
-              <SectionTitle>Workout {s.kind}</SectionTitle>
-            </Column>
+          <Column verticalArrangement={{ spacedBy: 2 }}>
+            <SectionTitle>Workout {s.kind}</SectionTitle>
             <Caption>
-              {duration(s)} min · {loggedSets(s)}/{totalSets(s)} sets
+              {sessionDate(s)} · {duration(s)} min · {loggedSets(s)}/
+              {totalSets(s)} sets
             </Caption>
-          </Row>
-          <Caption>{sessionDate(s)}</Caption>
+          </Column>
           <Divider />
           {s.exercises.map((e) => (
             <Row
               key={e.lift}
               modifiers={[fillMaxWidth()]}
-              horizontalArrangement="spaceBetween"
+              horizontalArrangement={{ spacedBy: 12 }}
             >
               <Text
                 modifiers={[weight(1)]}
@@ -99,7 +95,9 @@ export function HistoryScreen({
                 {formatWeight(e.weight)} {s.unit} ·{" "}
                 {e.sets.every((r) => r === 5)
                   ? `${e.sets.length}×5`
-                  : e.sets.map((r) => r ?? "–").join("/")}
+                  : e.sets.every((r) => r === null)
+                    ? "Skipped"
+                    : e.sets.map((r) => r ?? "–").join("/")}
               </Text>
             </Row>
           ))}
@@ -116,10 +114,13 @@ export function HistoryScreen({
   return (
     <LazyColumn
       modifiers={[weight(1), fillMaxWidth()]}
-      contentPadding={{ start: 16, end: 16, top: 8, bottom: 24 }}
+      contentPadding={{ start: inset, end: inset, top: 8, bottom: 24 }}
       verticalArrangement={{ spacedBy: 12 }}
     >
-      <Caption>{state.history.length} saved workouts</Caption>
+      <Caption>
+        {state.history.length} saved workout
+        {state.history.length === 1 ? "" : "s"}
+      </Caption>
       <Choices
         values={[
           { value: "All", label: "All" },

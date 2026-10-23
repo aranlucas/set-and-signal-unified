@@ -9,7 +9,7 @@ const NOW = 1792650000000;
 
 describe("widget and notification surfaces", () => {
   it("shows the next workout's planned loads when idle", () => {
-    const props = widgetProps(initialState(), new Date(NOW));
+    const props = widgetProps(initialState("kg"), new Date(NOW));
     expect(props.title).toBe("Workout A");
     expect(props.progress).toBe(-1);
     expect(props.lifts.map((l) => l.name)).toEqual([
@@ -21,7 +21,7 @@ describe("widget and notification surfaces", () => {
     expect(props.footer).toBe("0 / 3 workouts this week");
   });
   it("shows active progress, per-lift counts and the next set", () => {
-    let s = startSession(initialState(), NOW, "B");
+    let s = startSession(initialState("kg"), NOW, "B");
     s = logSet(s, "squat", 0, 5, NOW);
     const props = widgetProps(s, new Date(NOW));
     expect(props.eyebrow).toBe("Workout in progress");
@@ -31,10 +31,10 @@ describe("widget and notification surfaces", () => {
     expect(props.footer).toBe("Next: Squat · Set 2/5");
   });
   it("has no notification without an active workout", () => {
-    expect(notificationProps(initialState(), NOW)).toBeNull();
+    expect(notificationProps(initialState("kg"), NOW)).toBeNull();
   });
   it("includes the rest deadline only while it is in the future", () => {
-    let s = startSession(initialState(), NOW);
+    let s = startSession(initialState("kg"), NOW);
     s = logSet(s, "squat", 0, 5, NOW);
     const resting = notificationProps(s, NOW + 1000)!;
     expect(resting.title).toBe("Workout A · 1/15 sets");
@@ -44,7 +44,7 @@ describe("widget and notification surfaces", () => {
     );
   });
   it("prompts to finish once every set is logged", () => {
-    let s = startSession(initialState(), NOW);
+    let s = startSession(initialState("kg"), NOW);
     for (const e of s.active!.exercises)
       for (let i = 0; i < e.sets.length; i++) s = logSet(s, e.lift, i, 5, NOW);
     expect(nextSetLabel(s.active)).toBe("All sets logged");

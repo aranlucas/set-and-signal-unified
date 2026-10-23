@@ -6,6 +6,7 @@ import {
   scrollWorkoutUntilVisible,
   startWorkout,
   tap,
+  chooseKilograms,
 } from "./support";
 
 // One installed-app run of workout A. The suite drives whatever release APK
@@ -16,6 +17,7 @@ describe("workout A", { serial: true }, () => {
   test("starts from a clean install", async ({ app, screen }) => {
     await app.clearState();
     await app.open();
+    await chooseKilograms(screen);
 
     await expect(screen.getByText("Fivefold")).toBeVisible();
     await screen.scrollUntilVisible(screen.getByText("Start workout A"));

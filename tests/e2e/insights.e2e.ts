@@ -1,6 +1,6 @@
 import { test } from "@e2e-dev/mobile";
 import { describe, expect, type Screen } from "e2e";
-import { logAllSets, startWorkout, tap } from "./support";
+import { logAllSets, startWorkout, tap, chooseKilograms } from "./support";
 
 async function expectTrainingWeeks(screen: Screen, saved: number) {
   const heading = screen.getByText("Training consistency");
@@ -35,6 +35,7 @@ describe("training insights", { serial: true }, () => {
   test("filters empty history with All, A and B", async ({ app, screen }) => {
     await app.clearState();
     await app.open();
+    await chooseKilograms(screen);
     await tap(screen, screen.getByText("History"));
 
     await expect(screen.getByText("0 saved workouts")).toBeVisible();
@@ -84,17 +85,17 @@ describe("training insights", { serial: true }, () => {
     screen,
   }) => {
     await tap(screen, screen.getByText("History"));
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
     await expect(screen.getByText("Workout A")).toBeVisible();
 
     await tap(screen, screen.getByText("A"));
     await expect(screen.getByText("1 workout A")).toBeVisible();
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
     await expect(screen.getByText("Workout A")).toBeVisible();
 
     await tap(screen, screen.getByText("B"));
     await expect(screen.getByText("0 workouts B")).toBeVisible();
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
     await expect(screen.getByText("No workout B yet")).toBeVisible();
     await expect(
       screen.getByText("Choose All to see your other workouts."),
@@ -103,14 +104,14 @@ describe("training insights", { serial: true }, () => {
 
     await tap(screen, screen.getByText("All"));
     await expect(screen.getByText("Workout A")).toBeVisible();
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
     await tap(screen, screen.getByText("Workout A"));
     await expect(screen.getByText(/1,750 kg volume/)).toBeVisible();
     await expect(
       screen.getByLabel(/^Squat, set 5 of 5, 5 of 5 reps/),
     ).toBeVisible();
     await app.back();
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
   });
 
   test("counts a saved workout once and retains records and weight history", async ({

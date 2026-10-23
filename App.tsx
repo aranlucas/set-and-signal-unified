@@ -28,6 +28,7 @@ import {
   background,
   fillMaxSize,
   fillMaxWidth,
+  padding,
   verticalScroll,
 } from "@expo/ui/jetpack-compose/modifiers";
 import { Action, Caption, Heading, Page, Panel } from "./src/components/ui";
@@ -307,7 +308,12 @@ function Application({
                 <Text>Undo</Text>
               </TextButton>
             ) : null}
-            <Button onClick={finish} enabled={loggedSets(state.active) > 0}>
+            <Button
+              onClick={finish}
+              enabled={loggedSets(state.active) > 0}
+              // Filled actions need the app bar's 16 dp edge, not the 4 dp icon inset.
+              modifiers={[padding(0, 0, 12, 0)]}
+            >
               <Text>Finish</Text>
             </Button>
           </TopAppBar.Actions>
@@ -381,6 +387,7 @@ function Application({
             commit((s) => ({ ...s, next: s.next === "A" ? "B" : "A" }))
           }
           onSetup={() => setTab("Settings")}
+          onUnit={(unit) => commit((s) => changeUnit(s, unit))}
         />
       ) : null}
       {tab === "History" ? (
@@ -499,7 +506,14 @@ function Application({
               <Icon source={icons[t]} />
             </NavigationBarItem.Icon>
             <NavigationBarItem.Label>
-              <Text style={{ typography: "labelMedium" }}>{t}</Text>
+              <Text
+                style={{ typography: "labelMedium" }}
+                maxLines={1}
+                softWrap={false}
+                overflow="ellipsis"
+              >
+                {t}
+              </Text>
             </NavigationBarItem.Label>
           </NavigationBarItem>
         ))}
