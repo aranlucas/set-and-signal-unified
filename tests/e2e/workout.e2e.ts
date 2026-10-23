@@ -107,7 +107,7 @@ describe("workout A", { serial: true }, () => {
 
   test("shows the workout and its note in history", async ({ app, screen }) => {
     await tap(screen, screen.getByText("History"));
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
     await expect(screen.getByText("Workout A")).toBeVisible();
 
     await tap(screen, screen.getByText("Workout A"));
@@ -120,7 +120,7 @@ describe("workout A", { serial: true }, () => {
     await expect(note).toBeVisible();
 
     await app.back();
-    await expect(screen.getByText("1 saved workouts")).toBeVisible();
+    await expect(screen.getByText("1 saved workout")).toBeVisible();
   });
 
   test("shows the completed lift on progress", async ({ screen }) => {

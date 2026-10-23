@@ -1,7 +1,13 @@
+import { countMyPlates, stepPlatePair } from "../data/actions";
+import { PLATE_SIZES } from "../domain/plates";
+import { useAppState } from "../data/store";
+import { version } from "../../package.json";
 import { useState } from "react";
 import {
   Column,
   ListItem,
+  FlowRow,
+  FilledTonalButton,
   Row,
   Switch,
   Text,
@@ -11,6 +17,8 @@ import {
 } from "@expo/ui/jetpack-compose";
 import {
   clickable,
+  defaultMinSize,
+  semantics,
   fillMaxWidth,
   paddingAll,
   toggleable,
@@ -32,22 +40,22 @@ import {
   LIFTS,
   NAMES,
   formatWeight,
-  type AppState,
   type Lift,
   type Settings,
   type Unit,
 } from "../domain/workout";
 
-type Group = "equipment" | "progression" | "rest" | "appearance" | "data";
+type Group =
+  "plates" | "equipment" | "progression" | "rest" | "appearance" | "data";
 const titles: Record<Group, string> = {
   equipment: "Weights & equipment",
+  plates: "Plates",
   progression: "Progression",
   rest: "Rest & focus",
   appearance: "Appearance",
   data: "Backup & export",
 };
 export function SettingsScreen({
-  state,
   onSettings,
   onUnit,
   onWeight,
@@ -57,7 +65,6 @@ export function SettingsScreen({
   onImport,
   onDone,
 }: {
-  state: AppState;
   onSettings: (settings: Partial<Settings>) => void;
   onUnit: (unit: Unit) => void;
   onWeight: (lift: Lift) => void;
@@ -67,7 +74,14 @@ export function SettingsScreen({
   onImport: () => void;
   onDone: () => void;
 }) {
-  const { settings } = state;
+  const settings = useAppState((s) => s.settings);
+  const state = {
+    settings,
+    plans: useAppState((s) => s.plans),
+    onboarded: useAppState((s) => s.onboarded),
+    active: useAppState((s) => s.active !== null),
+    history: { length: useAppState((s) => s.history.length) },
+  };
   const [group, setGroup] = useState<Group | null>(null);
   const c = useMaterialColors();
   const openWeight = (lift: Lift) => {
@@ -159,7 +173,11 @@ export function SettingsScreen({
           skipPartiallyExpanded
         >
           <Column
-            modifiers={[fillMaxWidth(), paddingAll(24), verticalScroll()]}
+            modifiers={[
+              fillMaxWidth(),
+              paddingAll(group === "plates" ? 16 : 24),
+              verticalScroll(),
+            ]}
             verticalArrangement={{ spacedBy: 16 }}
           >
             <Heading>{titles[group]}</Heading>
@@ -198,6 +216,18 @@ export function SettingsScreen({
                     </Text>
                   </TextButton>
                 </Row>
+                <ListItem modifiers={[clickable(() => setGroup("plates"))]}>
+                  <ListItem.HeadlineContent>
+                    <Text>Plates</Text>
+                  </ListItem.HeadlineContent>
+                  <ListItem.SupportingContent>
+                    <Text>
+                      {settings.plates === null
+                        ? "Standard gym"
+                        : `My plates · ${settings.plates[settings.unit].filter((n) => n > 0).length} sizes`}
+                    </Text>
+                  </ListItem.SupportingContent>
+                </ListItem>
                 <Divider />
                 {LIFTS.map((lift) => (
                   <Row
@@ -228,6 +258,7 @@ export function SettingsScreen({
                 </Caption>
               </>
             ) : null}
+            {group === "plates" ? <PlatesEditor /> : null}
             {group === "progression" ? (
               <>
                 <SettingSwitch
@@ -368,6 +399,7 @@ function SettingSwitch({
     <Row
       modifiers={[
         fillMaxWidth(),
+        defaultMinSize({ minHeight: 48 }),
         toggleable(value, () => onChange(!value), { role: "switch" }),
       ]}
       horizontalArrangement={{ spacedBy: 12 }}
@@ -383,4 +415,83 @@ function SettingSwitch({
 }
 const time = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-import { version } from "../../package.json";
+
+function PlatesEditor() {
+  const plates = useAppState((s) => s.settings.plates);
+  const unit = useAppState((s) => s.settings.unit);
+  return (
+    <>
+      <SettingSwitch
+        label="Count my plates"
+        detail={
+          plates === null
+            ? "Standard gym"
+            : "Use the pairs available in your gym."
+        }
+        value={plates !== null}
+        onChange={countMyPlates}
+      />
+      {plates !== null
+        ? PLATE_SIZES[unit].map((size, index) => (
+            <FlowRow
+              key={size}
+              modifiers={[fillMaxWidth()]}
+              horizontalArrangement="spaceBetween"
+              verticalArrangement={{ spacedBy: 8 }}
+            >
+              <Column
+                modifiers={[defaultMinSize({ minWidth: 80, minHeight: 48 })]}
+                verticalArrangement="center"
+              >
+                <Text>
+                  {formatWeight(size)} {unit}
+                </Text>
+              </Column>
+              <Row
+                horizontalArrangement={{ spacedBy: 8 }}
+                verticalAlignment="center"
+              >
+                <FilledTonalButton
+                  enabled={plates[unit][index] > 0}
+                  onClick={() => stepPlatePair(unit, index, -1)}
+                  contentPadding={{ start: 0, end: 0, top: 0, bottom: 0 }}
+                  modifiers={[
+                    defaultMinSize({ minWidth: 48, minHeight: 48 }),
+                    semantics({
+                      contentDescription: `Remove a pair of ${formatWeight(size)} ${unit} plates`,
+                    }),
+                  ]}
+                >
+                  <Text>−</Text>
+                </FilledTonalButton>
+                <Column
+                  modifiers={[defaultMinSize({ minWidth: 48, minHeight: 48 })]}
+                  verticalArrangement="center"
+                  horizontalAlignment="center"
+                >
+                  <Text>
+                    {formatWeight(plates[unit][index])}{" "}
+                    {plates[unit][index] === 1 ? "pair" : "pairs"}
+                  </Text>
+                </Column>
+                <FilledTonalButton
+                  enabled={plates[unit][index] < 20}
+                  onClick={() => stepPlatePair(unit, index, 1)}
+                  contentPadding={{ start: 0, end: 0, top: 0, bottom: 0 }}
+                  modifiers={[
+                    defaultMinSize({ minWidth: 48, minHeight: 48 }),
+                    semantics({
+                      contentDescription: `Add a pair of ${formatWeight(size)} ${unit} plates`,
+                    }),
+                  ]}
+                >
+                  <Text>+</Text>
+                </FilledTonalButton>
+              </Row>
+            </FlowRow>
+          ))
+        : null}
+      <Caption>A pair is one plate for each side of the bar.</Caption>
+    </>
+  );
+}

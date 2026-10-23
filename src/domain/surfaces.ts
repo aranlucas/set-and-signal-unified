@@ -1,3 +1,4 @@
+import { clock } from "./format";
 import {
   NAMES,
   ROUTINE,
@@ -16,12 +17,6 @@ export function nextSetLabel(session: Session | null) {
     ? `${NAMES[next.lift]} · Set ${next.sets.findIndex((r) => r === null) + 1}/${next.sets.length}`
     : "All sets logged";
 }
-
-const clock = (at: number) =>
-  new Date(at).toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
 /** Props for the home-screen widget: the active workout, or the next one. */
 export function widgetProps(state: AppState, now = new Date()) {

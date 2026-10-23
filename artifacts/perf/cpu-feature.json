@@ -1,0 +1,42 @@
+{
+  "plateSolver": {
+    "iterations": 1000,
+    "p50CpuMs": 0.026,
+    "p95CpuMs": 0.068
+  },
+  "fixtureSessions": 10000,
+  "environment": "darwin/arm64, Node 24.22.1",
+  "coldSummaryCpuP95Ms": 0.913,
+  "coldSummaryWallP95Ms": 0.916,
+  "cached1000CallsCpuMs": 0.069,
+  "budgets": {
+    "coldSummaryCpuP95Ms": 16,
+    "cached1000CallsCpuMs": 8,
+    "plateSolverCpuP95Ms": 1
+  },
+  "reportOnly": {
+    "setTapPipeline": {
+      "iterations": 200,
+      "p50CpuMs": 0.007,
+      "p95CpuMs": 0.013
+    },
+    "startupHydrate": {
+      "iterations": 200,
+      "p50CpuMs": 7.695,
+      "p95CpuMs": 10.868
+    },
+    "formatting": {
+      "note": "Node only; indicative for Hermes. Each iteration formats 1,000 weights and 1,000 dates.",
+      "current": {
+        "iterations": 200,
+        "p50CpuMs": 0.594,
+        "p95CpuMs": 1.384
+      },
+      "cachedIntl": {
+        "iterations": 200,
+        "p50CpuMs": 0.676,
+        "p95CpuMs": 0.783
+      }
+    }
+  }
+}

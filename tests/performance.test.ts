@@ -79,3 +79,36 @@ it("summarizes 10,000 unsorted sessions in one traversal and reuses cached resul
   expect(sessionReads).toBe(20000);
   expect(exerciseReads).toBe(20000);
 });
+
+it("caches the weekly widget count by history identity and local Monday", async () => {
+  const { weeklyCount } = await import("../src/domain/workout");
+  let reads = 0;
+  const monday = +new Date(2026, 9, 19);
+  const session = {
+    id: "week",
+    kind: "A" as const,
+    startedAt: monday,
+    finishedAt: monday,
+    exercises: [],
+    notes: "",
+    unit: "kg" as const,
+  };
+  const history = new Proxy([session], {
+    get(target, key, receiver) {
+      if (key === "0") reads++;
+      return Reflect.get(target, key, receiver);
+    },
+  });
+  expect(weeklyCount(history, new Date(2026, 9, 21))).toBe(1);
+  expect(reads).toBe(1);
+  expect(weeklyCount(history, new Date(2026, 9, 25))).toBe(1);
+  expect(reads).toBe(1);
+  expect(weeklyCount(history, new Date(2026, 9, 26))).toBe(0);
+  expect(reads).toBe(2);
+  expect(
+    weeklyCount(
+      [...history, { ...session, finishedAt: +new Date(2026, 9, 26) }],
+      new Date(2026, 9, 26),
+    ),
+  ).toBe(1);
+});

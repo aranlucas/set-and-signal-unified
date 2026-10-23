@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useAppState } from "../data/store";
 import {
   Column,
   LazyColumn,
@@ -32,84 +32,73 @@ import {
   loggedSets,
   totalSets,
   volume,
-  type AppState,
   type Session,
   type WorkoutKind,
 } from "../domain/workout";
-import { sessionDate } from "./WorkoutScreen";
+import { sessionDate } from "../domain/format";
 
 export function HistoryScreen({
-  state,
   onOpen,
   kind,
   onKind,
 }: {
-  state: AppState;
   onOpen: (s: Session) => void;
   kind: "All" | WorkoutKind;
   onKind: (kind: "All" | WorkoutKind) => void;
 }) {
-  const sessions = useMemo(
-    () =>
-      kind === "All"
-        ? state.history
-        : state.history.filter((s) => s.kind === kind),
-    [state.history, kind],
-  );
+  const state = { history: useAppState((s) => s.history) };
+  const sessions =
+    kind === "All"
+      ? state.history
+      : state.history.filter((s) => s.kind === kind);
   const inset = useContentInset();
-  const renderItem = useCallback(
-    ({ item: s }: { item: Session }) => (
-      <Column
-        modifiers={[
-          fillMaxWidth(),
-          // Clip first so the native ripple follows the card's rounded shape.
-          clip(Shapes.RoundedCorner(16)),
-          clickable(() => onOpen(s)),
-          semantics({
-            contentDescription: `Open workout ${s.kind}, ${sessionDate(s)}`,
-          }),
-        ]}
-      >
-        <Panel>
-          <Column verticalArrangement={{ spacedBy: 2 }}>
-            <SectionTitle>Workout {s.kind}</SectionTitle>
-            <Caption>
-              {sessionDate(s)} · {duration(s)} min · {loggedSets(s)}/
-              {totalSets(s)} sets
-            </Caption>
-          </Column>
-          <Divider />
-          {s.exercises.map((e) => (
-            <Row
-              key={e.lift}
-              modifiers={[fillMaxWidth()]}
-              horizontalArrangement={{ spacedBy: 12 }}
-            >
-              <Text
-                modifiers={[weight(1)]}
-                style={{ typography: "bodyMedium" }}
-              >
-                {NAMES[e.lift]}
-              </Text>
-              <Text style={{ typography: "bodyMedium", fontWeight: "600" }}>
-                {formatWeight(e.weight)} {s.unit} ·{" "}
-                {e.sets.every((r) => r === 5)
-                  ? `${e.sets.length}×5`
-                  : e.sets.every((r) => r === null)
-                    ? "Skipped"
-                    : e.sets.map((r) => r ?? "–").join("/")}
-              </Text>
-            </Row>
-          ))}
-          {s.notes ? (
-            <Caption>
-              {s.notes.length > 90 ? `${s.notes.slice(0, 90)}…` : s.notes}
-            </Caption>
-          ) : null}
-        </Panel>
-      </Column>
-    ),
-    [onOpen],
+  const renderItem = ({ item: s }: { item: Session }) => (
+    <Column
+      modifiers={[
+        fillMaxWidth(),
+        // Clip first so the native ripple follows the card's rounded shape.
+        clip(Shapes.RoundedCorner(16)),
+        clickable(() => onOpen(s)),
+        semantics({
+          contentDescription: `Open workout ${s.kind}, ${sessionDate(s)}`,
+        }),
+      ]}
+    >
+      <Panel>
+        <Column verticalArrangement={{ spacedBy: 2 }}>
+          <SectionTitle>Workout {s.kind}</SectionTitle>
+          <Caption>
+            {sessionDate(s)} · {duration(s)} min · {loggedSets(s)}/
+            {totalSets(s)} sets
+          </Caption>
+        </Column>
+        <Divider />
+        {s.exercises.map((e) => (
+          <Row
+            key={e.lift}
+            modifiers={[fillMaxWidth()]}
+            horizontalArrangement={{ spacedBy: 12 }}
+          >
+            <Text modifiers={[weight(1)]} style={{ typography: "bodyMedium" }}>
+              {NAMES[e.lift]}
+            </Text>
+            <Text style={{ typography: "bodyMedium", fontWeight: "600" }}>
+              {formatWeight(e.weight)} {s.unit} ·{" "}
+              {e.sets.every((r) => r === 5)
+                ? `${e.sets.length}×5`
+                : e.sets.every((r) => r === null)
+                  ? "Skipped"
+                  : e.sets.map((r) => r ?? "–").join("/")}
+            </Text>
+          </Row>
+        ))}
+        {s.notes ? (
+          <Caption>
+            {s.notes.length > 90 ? `${s.notes.slice(0, 90)}…` : s.notes}
+          </Caption>
+        ) : null}
+      </Panel>
+    </Column>
   );
   return (
     <LazyColumn

@@ -45,6 +45,8 @@ describe("settings", { serial: true }, () => {
     await tap(screen, screen.getByText("Pounds"));
     await expect(screen.getByText("45 lb").first()).toBeVisible();
     await expect(screen.getByText("65 lb")).toBeVisible();
+    // The Plates row pushes Deadlift below the fold on compact phones.
+    await screen.scrollUntilVisible(screen.getByText("90 lb"));
     await expect(screen.getByText("90 lb")).toBeVisible();
     await expect(screen.getByText("Increase 5 lb").first()).toBeVisible();
     await screen.scrollUntilVisible(screen.getByText("Done"));

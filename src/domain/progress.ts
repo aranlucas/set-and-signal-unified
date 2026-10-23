@@ -1,7 +1,7 @@
+import { mondayWeekStart } from "./calendar";
 import {
   convertWeight,
   LIFTS,
-  type AppState,
   type Lift,
   type Session,
   type Unit,
@@ -87,9 +87,7 @@ export function trainingWeeks(
   history: Session[],
   now = new Date(),
 ): { start: number; count: number }[] {
-  const monday = new Date(now);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const monday = mondayWeekStart(now);
   const weeks = [-3, -2, -1, 0].map((offset) => {
     const start = new Date(monday);
     // Calendar arithmetic keeps local midnight across daylight saving changes.
@@ -108,33 +106,4 @@ export function trainingWeeks(
     }
   }
   return weeks;
-}
-
-export function liftEntries(
-  state: AppState,
-  lift: Lift,
-  unit: Unit = state.settings.unit,
-): LiftEntry[] {
-  return state.history
-    .flatMap((s) =>
-      s.exercises
-        .filter((e) => e.lift === lift)
-        .map((e) => ({
-          id: s.id,
-          date: s.finishedAt ?? s.startedAt,
-          weight: convertWeight(e.weight, s.unit, unit),
-          sets: e.sets,
-          success: e.sets.every((r) => r === 5),
-        })),
-    )
-    .sort((a, b) => a.date - b.date);
-}
-export function liftRecord(state: AppState, lift: Lift) {
-  const entries = liftEntries(state, lift);
-  const successes = entries.filter((e) => e.success);
-  return {
-    entries,
-    best: successes.length ? Math.max(...successes.map((e) => e.weight)) : null,
-    latest: entries.at(-1) ?? null,
-  };
 }

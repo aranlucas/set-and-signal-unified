@@ -1,3 +1,4 @@
+import { liftEntries, liftRecord } from "./support/progressOracle";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   initialState,
@@ -9,12 +10,7 @@ import {
   type Session,
   type Unit,
 } from "../src/domain/workout";
-import {
-  getProgressOverview,
-  liftEntries,
-  liftRecord,
-  trainingWeeks,
-} from "../src/domain/progress";
+import { getProgressOverview, trainingWeeks } from "../src/domain/progress";
 
 function session(
   reps: number | null,

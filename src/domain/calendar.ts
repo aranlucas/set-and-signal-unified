@@ -11,3 +11,11 @@ export function nextCalendarRefreshAt(history: Session[], now: Date) {
   }
   return next;
 }
+
+/** Local Monday midnight, using calendar arithmetic across DST. */
+export function mondayWeekStart(now: Date) {
+  const monday = new Date(now);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  return monday;
+}

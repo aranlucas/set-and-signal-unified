@@ -73,6 +73,34 @@ describe("persistent workout storage", () => {
     saveState(s);
     expect(loadState()).toEqual(s);
   });
+  it("round-trips both plate inventories in the small settings row", () => {
+    const state = savedWorkout();
+    state.settings.plates = {
+      kg: [0, 1, 2, 3, 4, 5, 20],
+      lb: [20, 5, 4, 3, 2, 1],
+    };
+    saveState(state);
+    expect(loadState()).toEqual(state);
+  });
+  it("normalises an old database without rewriting unchanged history on the next save", () => {
+    const state = savedWorkout();
+    saveState(state);
+    const settings = { ...state.settings };
+    Reflect.deleteProperty(settings, "plates");
+    const db = openDatabaseSync("");
+    db.runSync(
+      "UPDATE app_state SET json = ? WHERE id = 1",
+      JSON.stringify({ ...state, settings, history: [] }),
+    );
+    const loaded = loadState();
+    expect(loaded).toEqual(state);
+    const writes = vi.spyOn(db, "runSync");
+    saveState(loaded);
+    expect(
+      writes.mock.calls.filter(([sql]) => String(sql).includes("workouts")),
+    ).toHaveLength(0);
+    expect(loadState()).toEqual(state);
+  });
   it("persists completion, next weights and history together", () => {
     const s = savedWorkout();
     saveState(s);

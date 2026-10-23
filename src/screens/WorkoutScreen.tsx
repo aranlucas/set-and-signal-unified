@@ -1,3 +1,7 @@
+import { loadPlates } from "../domain/plates";
+import { useAppState } from "../data/store";
+import { setNotes } from "../data/actions";
+import { sessionDate, workoutDate } from "../domain/format";
 import { useState } from "react";
 import MoreIcon from "@expo/material-symbols/more_vert.xml";
 import {
@@ -39,66 +43,79 @@ import {
   formatWeight,
   loggedSets,
   totalSets,
-  type AppState,
   type Lift,
-  type Session,
   type Unit,
+  type WorkoutKind,
 } from "../domain/workout";
 
 export interface WorkoutProps {
-  state: AppState;
   onStart: () => void;
   onLog: (lift: Lift, index: number, reps: number | null) => void;
   onWeight: (lift: Lift) => void;
   onTools: (lift: Lift) => void;
-  onFinish: () => void;
   onDiscard: () => void;
-  onNotes: (notes: string) => void;
   onSwitch: () => void;
   onSetup: () => void;
   onUnit: (unit: Unit) => void;
 }
-export function WorkoutScreen(p: WorkoutProps) {
-  const {
-    state,
-    state: { active, settings },
-  } = p;
+export function WorkoutScreen({
+  onStart,
+  onLog,
+  onWeight,
+  onTools,
+  onDiscard,
+  onSwitch,
+  onSetup,
+  onUnit,
+}: WorkoutProps) {
+  const id = useAppState((s) => s.active?.id);
+  const kind = useAppState((s) => s.active?.kind);
+  const startedAt = useAppState((s) => s.active?.startedAt);
+  const logged = useAppState((s) => (s.active ? loggedSets(s.active) : 0));
+  const total = useAppState((s) => (s.active ? totalSets(s.active) : 0));
+  const settingsUnit = useAppState((s) => s.settings.unit);
+  const history = useAppState((s) => s.history);
+  const plans = useAppState((s) => s.plans);
+  const next = useAppState((s) => s.next);
+  const onboarded = useAppState((s) => s.onboarded);
   const c = useMaterialColors();
-  const [showNotes, setShowNotes] = useState(false);
   const [editing, setEditing] = useState<{ lift: Lift; index: number } | null>(
     null,
   );
+  const [showNotes, setShowNotes] = useState(false);
+  const active = id !== undefined;
+  const editingReps = useAppState((s) =>
+    editing
+      ? s.active?.exercises.find((e) => e.lift === editing.lift)?.sets[
+          editing.index
+        ]
+      : undefined,
+  );
   const record = (lift: Lift, index: number, reps: number | null) => {
-    p.onLog(lift, index, reps);
+    onLog(lift, index, reps);
     setEditing(null);
   };
   return (
     <>
-      <Page key={active?.id ?? "next-workout"}>
-        {active ? (
+      <Page key={id ?? "next-workout"}>
+        {active && startedAt !== undefined ? (
           <Column verticalArrangement={{ spacedBy: 8 }}>
             <Row
               modifiers={[fillMaxWidth()]}
               horizontalArrangement="spaceBetween"
             >
-              <Caption>
-                {new Date(active.startedAt).toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </Caption>
+              <Caption>{workoutDate(startedAt)}</Caption>
               <Text color={c.primary} style={{ typography: "labelLarge" }}>
-                {loggedSets(active)} / {totalSets(active)} sets
+                {logged} / {total} sets
               </Text>
             </Row>
             <LinearProgressIndicator
-              progress={loggedSets(active) / totalSets(active)}
+              progress={logged / total}
               modifiers={[fillMaxWidth()]}
             />
           </Column>
         ) : null}
-        {!state.onboarded ? (
+        {!onboarded ? (
           <Panel>
             <SectionTitle>Set your starting weights</SectionTitle>
             <Caption>
@@ -109,10 +126,10 @@ export function WorkoutScreen(p: WorkoutProps) {
                 { value: "lb", label: "Pounds" },
                 { value: "kg", label: "Kilograms" },
               ]}
-              value={settings.unit}
-              onChange={p.onUnit}
+              value={settingsUnit}
+              onChange={onUnit}
             />
-            <Action onPress={p.onSetup} secondary>
+            <Action onPress={onSetup} secondary>
               Set up my 5×5
             </Action>
           </Panel>
@@ -126,14 +143,14 @@ export function WorkoutScreen(p: WorkoutProps) {
             >
               <Column verticalArrangement={{ spacedBy: 4 }}>
                 <Caption>Next workout</Caption>
-                <Heading large>Workout {state.next}</Heading>
+                <Heading large>Workout {next}</Heading>
               </Column>
-              <TextButton onClick={p.onSwitch}>
+              <TextButton onClick={onSwitch}>
                 <Text>Switch A / B</Text>
               </TextButton>
             </Row>
             <Divider />
-            {ROUTINE[state.next].map((lift) => (
+            {ROUTINE[next].map((lift) => (
               <Row
                 key={lift}
                 modifiers={[fillMaxWidth()]}
@@ -150,7 +167,7 @@ export function WorkoutScreen(p: WorkoutProps) {
                   </Caption>
                 </Column>
                 <TextButton
-                  onClick={() => p.onWeight(lift)}
+                  onClick={() => onWeight(lift)}
                   modifiers={[
                     semantics({
                       contentDescription: `Edit ${NAMES[lift]} weight`,
@@ -160,121 +177,44 @@ export function WorkoutScreen(p: WorkoutProps) {
                   <Text
                     style={{ typography: "titleMedium", fontWeight: "600" }}
                   >
-                    {formatWeight(state.plans[lift].weight)} {settings.unit}
+                    {formatWeight(plans[lift].weight)} {settingsUnit}
                   </Text>
                 </TextButton>
               </Row>
             ))}
-            <Action onPress={p.onStart}>Start workout {state.next}</Action>
+            <Action onPress={onStart}>Start workout {next}</Action>
           </Panel>
         ) : null}
-        {!active ? <WeekStrip history={state.history} /> : null}
-        {active?.exercises.map((e) => {
-          const previous = state.history.find((s) =>
-            s.exercises.some((x) => x.lift === e.lift),
-          );
-          const last = previous?.exercises.find((x) => x.lift === e.lift);
-          const done = e.sets.every((r) => r !== null);
-          return (
-            <Panel key={e.lift}>
-              <Row
-                modifiers={[fillMaxWidth()]}
-                horizontalArrangement="spaceBetween"
-                verticalAlignment="center"
-              >
-                <Column
-                  modifiers={[weight(1)]}
-                  verticalArrangement={{ spacedBy: 2 }}
-                >
-                  <Text
-                    style={{ typography: "titleMedium", fontWeight: "600" }}
-                  >
-                    {NAMES[e.lift]}
-                  </Text>
-                  <Caption>
-                    {e.sets.length} × 5 reps{done ? " · Logged" : ""}
-                  </Caption>
-                </Column>
-                <TextButton
-                  onClick={() => p.onWeight(e.lift)}
-                  modifiers={[
-                    semantics({
-                      contentDescription: `Edit ${NAMES[e.lift]} weight`,
-                    }),
-                  ]}
-                >
-                  <Text style={{ typography: "titleLarge", fontWeight: "600" }}>
-                    {formatWeight(e.weight)} {active.unit}
-                  </Text>
-                </TextButton>
-                <IconButton onClick={() => p.onTools(e.lift)}>
-                  <Icon
-                    source={MoreIcon}
-                    contentDescription={`Warm-up & plates for ${NAMES[e.lift]}`}
-                  />
-                </IconButton>
-              </Row>
-              <SetCounters
-                exercise={e}
-                onPress={(i) =>
-                  e.sets[i] === null
-                    ? record(e.lift, i, 5)
-                    : setEditing({ lift: e.lift, index: i })
-                }
-              />
-              <Caption>
-                {last
-                  ? `Last: ${formatWeight(last.weight)} ${previous!.unit} · ${last.sets.map((r) => r ?? "–").join("/")}`
-                  : "No previous session"}
-              </Caption>
-            </Panel>
-          );
-        })}
+        {!active ? <WeekStrip history={history} /> : null}
         {active ? (
-          <Column verticalArrangement={{ spacedBy: 8 }}>
-            <Caption>Tap + to log 5 reps. Tap a logged set to edit.</Caption>
-            <Divider />
-            <Row
-              modifiers={[fillMaxWidth()]}
-              horizontalArrangement="spaceBetween"
-            >
-              <TextButton onClick={() => setShowNotes(!showNotes)}>
-                <Text>
-                  {showNotes
-                    ? "Hide note"
-                    : active.notes
-                      ? "Edit note"
-                      : "Add note"}
-                </Text>
-              </TextButton>
-              <TextButton onClick={p.onDiscard}>
-                <Text color={c.error}>Discard</Text>
-              </TextButton>
-            </Row>
-            {showNotes ? (
-              <Field
-                label="Workout note"
-                multiline
-                value={active.notes}
-                onChange={p.onNotes}
-              />
-            ) : null}
-          </Column>
+          <ActiveExercises
+            kind={kind!}
+            onWeight={onWeight}
+            onTools={onTools}
+            onLog={onLog}
+            onEdit={setEditing}
+          />
+        ) : null}
+        {active ? (
+          <WorkoutNotes
+            onDiscard={onDiscard}
+            showNotes={showNotes}
+            setShowNotes={setShowNotes}
+          />
         ) : (
           <>
             <SectionTitle>Last workout</SectionTitle>
-            {state.history[0] ? (
+            {history[0] ? (
               <Panel>
-                <SectionTitle>Workout {state.history[0].kind}</SectionTitle>
+                <SectionTitle>Workout {history[0].kind}</SectionTitle>
                 <Caption>
-                  {sessionDate(state.history[0])} ·{" "}
-                  {loggedSets(state.history[0])} sets
+                  {sessionDate(history[0])} · {loggedSets(history[0])} sets
                 </Caption>
                 <Caption>
-                  {state.history[0].exercises
+                  {history[0].exercises
                     .map(
                       (e) =>
-                        `${NAMES[e.lift]} ${formatWeight(e.weight)} ${state.history[0].unit}`,
+                        `${NAMES[e.lift]} ${formatWeight(e.weight)} ${history[0].unit}`,
                     )
                     .join(" · ")}
                 </Caption>
@@ -302,11 +242,8 @@ export function WorkoutScreen(p: WorkoutProps) {
               {NAMES[editing.lift]} · Set {editing.index + 1}
             </Heading>
             <Caption>
-              Currently:{" "}
-              {active?.exercises.find((e) => e.lift === editing.lift)?.sets[
-                editing.index
-              ] ?? "not logged"}{" "}
-              reps. Choose the correct result.
+              Currently: {editingReps ?? "not logged"} reps. Choose the correct
+              result.
             </Caption>
             <Column verticalArrangement={{ spacedBy: 8 }}>
               {[
@@ -323,8 +260,7 @@ export function WorkoutScreen(p: WorkoutProps) {
                       key={reps}
                       modifiers={[weight(1), defaultMinSize({ minHeight: 56 })]}
                       colors={
-                        active?.exercises.find((e) => e.lift === editing.lift)
-                          ?.sets[editing.index] === reps
+                        editingReps === reps
                           ? {
                               containerColor: c.primary,
                               contentColor: c.onPrimary,
@@ -353,11 +289,141 @@ export function WorkoutScreen(p: WorkoutProps) {
     </>
   );
 }
-export function sessionDate(s: Session) {
-  return new Date(s.finishedAt ?? s.startedAt).toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+
+function WorkoutNotes({
+  onDiscard,
+  showNotes,
+  setShowNotes,
+}: {
+  onDiscard: () => void;
+  showNotes: boolean;
+  setShowNotes: (show: boolean) => void;
+}) {
+  const notes = useAppState((s) => s.active?.notes ?? "");
+  const c = useMaterialColors();
+  return (
+    <Column verticalArrangement={{ spacedBy: 8 }}>
+      <Caption>Tap + to log 5 reps. Tap a logged set to edit.</Caption>
+      <Divider />
+      <Row modifiers={[fillMaxWidth()]} horizontalArrangement="spaceBetween">
+        <TextButton onClick={() => setShowNotes(!showNotes)}>
+          <Text>
+            {showNotes ? "Hide note" : notes ? "Edit note" : "Add note"}
+          </Text>
+        </TextButton>
+        <TextButton onClick={onDiscard}>
+          <Text color={c.error}>Discard</Text>
+        </TextButton>
+      </Row>
+      {showNotes ? (
+        <Field
+          label="Workout note"
+          multiline
+          value={notes}
+          onChange={setNotes}
+        />
+      ) : null}
+    </Column>
+  );
+}
+
+interface ExerciseActions {
+  onWeight: WorkoutProps["onWeight"];
+  onTools: WorkoutProps["onTools"];
+  onLog: WorkoutProps["onLog"];
+  onEdit: (selection: { lift: Lift; index: number }) => void;
+}
+function ActiveExercises({
+  kind,
+  ...actions
+}: ExerciseActions & { kind: WorkoutKind }) {
+  return (
+    <>
+      {ROUTINE[kind].map((lift) => (
+        <ExerciseCard key={lift} lift={lift} {...actions} />
+      ))}
+    </>
+  );
+}
+function ExerciseCard({
+  lift,
+  onWeight,
+  onTools,
+  onLog,
+  onEdit,
+}: ExerciseActions & { lift: Lift }) {
+  const e = useAppState((s) =>
+    s.active?.exercises.find((exercise) => exercise.lift === lift),
+  );
+  const previous = useAppState((s) =>
+    s.history.find((session) =>
+      session.exercises.some((exercise) => exercise.lift === lift),
+    ),
+  );
+  const unit = useAppState((s) => s.active?.unit);
+  const inventory = useAppState((s) => s.settings.plates);
+  const bar = useAppState((s) =>
+    s.settings.plates === null ? null : s.settings.bar,
+  );
+  if (!e) return null;
+  const load =
+    inventory && unit ? loadPlates(e.weight, bar!, unit, inventory) : null;
+  const last = previous?.exercises.find((x) => x.lift === e.lift);
+  const done = e.sets.every((r) => r !== null);
+  return (
+    <Panel>
+      <Row
+        modifiers={[fillMaxWidth()]}
+        horizontalArrangement="spaceBetween"
+        verticalAlignment="center"
+      >
+        <Column modifiers={[weight(1)]} verticalArrangement={{ spacedBy: 2 }}>
+          <Text style={{ typography: "titleMedium", fontWeight: "600" }}>
+            {NAMES[e.lift]}
+          </Text>
+          <Caption>
+            {e.sets.length} × 5 reps{done ? " · Logged" : ""}
+          </Caption>
+        </Column>
+        <TextButton
+          onClick={() => onWeight(e.lift)}
+          modifiers={[
+            semantics({
+              contentDescription: `Edit ${NAMES[e.lift]} weight`,
+            }),
+          ]}
+        >
+          <Text style={{ typography: "titleLarge", fontWeight: "600" }}>
+            {formatWeight(e.weight)} {unit}
+          </Text>
+        </TextButton>
+        <IconButton onClick={() => onTools(e.lift)}>
+          <Icon
+            source={MoreIcon}
+            contentDescription={`Warm-up & plates for ${NAMES[e.lift]}`}
+          />
+        </IconButton>
+      </Row>
+      <SetCounters
+        exercise={e}
+        onPress={(i) =>
+          e.sets[i] === null
+            ? onLog(e.lift, i, 5)
+            : onEdit({ lift: e.lift, index: i })
+        }
+      />
+      {load && !load.exact ? (
+        <Caption>
+          {load.below
+            ? `Your plates load ${formatWeight(load.below.loaded)} ${unit}, not ${formatWeight(e.weight)} ${unit}.`
+            : `Your plates can't load ${formatWeight(e.weight)} ${unit}.`}
+        </Caption>
+      ) : null}
+      <Caption>
+        {last
+          ? `Last: ${formatWeight(last.weight)} ${previous!.unit} · ${last.sets.map((r) => r ?? "–").join("/")}`
+          : "No previous session"}
+      </Caption>
+    </Panel>
+  );
 }
