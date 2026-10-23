@@ -88,15 +88,9 @@ export function deactivateKeepAwake() {
   return Promise.resolve();
 }
 
-let notificationHandler: NotificationHandler | null = null;
-
-export function setNotificationHandler(handler: NotificationHandler | null): void {
-  notificationHandler = handler;
-}
+export function setNotificationHandler(_handler: NotificationHandler | null): void {}
 
 export function setNotificationChannelAsync(channel: string, _settings: NotificationChannelInput) {
-  void notificationHandler;
-
   return Promise.resolve({ id: channel });
 }
 
@@ -133,13 +127,8 @@ interface WidgetAdapter<Props extends object> {
 }
 
 function widgetAdapter<Props extends object>(): WidgetAdapter<Props> {
-  let currentSnapshot: Props | undefined;
-
   return {
-    updateSnapshot(snapshot: Props) {
-      currentSnapshot = snapshot;
-      void currentSnapshot;
-    },
+    updateSnapshot(_snapshot: Props) {},
   };
 }
 

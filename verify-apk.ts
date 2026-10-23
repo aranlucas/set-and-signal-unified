@@ -1,3 +1,4 @@
+// Native CLI/config rung: Expo/EAS builds the APK, while `apksigner`, `zipalign`, and `aapt2` expose separate facts; no repo config combines them to enforce this app's release signature, manifest, ABI, and clean-bundle gates.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";

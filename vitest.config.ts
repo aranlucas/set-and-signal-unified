@@ -56,7 +56,7 @@ export default defineConfig({
           return;
         }
 
-        if (file.endsWith("/App.tsx") || /\/src\/.*\.tsx?$/.test(file)) {
+        if (file.endsWith("/app.tsx") || /\/src\/.*\.tsx?$/.test(file)) {
           return { code: instrument(source, file), map: null };
         }
       },

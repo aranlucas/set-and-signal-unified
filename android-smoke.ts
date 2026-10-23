@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { z } from "zod";
 
 // Use only on a fresh QA installation. The script creates two real workout logs.
 // Pass the exact launcher path and target flags returned by T3 device_open.
@@ -22,9 +23,17 @@ const output = resolve("artifacts/qa-redesign", serial);
 
 mkdirSync(output, { recursive: true });
 
-type DeviceNode = { ref: string; label?: string; visibleToUser: boolean };
+const DeviceNodeSchema = z.object({
+  ref: z.string(),
+  label: z.string().optional(),
+  visibleToUser: z.boolean(),
+});
 
-type DeviceSnapshot = { data: { nodes: DeviceNode[] } };
+const DeviceSnapshotSchema = z.object({
+  data: z.object({ nodes: z.array(DeviceNodeSchema) }),
+});
+
+type DeviceNode = z.infer<typeof DeviceNodeSchema>;
 
 type SmokeEvent = { time: string; message: string };
 
@@ -44,10 +53,9 @@ function run(args: string[]): string {
 }
 
 function snapshot(interactive = true): DeviceNode[] {
-  // SAFETY: agent-device snapshot --json documents this data.nodes shape and node fields.
-  const result = JSON.parse(
-    run(["snapshot", ...(interactive ? ["-i"] : []), "--json"]),
-  ) as DeviceSnapshot;
+  const result = DeviceSnapshotSchema.parse(
+    JSON.parse(run(["snapshot", ...(interactive ? ["-i"] : []), "--json"])),
+  );
 
   return result.data.nodes.filter((n) => n.visibleToUser);
 }

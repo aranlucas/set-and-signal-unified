@@ -4,7 +4,7 @@ import { z } from "zod";
 import App from "../app";
 import * as actions from "../src/data/actions";
 import { defaultPlateInventory } from "../src/domain/plates";
-import { retry } from "../src/data/store";
+import { commit, retry } from "../src/data/store";
 import { initialState, startSession, logSet } from "../src/domain/workout";
 import { finishedHistory, NOW } from "./support/fixture";
 import { resetStorage, savedState } from "./support/storage";
@@ -120,6 +120,28 @@ async function fresh(active = true, resting = false, myPlates = false) {
     await vi.advanceTimersByTimeAsync(5);
   });
 }
+
+it("counts root App rerenders when its selected theme changes", async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  vi.useFakeTimers();
+  const counts: string[] = [];
+  globalThis.fivefoldRenderCounter = (name) => counts.push(name);
+
+  await fresh(false);
+  expect(counts).toContain("App");
+  counts.length = 0;
+
+  act(() => {
+    expect(
+      commit((state) => ({
+        ...state,
+        settings: { ...state.settings, theme: "dark" },
+      })),
+    ).toBe(true);
+  });
+
+  expect(counts.filter((name) => name === "App")).toHaveLength(1);
+});
 
 afterEach(() => {
   cleanup();

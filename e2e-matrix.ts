@@ -1,3 +1,4 @@
+// Native CLI/config rung: `emulator`, `adb`, and the single-device `e2e.config.ts` cannot run this repo's sequential, ownership-safe two-AVD release matrix with per-device logs; this wrapper coordinates those tools.
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, readFileSync } from "node:fs";
 import type { WriteStream } from "node:fs";
