@@ -57,3 +57,6 @@ yarn-error.*
 .e2e/summary.md
 .e2e/logs/
 .e2e/videos/
+
+# Local measurement runs; labelled baselines are committed.
+/artifacts/perf/*-current.json

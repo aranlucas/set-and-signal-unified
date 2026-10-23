@@ -65,6 +65,12 @@ export async function scrollWorkoutUntilVisible(
   await expect(target).toBeVisible();
 }
 
+/** New installs default to pounds; suites that assert kilogram loads pick kg first. */
+export async function chooseKilograms(screen: Screen) {
+  await tap(screen, screen.getByText("Kilograms"));
+  await expect(screen.getByText("20 kg").first()).toBeVisible();
+}
+
 /** Starts the next workout from the home screen and checks it is active. */
 export async function startWorkout(
   screen: Screen,

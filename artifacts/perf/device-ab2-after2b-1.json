@@ -1,0 +1,255 @@
+{
+  "label": "ab2-after2b-1",
+  "serial": "emulator-5554",
+  "apk": "/tmp/ff-audit/fivefold-after2b-perf.apk",
+  "measuredAt": "2026-10-23T06:30:09.602Z",
+  "device": {
+    "model": "sdk_gphone64_arm64",
+    "android": "15",
+    "fingerprint": "google/sdk_gphone64_arm64/emu64a:15/AE3A.240806.043/12960925:userdebug/dev-keys"
+  },
+  "seed": {
+    "name": "startup.seed",
+    "ms": 559.664000000339,
+    "sessions": 10000,
+    "sequence": 0
+  },
+  "pssKb": 119727,
+  "summary": {
+    "totalTimeMs": {
+      "count": 15,
+      "p50": 1890,
+      "p95": 2090,
+      "max": 2090
+    },
+    "waitTimeMs": {
+      "count": 15,
+      "p50": 1901,
+      "p95": 2092,
+      "max": 2092
+    },
+    "startup.load": {
+      "count": 15,
+      "p50": 142.40370800020173,
+      "p95": 290.84291699994355,
+      "max": 290.84291699994355
+    },
+    "startup.ready": {
+      "count": 15,
+      "p50": 550.4619169998914,
+      "p95": 908.0322920000181,
+      "max": 908.0322920000181
+    },
+    "commit.save": {
+      "count": 15,
+      "p50": 5.479209000244737,
+      "p95": 31.271582999732345,
+      "max": 31.271582999732345
+    },
+    "commit.render": {
+      "count": 15,
+      "p50": 9.44733399990946,
+      "p95": 41.27975000021979,
+      "max": 41.27975000021979
+    }
+  },
+  "starts": [
+    {
+      "totalTimeMs": 1977,
+      "waitTimeMs": 1980,
+      "loadMs": 136.65420799981803,
+      "readyMs": 908.0322920000181
+    },
+    {
+      "totalTimeMs": 1908,
+      "waitTimeMs": 1910,
+      "loadMs": 142.40370800020173,
+      "readyMs": 494.9763340000063
+    },
+    {
+      "totalTimeMs": 1964,
+      "waitTimeMs": 1966,
+      "loadMs": 141.13112500030547,
+      "readyMs": 511.6084579997696
+    },
+    {
+      "totalTimeMs": 1577,
+      "waitTimeMs": 1579,
+      "loadMs": 118.94654199993238,
+      "readyMs": 250.86300000036135
+    },
+    {
+      "totalTimeMs": 1898,
+      "waitTimeMs": 1901,
+      "loadMs": 209.23095899960026,
+      "readyMs": 661.4965010001324
+    },
+    {
+      "totalTimeMs": 1890,
+      "waitTimeMs": 1938,
+      "loadMs": 264.6447919998318,
+      "readyMs": 728.6970420000143
+    },
+    {
+      "totalTimeMs": 1796,
+      "waitTimeMs": 1797,
+      "loadMs": 164.17445799987763,
+      "readyMs": 587.4971669996157
+    },
+    {
+      "totalTimeMs": 1951,
+      "waitTimeMs": 1952,
+      "loadMs": 135.9762919996865,
+      "readyMs": 421.8768750000745
+    },
+    {
+      "totalTimeMs": 1805,
+      "waitTimeMs": 1811,
+      "loadMs": 113.11399999959394,
+      "readyMs": 630.1028760001063
+    },
+    {
+      "totalTimeMs": 1816,
+      "waitTimeMs": 1818,
+      "loadMs": 134.24079199973494,
+      "readyMs": 330.05670899990946
+    },
+    {
+      "totalTimeMs": 1916,
+      "waitTimeMs": 1918,
+      "loadMs": 180.45066699991003,
+      "readyMs": 550.4619169998914
+    },
+    {
+      "totalTimeMs": 1745,
+      "waitTimeMs": 1792,
+      "loadMs": 163.1884579998441,
+      "readyMs": 512.7848329995759
+    },
+    {
+      "totalTimeMs": 1650,
+      "waitTimeMs": 1652,
+      "loadMs": 111.82970800017938,
+      "readyMs": 413.5568339996971
+    },
+    {
+      "totalTimeMs": 2090,
+      "waitTimeMs": 2092,
+      "loadMs": 209.03754199994728,
+      "readyMs": 558.4715419998392
+    },
+    {
+      "totalTimeMs": 1695,
+      "waitTimeMs": 1724,
+      "loadMs": 290.84291699994355,
+      "readyMs": 770.9622089997865
+    }
+  ],
+  "commits": [
+    {
+      "workout": 1,
+      "set": "Squat, set 1 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 10.620500000193715,
+      "renderMs": 20.690667000133544
+    },
+    {
+      "workout": 1,
+      "set": "Squat, set 2 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 31.271582999732345,
+      "renderMs": 41.27975000021979
+    },
+    {
+      "workout": 1,
+      "set": "Squat, set 3 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 5.055374999996275,
+      "renderMs": 8.368042000103742
+    },
+    {
+      "workout": 1,
+      "set": "Squat, set 4 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 2.374292000196874,
+      "renderMs": 4.276624999940395
+    },
+    {
+      "workout": 1,
+      "set": "Squat, set 5 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 2.811708000022918,
+      "renderMs": 6.554667000193149
+    },
+    {
+      "workout": 1,
+      "set": "Bench press, set 1 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 5.479209000244737,
+      "renderMs": 9.669540999922901
+    },
+    {
+      "workout": 1,
+      "set": "Bench press, set 2 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 7.708709000144154,
+      "renderMs": 10.778125000186265
+    },
+    {
+      "workout": 1,
+      "set": "Bench press, set 3 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 4.88729100022465,
+      "renderMs": 7.77495800005272
+    },
+    {
+      "workout": 1,
+      "set": "Bench press, set 4 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 5.431417000014335,
+      "renderMs": 10.010999999940395
+    },
+    {
+      "workout": 1,
+      "set": "Bench press, set 5 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 8.106082999613136,
+      "renderMs": 10.912374999839813
+    },
+    {
+      "workout": 1,
+      "set": "Barbell row, set 1 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 3.217875000089407,
+      "renderMs": 6.681749999988824
+    },
+    {
+      "workout": 1,
+      "set": "Barbell row, set 2 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 7.05704199988395,
+      "renderMs": 10.289707999676466
+    },
+    {
+      "workout": 1,
+      "set": "Barbell row, set 3 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 5.628750000149012,
+      "renderMs": 8.074167000129819
+    },
+    {
+      "workout": 1,
+      "set": "Barbell row, set 4 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 4.705417000222951,
+      "renderMs": 8.173875000327826
+    },
+    {
+      "workout": 1,
+      "set": "Barbell row, set 5 of 5, not logged. Tap to log 5 reps",
+      "saveMs": 5.924708000384271,
+      "renderMs": 9.44733399990946
+    }
+  ],
+  "workouts": [
+    {
+      "kind": "A",
+      "sets": 15,
+      "gfxinfo": {
+        "totalFrames": 404,
+        "jankyFrames": 388,
+        "jankyPercent": 96.04,
+        "p50Ms": 65,
+        "p90Ms": 101,
+        "p95Ms": 117,
+        "p99Ms": 150
+      }
+    }
+  ]
+}

@@ -12,7 +12,7 @@ it("refreshes when a clock-clamped workout becomes eligible, then at local midni
   const startedAt = +new Date(2026, 9, 22, 10, 5);
   const now = new Date(2026, 9, 22, 10, 0);
   const state = finishSession(
-    logSet(startSession(initialState(), startedAt), "squat", 0, 5),
+    logSet(startSession(initialState("kg"), startedAt), "squat", 0, 5),
     +now,
   );
   expect(trainingWeeks(state.history, now).at(-1)!.count).toBe(0);
@@ -27,7 +27,12 @@ it("refreshes when a clock-clamped workout becomes eligible, then at local midni
 it("wakes at midnight before more distant future history, without polling", () => {
   const now = new Date(2026, 9, 22, 23, 59);
   const state = finishSession(
-    logSet(startSession(initialState(), +new Date(2026, 9, 24)), "squat", 0, 5),
+    logSet(
+      startSession(initialState("kg"), +new Date(2026, 9, 24)),
+      "squat",
+      0,
+      5,
+    ),
     +new Date(2026, 9, 24, 1),
   );
   expect(nextCalendarRefreshAt(state.history, now)).toBe(

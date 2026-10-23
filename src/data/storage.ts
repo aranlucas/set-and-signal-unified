@@ -1,5 +1,6 @@
+import { perfNow, perfEnd } from "../perf";
 import * as SQLite from "expo-sqlite";
-import { initialState, type AppState } from "../domain/workout";
+import { initialState, startSession, type AppState } from "../domain/workout";
 import { validateState } from "../domain/backup";
 
 let database: SQLite.SQLiteDatabase | undefined;
@@ -9,9 +10,38 @@ export function loadState(): AppState {
   database.execSync(
     "PRAGMA journal_mode = WAL; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS workouts (id TEXT PRIMARY KEY, finished_at REAL NOT NULL, json TEXT NOT NULL); CREATE INDEX IF NOT EXISTS workouts_finished_at ON workouts (finished_at DESC); PRAGMA user_version = 1;",
   );
-  const row = database.getFirstSync<{ json: string }>(
+  let row = database.getFirstSync<{ json: string }>(
     "SELECT json FROM app_state WHERE id = 1",
   );
+  if (
+    process.env.EXPO_PUBLIC_FIVEFOLD_PERF === "1" &&
+    process.env.EXPO_PUBLIC_FIVEFOLD_SEED &&
+    !row
+  ) {
+    const count = Number(process.env.EXPO_PUBLIC_FIVEFOLD_SEED);
+    if (Number.isSafeInteger(count) && count > 0) {
+      const started = perfNow();
+      const seeded = validateState(seedState(count));
+      const db = database;
+      db.withTransactionSync(() => {
+        db.runSync(
+          "INSERT INTO app_state (id, json) VALUES (1, ?)",
+          JSON.stringify({ ...seeded, history: [] }),
+        );
+        for (const session of seeded.history)
+          db.runSync(
+            "INSERT INTO workouts (id, finished_at, json) VALUES (?, ?, ?)",
+            session.id,
+            session.finishedAt!,
+            JSON.stringify(session),
+          );
+      });
+      perfEnd("startup.seed", started, { sessions: count });
+      row = db.getFirstSync<{ json: string }>(
+        "SELECT json FROM app_state WHERE id = 1",
+      );
+    }
+  }
   if (!row) {
     persistedHistory = [];
     return initialState();
@@ -55,4 +85,34 @@ export function saveState(state: AppState) {
     }
   });
   persistedHistory = state.history;
+}
+
+function seedState(count: number, now = Date.now()): AppState | null {
+  if (
+    process.env.EXPO_PUBLIC_FIVEFOLD_PERF !== "1" ||
+    !process.env.EXPO_PUBLIC_FIVEFOLD_SEED
+  )
+    return null;
+  const state = { ...initialState("kg"), onboarded: true };
+  state.history = Array.from({ length: count }, (_, i) => {
+    const finishedAt = now - (i + 1) * 60_000;
+    const session = startSession(
+      state,
+      finishedAt - 30_000,
+      i % 2 ? "B" : "A",
+    ).active!;
+    return {
+      ...session,
+      id: `seed-${i}`,
+      finishedAt,
+      exercises: session.exercises.map((exercise) => ({
+        ...exercise,
+        weight: 20 + (i % 100) * 2.5,
+        sets: exercise.sets.map((_, index) =>
+          index === 4 && i % 3 === 0 ? 3 : 5,
+        ),
+      })),
+    };
+  });
+  return state;
 }

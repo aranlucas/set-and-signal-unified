@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { useWindowDimensions } from "react-native";
 import {
   Button,
   Card,
@@ -24,11 +25,19 @@ import {
   weight,
 } from "@expo/ui/jetpack-compose/modifiers";
 
+/** Readable column width on tablets and unfolded foldables. */
+const MAX_CONTENT_WIDTH = 640;
+/** Horizontal inset that keeps content in a centred column of at most 640 dp. */
+export function useContentInset() {
+  const { width } = useWindowDimensions();
+  return Math.max(16, Math.round((width - MAX_CONTENT_WIDTH) / 2));
+}
 export function Page({ children }: { children: ReactNode }) {
+  const inset = useContentInset();
   return (
     <LazyColumn
       modifiers={[weight(1), fillMaxWidth()]}
-      contentPadding={{ start: 16, end: 16, top: 8, bottom: 24 }}
+      contentPadding={{ start: inset, end: inset, top: 8, bottom: 24 }}
       verticalArrangement={{ spacedBy: 10 }}
     >
       {children}

@@ -8,7 +8,7 @@ import {
 } from "../src/domain/workout";
 
 function history(note: string) {
-  let s = startSession(initialState(), 1792650000000);
+  let s = startSession(initialState("kg"), 1792650000000);
   s = logSet(s, "squat", 0, 0, 1792650001000);
   s.active!.notes = note;
   return finishSession(s, 1792650002000);

@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useAppState } from "../data/store";
+import { weekDate, chartDate, shortDate, date } from "../domain/format";
+import { useState } from "react";
 import {
   Column,
   Row,
@@ -28,24 +30,20 @@ import {
   StatRow,
 } from "../components/ui";
 
-import {
-  LIFTS,
-  NAMES,
-  formatWeight,
-  type AppState,
-  type Lift,
-} from "../domain/workout";
+import { LIFTS, NAMES, formatWeight, type Lift } from "../domain/workout";
 import { getProgressOverview, trainingWeeks } from "../domain/progress";
 import { useToday } from "../data/useToday";
 
-export function ProgressScreen({ state }: { state: AppState }) {
+export function ProgressScreen() {
+  const state = {
+    history: useAppState((s) => s.history),
+    plans: useAppState((s) => s.plans),
+    settings: { unit: useAppState((s) => s.settings.unit) },
+  };
   const [selected, setSelected] = useState<Lift>("squat");
   const c = useMaterialColors();
   const today = useToday(state.history);
-  const weeks = useMemo(
-    () => trainingWeeks(state.history, today),
-    [state.history, today],
-  );
+  const weeks = trainingWeeks(state.history, today);
   const overview = getProgressOverview(state.history, state.settings.unit);
   const { entries, best, latest } = overview[selected];
   const chart = entries.slice(-8);
@@ -113,7 +111,7 @@ export function ProgressScreen({ state }: { state: AppState }) {
             label={
               index === weeks.length - 1
                 ? "This week"
-                : `Week of ${new Date(week.start).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                : `Week of ${weekDate(week.start)}`
             }
             value={`${week.count} / 3 workouts`}
           />
@@ -183,15 +181,12 @@ export function ProgressScreen({ state }: { state: AppState }) {
                       clip(Shapes.RoundedCorner(4)),
                       background(e.success ? c.primary : c.errorContainer),
                       semantics({
-                        contentDescription: `${new Date(e.date).toLocaleDateString()}, ${formatWeight(e.weight)} ${state.settings.unit}, ${e.success ? "all reps completed" : "incomplete reps"}`,
+                        contentDescription: `${date(e.date)}, ${formatWeight(e.weight)} ${state.settings.unit}, ${e.success ? "all reps completed" : "incomplete reps"}`,
                       }),
                     ]}
                   />
                   <Text style={{ typography: "labelSmall" }}>
-                    {new Date(e.date).toLocaleDateString(undefined, {
-                      month: "numeric",
-                      day: "numeric",
-                    })}
+                    {chartDate(e.date)}
                   </Text>
                 </Column>
               ))}
@@ -213,11 +208,7 @@ export function ProgressScreen({ state }: { state: AppState }) {
                 >
                   <Column modifiers={[weight(1)]}>
                     <Text style={{ typography: "bodyMedium" }}>
-                      {new Date(e.date).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      {shortDate(e.date)}
                     </Text>
                     <Caption>
                       {e.sets.map((r) => r ?? "–").join(" / ")} reps

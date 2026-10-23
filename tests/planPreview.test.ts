@@ -7,7 +7,7 @@ import {
   type Exercise,
 } from "../src/domain/workout";
 
-const settings = initialState().settings;
+const settings = initialState("kg").settings;
 const plan = { weight: 60, increment: 2.5, failures: 0 };
 const completed: Exercise = {
   lift: "squat",

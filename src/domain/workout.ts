@@ -1,3 +1,7 @@
+import type { PlateInventory } from "./plates";
+export type { PlateInventory } from "./plates";
+import { mondayWeekStart } from "./calendar";
+export { formatWeight } from "./format";
 export type Unit = "kg" | "lb";
 export type Lift = "squat" | "bench" | "row" | "press" | "deadlift";
 export type WorkoutKind = "A" | "B";
@@ -45,6 +49,7 @@ export interface Session {
 export interface Settings {
   unit: Unit;
   bar: number;
+  plates: PlateInventory | null;
   restSeconds: number;
   failedRestSeconds: number;
   autoProgress: boolean;
@@ -70,7 +75,7 @@ export interface AppState {
   history: Session[];
   rest: Rest | null;
 }
-export function initialState(unit: Unit = "kg"): AppState {
+export function initialState(unit: Unit = "lb"): AppState {
   const base = unit === "kg" ? 20 : 45;
   const step = unit === "kg" ? 2.5 : 5;
   return {
@@ -95,6 +100,7 @@ export function initialState(unit: Unit = "kg"): AppState {
     settings: {
       unit,
       bar: base,
+      plates: null,
       restSeconds: 90,
       failedRestSeconds: 180,
       autoProgress: true,
@@ -110,11 +116,9 @@ export function initialState(unit: Unit = "kg"): AppState {
   };
 }
 export const round = (n: number) => Math.round(n * 1000) / 1000;
-export const formatWeight = (n: number) =>
-  Number(n.toFixed(2)).toLocaleString();
-export const totalSets = (s: Session) =>
+export const totalSets = (s: Pick<Session, "exercises">) =>
   s.exercises.reduce((n, e) => n + e.sets.length, 0);
-export const loggedSets = (s: Session) =>
+export const loggedSets = (s: Pick<Session, "exercises">) =>
   s.exercises.reduce((n, e) => n + e.sets.filter((r) => r !== null).length, 0);
 export const volume = (s: Session) =>
   round(
@@ -322,14 +326,17 @@ export function warmups(weight: number, bar: number, unit: Unit) {
   }
   return result;
 }
+const weekCounts = new WeakMap<Session[], { start: number; count: number }>();
 export function weeklyCount(history: Session[], now = new Date()) {
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const start = mondayWeekStart(now);
+  const cached = weekCounts.get(history);
+  if (cached?.start === +start) return cached.count;
   const end = new Date(start);
   end.setDate(end.getDate() + 7);
-  return history.filter(
+  const count = history.filter(
     (s) =>
       s.finishedAt !== null && s.finishedAt >= +start && s.finishedAt < +end,
   ).length;
+  weekCounts.set(history, { start: +start, count });
+  return count;
 }

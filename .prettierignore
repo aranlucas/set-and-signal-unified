@@ -1,0 +1,7 @@
+android/
+ios/
+artifacts/
+node_modules/
+pnpm-lock.yaml
+docs/
+.expo/

@@ -1,17 +1,21 @@
+import { loadPlates, type PlateOption } from "../domain/plates";
+import { useAppState } from "../data/store";
 import { useState } from "react";
 import {
   Column,
   Row,
   ModalBottomSheet,
   Text,
-  TextButton,
   FlowRow,
   FilledTonalButton,
+  FilterChip,
 } from "@expo/ui/jetpack-compose";
 import {
   fillMaxWidth,
+  defaultMinSize,
   paddingAll,
   verticalScroll,
+  weight,
 } from "@expo/ui/jetpack-compose/modifiers";
 import { Action, Caption, Field, Heading } from "./ui";
 import {
@@ -20,29 +24,29 @@ import {
   formatWeight,
   maxWeight,
   maxBarWeight,
-  plateLoad,
   warmups,
-  type AppState,
   type Lift,
 } from "../domain/workout";
 
 export function WeightSheet({
-  state,
   lift,
   onDismiss,
   onSave,
 }: {
-  state: AppState;
   lift: Lift | "bar";
   onDismiss: () => void;
   onSave: (weight: number, increment?: number) => void;
 }) {
+  const state = {
+    settings: useAppState((s) => s.settings),
+    plans: useAppState((s) => s.plans),
+    active: useAppState((s) => s.active?.exercises),
+  };
   const plan = lift === "bar" ? null : state.plans[lift];
   const current =
     lift === "bar"
       ? state.settings.bar
-      : (state.active?.exercises.find((e) => e.lift === lift)?.weight ??
-        plan!.weight);
+      : (state.active?.find((e) => e.lift === lift)?.weight ?? plan!.weight);
   const [value, setValue] = useState(String(current));
   const [increment, setIncrement] = useState(String(plan?.increment ?? 0));
   const [error, setError] = useState("");
@@ -99,6 +103,7 @@ export function WeightSheet({
             {[-1, 1].map((direction) => (
               <FilledTonalButton
                 key={direction}
+                modifiers={[weight(1)]}
                 onClick={() => {
                   const currentValue = Number(value.replace(",", "."));
                   if (!Number.isFinite(currentValue)) return;
@@ -145,29 +150,32 @@ export function WeightSheet({
             : "This updates your next planned weight. Past workouts stay as logged."}
         </Caption>
         <Action onPress={save}>Save weight</Action>
-        <TextButton onClick={onDismiss}>
-          <Text>Cancel</Text>
-        </TextButton>
+        <Action onPress={onDismiss} subtle>
+          Cancel
+        </Action>
       </Column>
     </ModalBottomSheet>
   );
 }
 export function ToolsSheet({
-  state,
   lift,
   onDismiss,
 }: {
-  state: AppState;
   lift: Lift;
   onDismiss: () => void;
 }) {
-  const total =
-    state.active?.exercises.find((e) => e.lift === lift)?.weight ??
-    state.plans[lift].weight;
+  const unit = useAppState((s) => s.active?.unit ?? s.settings.unit);
+  const bar = useAppState((s) => s.settings.bar);
+  const inventory = useAppState((s) => s.settings.plates);
+  const total = useAppState(
+    (s) =>
+      s.active?.exercises.find((e) => e.lift === lift)?.weight ??
+      s.plans[lift].weight,
+  );
   const [selected, setSelected] = useState(total);
-  const unit = state.settings.unit;
-  const warmup = warmups(total, state.settings.bar, unit);
-  const plates = plateLoad(selected, state.settings.bar, unit);
+  const warmup = warmups(total, bar, unit);
+  const plates = loadPlates(selected, bar, unit, inventory);
+  const [alternative, setAlternative] = useState<PlateOption | null>(null);
   return (
     <ModalBottomSheet onDismissRequest={onDismiss} skipPartiallyExpanded>
       <Column
@@ -201,7 +209,13 @@ export function ToolsSheet({
           verticalArrangement={{ spacedBy: 4 }}
         >
           {[...new Set([...warmup.map((w) => w.weight), total])].map((w) => (
-            <FilledTonalButton key={w} onClick={() => setSelected(w)}>
+            <FilledTonalButton
+              key={w}
+              onClick={() => {
+                setSelected(w);
+                setAlternative(null);
+              }}
+            >
               <Text>
                 {formatWeight(w)} {unit}
                 {w === total ? " · work" : ""}
@@ -213,13 +227,63 @@ export function ToolsSheet({
           {formatWeight(selected)} {unit} total
         </Heading>
         <Caption>
-          Bar: {formatWeight(state.settings.bar)} {unit} · Plates on EACH side
+          Bar: {formatWeight(bar)} {unit} · Plates on each side
         </Caption>
         {plates.belowBar ? (
           <Text>
             This target is lighter than your bar. Use a lighter bar or adjust
             the weight.
           </Text>
+        ) : inventory !== null && !plates.exact ? (
+          <>
+            <Text>
+              You can't load {formatWeight(selected)} {unit} with your plates.
+            </Text>
+            <FlowRow
+              horizontalArrangement={{ spacedBy: 8 }}
+              verticalArrangement={{ spacedBy: 8 }}
+            >
+              {(
+                [
+                  ["below", plates.below],
+                  ["above", plates.above],
+                ] as const
+              ).map(([direction, option]) =>
+                option ? (
+                  <FilterChip
+                    key={direction}
+                    modifiers={[defaultMinSize({ minHeight: 48 })]}
+                    selected={alternative?.loaded === option.loaded}
+                    onClick={() => setAlternative(option)}
+                  >
+                    <FilterChip.Label>
+                      <Text>
+                        Closest {direction}: {formatWeight(option.loaded)}{" "}
+                        {unit}
+                      </Text>
+                    </FilterChip.Label>
+                  </FilterChip>
+                ) : null,
+              )}
+            </FlowRow>
+            {alternative ? (
+              <Column verticalArrangement={{ spacedBy: 8 }}>
+                <Text>
+                  {formatWeight(alternative.loaded)} {unit} total · Plates on
+                  each side
+                </Text>
+                {alternative.perSide.length ? (
+                  alternative.perSide.map((p) => (
+                    <Text key={p.weight}>
+                      {p.count} × {formatWeight(p.weight)} {unit}
+                    </Text>
+                  ))
+                ) : (
+                  <Text>No plates · empty bar</Text>
+                )}
+              </Column>
+            ) : null}
+          </>
         ) : plates.perSide.length ? (
           plates.perSide.map((p) => (
             <Text key={p.weight} style={{ typography: "titleLarge" }}>
@@ -229,7 +293,7 @@ export function ToolsSheet({
         ) : (
           <Text>No plates · empty bar</Text>
         )}
-        {plates.remainder > 0 ? (
+        {inventory === null && plates.remainder > 0 ? (
           <Text>
             {formatWeight(plates.remainder)} {unit} cannot be loaded with these
             plates. The combination above is{" "}
@@ -238,11 +302,9 @@ export function ToolsSheet({
           </Text>
         ) : null}
         <Caption>
-          Assumes standard plates with enough pairs available:{" "}
-          {unit === "kg"
-            ? "25, 20, 15, 10, 5, 2.5, 1.25 kg"
-            : "45, 35, 25, 10, 5, 2.5 lb"}
-          . Check the plates available in your gym.
+          {inventory !== null
+            ? "Using your plates."
+            : `Assumes standard plates with enough pairs available: ${unit === "kg" ? "25, 20, 15, 10, 5, 2.5, 1.25 kg" : "45, 35, 25, 10, 5, 2.5 lb"}. Check the plates available in your gym.`}
         </Caption>
         <Action onPress={onDismiss}>Back to workout</Action>
       </Column>

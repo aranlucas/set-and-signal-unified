@@ -1,3 +1,4 @@
+import { mondayWeekStart } from "../domain/calendar";
 import { Column, Row, Text, useMaterialColors } from "@expo/ui/jetpack-compose";
 import {
   background,
@@ -14,10 +15,8 @@ import { useToday } from "../data/useToday";
 export function WeekStrip({ history }: { history: Session[] }) {
   const c = useMaterialColors();
   const today = useToday(history);
-  const days = useMemo(() => {
-    const monday = new Date(today);
-    monday.setHours(0, 0, 0, 0);
-    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const days = (() => {
+    const monday = mondayWeekStart(today);
     const result = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(monday);
       date.setDate(date.getDate() + i);
@@ -37,7 +36,7 @@ export function WeekStrip({ history }: { history: Session[] }) {
       result[day].count++;
     }
     return result;
-  }, [history, today]);
+  })();
   return (
     <Column verticalArrangement={{ spacedBy: 12 }}>
       <Row modifiers={[fillMaxWidth()]} horizontalArrangement="spaceBetween">
@@ -94,4 +93,3 @@ export function WeekStrip({ history }: { history: Session[] }) {
     </Column>
   );
 }
-import { useMemo } from "react";

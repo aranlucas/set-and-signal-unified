@@ -2,15 +2,15 @@
   "expo": {
     "name": "Fivefold",
     "slug": "fivefold-5x5",
-    "version": "1.2.1",
-    "orientation": "default",
+    "version": "1.3.0",
+    "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "fivefold",
     "userInterfaceStyle": "automatic",
     "primaryColor": "#216B53",
     "android": {
       "package": "app.fivefold.lifts",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#163A2C",
         "foregroundImage": "./assets/android-icon-foreground.png",

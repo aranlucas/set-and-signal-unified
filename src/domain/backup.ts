@@ -1,3 +1,4 @@
+import { validPlateInventory } from "./plates";
 import {
   type AppState,
   LIFTS,
@@ -12,9 +13,11 @@ const finite = (x: unknown, min: number, max: number): x is number =>
 const bool = (x: unknown) => typeof x === "boolean";
 const unsupportedState =
   "This is not a supported Fivefold backup. Your current data has not been changed.";
-function validSession(s: any, finished: boolean): s is Session {
+const record = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+function validSession(s: unknown, finished: boolean): s is Session {
   return (
-    s &&
+    record(s) &&
     typeof s.id === "string" &&
     s.id.length < 150 &&
     (s.kind === "A" || s.kind === "B") &&
@@ -28,10 +31,10 @@ function validSession(s: any, finished: boolean): s is Session {
     Array.isArray(s.exercises) &&
     s.exercises.length === 3 &&
     s.exercises.every(
-      (e: any, i: number) =>
-        e &&
+      (e: unknown, i: number) =>
+        record(e) &&
         e.lift === ROUTINE[s.kind as "A" | "B"][i] &&
-        finite(e.weight, 0, maxWeight(s.unit)) &&
+        finite(e.weight, 0, maxWeight(s.unit as "kg" | "lb")) &&
         Array.isArray(e.sets) &&
         e.sets.length === (e.lift === "deadlift" ? 1 : 5) &&
         e.sets.every(
@@ -52,12 +55,23 @@ export function validateState(value: unknown): AppState {
     !["A", "B"].includes(s.next) ||
     !settings ||
     !["kg", "lb"].includes(settings.unit) ||
+    !(
+      settings.plates === undefined ||
+      settings.plates === null ||
+      validPlateInventory(settings.plates)
+    ) ||
     !finite(settings.bar, 1, maxBarWeight(settings.unit)) ||
     !finite(settings.restSeconds, 15, 600) ||
     !finite(settings.failedRestSeconds, 15, 600) ||
     !["system", "light", "dark"].includes(settings.theme) ||
     !(
-      ["autoProgress", "autoDeload", "haptics", "keepAwake", "restAlerts"] as const
+      [
+        "autoProgress",
+        "autoDeload",
+        "haptics",
+        "keepAwake",
+        "restAlerts",
+      ] as const
     ).every((k) => bool(settings[k])) ||
     !LIFTS.every(
       (l) =>
@@ -88,18 +102,20 @@ export function validateState(value: unknown): AppState {
   ) {
     throw new Error(unsupportedState);
   }
-  return s;
+  return settings.plates === undefined
+    ? { ...s, settings: { ...settings, plates: null } }
+    : s;
 }
 export function parseBackup(text: string): AppState {
   if (text.length > 20_000_000)
     throw new Error("This backup is too large (maximum 20 MB).");
-  let s: any;
+  let s: unknown;
   try {
     s = JSON.parse(text);
   } catch {
     throw new Error("This file is not valid JSON. Choose a Fivefold backup.");
   }
-  if (Array.isArray(s?.history) && s.history.length > 20000)
+  if (record(s) && Array.isArray(s.history) && s.history.length > 20000)
     throw new Error(unsupportedState);
   return validateState(s);
 }

@@ -12,7 +12,7 @@ The 1.2 release strengthens the existing offline 5×5 loop: understand the last 
 | Performance gates   | History growth does not multiply work on every set or tab interaction | One cached progress aggregation, at most 10 recent entries per lift, 10,000-session regression fixture, small current-state-only set writes | Verified in 1.2.1 |
 | Device confidence   | New behavior works in the installed release                           | Deterministic e2e coverage, original workout/recovery/settings regressions, Android release build, screenshots and verification record      | Verified in 1.2.1 |
 
-The 1.2.1 follow-up restores Android 15 system Back behavior through Expo configuration, adds a failing-before/passing-after navigation regression, and makes installed-app tests work on compact phone viewports. Final device and design evidence is recorded in [release verification](verification.md).
+The 1.2.1 follow-up restores Android 15 system Back behavior through Expo configuration, adds a failing-before/passing-after navigation regression, and makes installed-app tests work on compact phone viewports. Final device and design evidence is recorded in [1.2.1 release verification](verification-1.2.1.md).
 
 ### Design brief
 
@@ -36,9 +36,17 @@ Mode: Operate. A lifter checks loads between sets and reviews progress after tra
 - Make whole-exercise weight corrections explicit once sets have been logged, with a preview of the affected results.
 - Coalesce note writes only after a serialized writer proves finish/background/restart never loses a note.
 
+## 1.3 — equipment, performance and layout
+
+| Milestone | User outcome | Acceptance criteria | Status |
+| --- | --- | --- | --- |
+| My plates | Know which work and warm-up loads are possible with available equipment | Optional kg/lb pair inventories, minimum-plate bounded solver, closest below/above guidance, native editor, JSON/SQLite compatibility, render and CPU gates, installed-app e2e coverage | Verified in 1.3.0 (Android 15 emulator E2E) |
+| Measured React performance | Logging a set stays responsive as history grows | Zero React Compiler bailouts, narrow store subscriptions, render-count snapshots, device A/B with 10,000 sessions: JS per set tap 12.4 → 8.5 ms median, startup unchanged | Verified in 1.3.0 (Android 15 emulator; physical-device profiling remains in Next) |
+| Layout and units | Readable at 200% text, on tablets and on compact phones; pounds by default | Single-line navigation, equal-column 56 dp counters, 640 dp content column, 48 dp rest controls, portrait phones, kg/lb choice in first-run setup | Verified in 1.3.0 (Android 15 emulator captures and E2E) |
+
 ## Later — useful training tools
 
-- Configurable available plate pairs and lighter bars, with honest impossible-load guidance.
+- Additional lighter-bar presets.
 - Rest completion/background notification e2e coverage and permission recovery.
 - Optional training-day preferences and local reminders through Expo Notifications.
 - Evaluate iOS only after adapting the Compose-only UI to native Expo UI equivalents and proving the same data guarantees.

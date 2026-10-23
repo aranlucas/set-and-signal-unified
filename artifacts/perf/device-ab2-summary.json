@@ -1,0 +1,67 @@
+{
+  "note": "Phase 2 + 2b vs baseline (Phase 1 harness + design). Release builds, emulator-5554 Android 15, 10,000 seeded sessions, ABAB rounds.",
+  "baseline": {
+    "starts": 30,
+    "taps": 30,
+    "totalTimeMs": {
+      "p50": 1876,
+      "p95": 2088
+    },
+    "loadMs": {
+      "p50": 151.9,
+      "p95": 303.4
+    },
+    "readyMs": {
+      "p50": 542.7,
+      "p95": 906.9
+    },
+    "tapMs": {
+      "p50": 12.4,
+      "p95": 60.2
+    },
+    "renderOnlyMs": {
+      "p50": 7,
+      "p95": 41.1
+    },
+    "saveMs": {
+      "p50": 5.9,
+      "p95": 11.2
+    },
+    "pssKb": [
+      119263,
+      120409
+    ]
+  },
+  "after2b": {
+    "starts": 30,
+    "taps": 30,
+    "totalTimeMs": {
+      "p50": 1818,
+      "p95": 2107
+    },
+    "loadMs": {
+      "p50": 136,
+      "p95": 287.2
+    },
+    "readyMs": {
+      "p50": 550.5,
+      "p95": 813.4
+    },
+    "tapMs": {
+      "p50": 8.5,
+      "p95": 23
+    },
+    "renderOnlyMs": {
+      "p50": 3.3,
+      "p95": 10
+    },
+    "saveMs": {
+      "p50": 5.4,
+      "p95": 20.5
+    },
+    "pssKb": [
+      119727,
+      120124
+    ]
+  }
+}

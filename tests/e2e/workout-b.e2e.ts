@@ -6,6 +6,7 @@ import {
   scrollWorkoutUntilVisible,
   startWorkout,
   tap,
+  chooseKilograms,
 } from "./support";
 
 // Workout B has a different shape: overhead press instead of bench and row,
@@ -15,6 +16,7 @@ describe("workout B", { serial: true }, () => {
   test("completes workout A before starting B", async ({ app, screen }) => {
     await app.clearState();
     await app.open();
+    await chooseKilograms(screen);
 
     await startWorkout(screen, "A", 15);
     await logAllSets(screen, 15);
