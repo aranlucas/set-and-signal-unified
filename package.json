@@ -6,14 +6,15 @@
   "keywords": [],
   "type": "module",
   "scripts": {
-    "dev": "cf dev",
+    "dev": "vite",
     "typegen": "cf workers types",
     "generate:api": "pnpm --filter garmin-api-codegen generate",
     "typecheck": "cf workers types && tsc --noEmit",
     "test": "vitest run --project worker",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm test",
-    "build": "cf build",
-    "deploy": "cf deploy",
+    "build": "vite build",
+    "deploy": "pnpm run build && cf deploy --prebuilt",
+    "deploy:preview": "CLOUDFLARE_PREVIEW_BUILD=true vite build && cf previews deploy --prebuilt",
     "smoke": "vitest run --project smoke",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -22,7 +23,9 @@
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "1.2.3",
+    "@modelcontextprotocol/hono": "2.0.2",
     "@modelcontextprotocol/server": "2.3.1",
+    "hono": "4.13.13",
     "zod": "4.6.7"
   },
   "devDependencies": {

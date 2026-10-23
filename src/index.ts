@@ -4,6 +4,8 @@ import {
   type OAuthResourceContext,
 } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "@modelcontextprotocol/server";
+import { createMcpHonoApp } from "@modelcontextprotocol/hono";
+import type { Context } from "hono";
 import * as z from "zod";
 import { authHandler, type AppEnv } from "./auth";
 import { createServer } from "./mcp";
@@ -62,7 +64,20 @@ export default {
             maxRequestBodySize: 64 * 1024,
           });
 
-          return handler.fetch(req);
+          const app = createMcpHonoApp({
+            host: publicUrl.hostname,
+            maxRequestBodySize: 64 * 1024,
+          });
+
+          app.all("/mcp", (c: Context) =>
+            handler.fetch(c.req.raw, { parsedBody: c.get("parsedBody") }),
+          );
+          // Let the Worker's redacted error handler own unexpected failures.
+          app.onError((error) => {
+            throw error;
+          });
+
+          return app.fetch(req);
         },
       },
     });

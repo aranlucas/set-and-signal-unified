@@ -1,0 +1,107 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f1f4f4;
+  color: #182f31;
+  font:
+    16px/1.6 system-ui,
+    sans-serif;
+}
+main {
+  max-width: 680px;
+  margin: 8vh auto;
+  padding: 36px;
+  background: white;
+  border: 1px solid #d7e2e1;
+  border-radius: 16px;
+}
+.eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #536f70;
+}
+h1 {
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  margin: 16px 0 24px;
+}
+p {
+  margin: 16px 0;
+}
+a {
+  color: #006b65;
+}
+code {
+  background: #edf3f2;
+  overflow-wrap: anywhere;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+label {
+  display: block;
+  margin: 18px 0 8px;
+  font-weight: 600;
+}
+input[type="password"] {
+  width: 100%;
+  font: inherit;
+  padding: 12px;
+  border: 1px solid #7a9292;
+  border-radius: 8px;
+}
+button {
+  font: inherit;
+  font-weight: 600;
+  background: #076c63;
+  color: white;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.secondary {
+  color: #264b49;
+  background: #eaf0ef;
+  margin-left: 8px;
+}
+.muted,
+small {
+  color: #526969;
+}
+small {
+  display: block;
+  margin-top: 24px;
+}
+.notice {
+  background: #f0f5f4;
+  border-left: 3px solid #098477;
+  padding: 12px 16px;
+}
+ul,
+ol {
+  padding-left: 24px;
+}
+li {
+  margin: 8px 0;
+}
+input[type="checkbox"] {
+  margin-right: 8px;
+}
+hr {
+  border: 0;
+  border-top: 1px solid #e0e8e7;
+  margin: 28px 0;
+}
+@media (max-width: 720px) {
+  main {
+    margin: 16px;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 30px;
+  }
+}

@@ -194,6 +194,47 @@ afterEach(() => {
 });
 
 describe("Cloudflare OAuth and MCP integration", () => {
+  it.each(["/", "/privacy"])(
+    "serves %s through Hono with the existing page security headers",
+    async (path) => {
+      const response = await dispatch(path);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
+      expect(response.headers.get("content-security-policy")).toContain("default-src 'none'");
+      expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+      expect(response.headers.get("referrer-policy")).toBe("same-origin");
+      expect(await response.text()).not.toContain("<script");
+    },
+  );
+
+  it("authenticates before applying the MCP Hono JSON parser and body limit", async () => {
+    const oversized = JSON.stringify({ value: "x".repeat(64 * 1024) });
+
+    expect(
+      (
+        await dispatch("/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: oversized,
+        })
+      ).status,
+    ).toBe(401);
+
+    mockGarmin(GARMIN_TOKEN_PATH, "POST", { access_token: "mock-access" });
+    const approved = await approve();
+    const tokens = await (await exchange(approved.clientId, approved.code)).json<AccessToken>();
+
+    const headers = {
+      Authorization: `Bearer ${tokens.access_token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    };
+
+    expect((await dispatch("/mcp", { method: "POST", headers, body: "{" })).status).toBe(400);
+    expect((await dispatch("/mcp", { method: "POST", headers, body: oversized })).status).toBe(413);
+  });
+
   it("preserves the browser origin when submitting the consent form", async () => {
     const consent = await startConsent();
     // no-referrer makes browsers send Origin: null on native form POSTs.

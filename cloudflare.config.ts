@@ -1,6 +1,6 @@
 import { bindings, defineConfig } from "cf/config";
 
-// `cf dev` runs in development mode; PUBLIC_URL must match the port pinned in vite.config.ts.
+// Vite dev runs in development mode; PUBLIC_URL must match the port pinned in vite.config.ts.
 // Worker Previews (`cf previews deploy`) get their own KV so branch builds never touch production grants.
 export default defineConfig(({ mode, isPreview }) => ({
   accountId: "d93c650f72e597f96785abba389b0ce4",
