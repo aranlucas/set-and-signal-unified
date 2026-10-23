@@ -2,15 +2,10 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import hooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+
 export default tseslint.config(
   {
-    ignores: [
-      "android/**",
-      "ios/**",
-      "artifacts/**",
-      ".expo/**",
-      "node_modules/**",
-    ],
+    ignores: ["android/**", "ios/**", "artifacts/**", ".expo/**", "node_modules/**"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -19,10 +14,7 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_" },
-      ],
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     },
   },
   {

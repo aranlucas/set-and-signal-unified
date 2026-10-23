@@ -1,32 +1,30 @@
-import "./support/native";
 import { Column, Text } from "@expo/ui/jetpack-compose";
-import { act } from "react";
-import { create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { cleanup, render, type Root } from "./support/native-renderer";
 
-let renderer: ReactTestRenderer | undefined;
+let renderer: Root | undefined;
+
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-  vi.spyOn(console, "error").mockImplementation(() => {});
 });
-afterEach(async () => {
-  if (renderer) await act(async () => renderer!.unmount());
+
+afterEach(() => {
+  cleanup();
   renderer = undefined;
   vi.restoreAllMocks();
 });
 
-it("accepts primitive children, ignored values, arrays and nested Text spans", async () => {
-  await act(async () => {
-    renderer = create(
+it("accepts primitive children, ignored values, arrays and nested Text spans", () => {
+  renderer = render(
+    <Text>
+      {["Ready", 2, false, true, null, undefined, [" "]]}
       <Text>
-        {["Ready", 2, false, true, null, undefined, [" "]]}
-        <Text>
-          set <Text>{3}</Text>
-        </Text>
-      </Text>,
-    );
-  });
-  expect(renderer!.toJSON()).toEqual({
+        set <Text>{3}</Text>
+      </Text>
+    </Text>,
+  );
+  const textNode = renderer.container.queryAll((node) => node.type === "Text")[0];
+  expect(textNode.toJSON()).toMatchObject({
     type: "Text",
     props: {},
     children: [
@@ -64,12 +62,8 @@ it.each([
     child: <Text>{["Allowed", <CustomCaption key="caption" />]}</Text>,
     type: "CustomCaption",
   },
-])("rejects $label and names its type", async ({ child, type }) => {
-  await expect(
-    act(async () => {
-      renderer = create(<Text>{child}</Text>);
-    }),
-  ).rejects.toThrow(
+])("rejects $label and names its type", ({ child, type }) => {
+  expect(() => render(<Text>{child}</Text>)).toThrow(
     `Unsupported child element of type "${type}" inside <Text>`,
   );
 });

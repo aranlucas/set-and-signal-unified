@@ -19,7 +19,7 @@ The final signed APK passed the Android 15 A → B → A smoke run, including al
 
 ## Device acceptance
 
-Two installed Android release targets: Android 17/API 37 (Agents_Android_17_API_37_2) and Android 15/API 35 (Pixel_API_35). Metro is stopped. `android-smoke.mjs` records full A/B logging, deadlift 1×5, active-session restart, history detail, progress and the next A workout. Screenshots and structured reports live in `artifacts/qa/`.
+Two installed Android release targets: Android 17/API 37 (Agents_Android_17_API_37_2) and Android 15/API 35 (Pixel_API_35). Metro is stopped. `android-smoke.ts` records full A/B logging, deadlift 1×5, active-session restart, history detail, progress and the next A workout. Screenshots and structured reports live in `artifacts/qa/`.
 
 Additional checks cover native weight input and validation, warm-up/plate tools, notification permission denial/grant, background timer delivery, native file save/restore, share sheet, theme changes, enlarged text, offline use, and back navigation. The final results below distinguish exercised behavior from limitations.
 

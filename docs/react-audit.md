@@ -29,7 +29,7 @@ Layout fixes from the same pass, each checked on the emulator before and after:
 - **Compiler**: babel-plugin-react-compiler with babel-preset-expo's production options; the logger records every compiled function and bailout.
 - **Renders**: `tests/renders.test.tsx` renders the real `App` with the same compiler transform and counts component invocations per interaction against 10,000 saved sessions. The mock renders every history row; production recycles rows natively, so History counts are an upper bound.
 - **CPU**: `check-performance.ts` on Node 24 (darwin/arm64). The formatting comparison was paired in one process (old and new alternating, outputs compared).
-- **Device**: `measure-device.mjs` drives release APKs built with `EXPO_PUBLIC_FIVEFOLD_PERF=1 EXPO_PUBLIC_FIVEFOLD_SEED=10000` on an Android 15 arm64 emulator (read-only AVD). Baseline and candidate APKs were installed alternately (ABAB) in a quiet window, so drift affects both. Normal builds exclude the instrumentation: a production export contains neither `FIVEFOLD_PERF` nor the seed code.
+- **Device**: `measure-device.ts` drives release APKs built with `EXPO_PUBLIC_FIVEFOLD_PERF=1 EXPO_PUBLIC_FIVEFOLD_SEED=10000` on an Android 15 arm64 emulator (read-only AVD). Baseline and candidate APKs were installed alternately (ABAB) in a quiet window, so drift affects both. Normal builds exclude the instrumentation: a production export contains neither `FIVEFOLD_PERF` nor the seed code.
 
 ## Results
 
@@ -77,5 +77,5 @@ pnpm run check                                   # includes the compiler gate an
 FIVEFOLD_PERF_LABEL=after pnpm run perf          # artifacts/perf/cpu-after.json
 FIVEFOLD_PERF_LABEL=after pnpm run perf:renders  # artifacts/perf/renders-after.json
 # Release APK with EXPO_PUBLIC_FIVEFOLD_PERF=1 EXPO_PUBLIC_FIVEFOLD_SEED=10000, then:
-node measure-device.mjs --serial emulator-5554 --apk <apk> --label <label> --starts 15 --workouts 1
+pnpm exec tsx measure-device.ts --serial emulator-5554 --apk <apk> --label <label> --starts 15 --workouts 1
 ```

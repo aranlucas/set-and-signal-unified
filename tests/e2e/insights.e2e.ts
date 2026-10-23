@@ -1,6 +1,7 @@
 import { test } from "@e2e-dev/mobile";
 import { describe, expect, type Screen } from "e2e";
 import { logAllSets, startWorkout, tap, chooseKilograms } from "./support";
+import { runSequentially } from "../support/sequential";
 
 async function expectTrainingWeeks(screen: Screen, saved: number) {
   const heading = screen.getByText("Training consistency");
@@ -38,9 +39,11 @@ describe("training insights", { serial: true }, () => {
 
     await expect(screen.getByText("0 saved workouts")).toBeVisible();
     await expect(screen.getByText("No workouts yet")).toBeVisible();
+
     // Compose exposes the selected segment last in its accessibility tree.
-    for (const label of ["All", "A", "B"])
+    await runSequentially(["All", "A", "B"], async (label) => {
       await expect(screen.getByText(label)).toBeVisible();
+    });
 
     await tap(screen, screen.getByText("A"));
     await expect(screen.getByText("0 workouts A")).toBeVisible();
@@ -56,9 +59,7 @@ describe("training insights", { serial: true }, () => {
     await expect(screen.getByText("0 saved workouts")).toBeVisible();
   });
 
-  test("explains successful increases before saving a complete A", async ({
-    screen,
-  }) => {
+  test("explains successful increases before saving a complete A", async ({ screen }) => {
     await tap(screen, screen.getByText("Train"));
     await startWorkout(screen, "A", 15);
     await logAllSets(screen, 15);
@@ -78,10 +79,7 @@ describe("training insights", { serial: true }, () => {
     await expect(screen.getByText("22.5 kg")).toBeVisible();
   });
 
-  test("keeps the total while filtering A, empty B and All", async ({
-    app,
-    screen,
-  }) => {
+  test("keeps the total while filtering A, empty B and All", async ({ app, screen }) => {
     await tap(screen, screen.getByText("History"));
     await expect(screen.getByText("1 saved workout")).toBeVisible();
     await expect(screen.getByText("Workout A")).toBeVisible();
@@ -102,16 +100,12 @@ describe("training insights", { serial: true }, () => {
     await expect(screen.getByText("1 saved workout")).toBeVisible();
     await tap(screen, screen.getByText("Workout A"));
     await expect(screen.getByText(/1,750 kg volume/)).toBeVisible();
-    await expect(
-      screen.getByLabel(/^Squat, set 5 of 5, 5 of 5 reps/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 5 of 5, 5 of 5 reps/)).toBeVisible();
     await app.back();
     await expect(screen.getByText("1 saved workout")).toBeVisible();
   });
 
-  test("counts a saved workout once and retains records and weight history", async ({
-    screen,
-  }) => {
+  test("counts a saved workout once and retains records and weight history", async ({ screen }) => {
     await tap(screen, screen.getByText("Progress"));
     await expectTrainingWeeks(screen, 1);
 
@@ -137,9 +131,7 @@ describe("training insights", { serial: true }, () => {
     await expect(sets).toBeVisible();
   });
 
-  test("explains unlogged sets and repeats unfinished B loads", async ({
-    screen,
-  }) => {
+  test("explains unlogged sets and repeats unfinished B loads", async ({ screen }) => {
     await tap(screen, screen.getByText("Train"));
     await startWorkout(screen, "B", 11);
     await tap(screen, screen.getByLabel(/^Squat, set 1 of 5, not logged/));
@@ -175,10 +167,7 @@ describe("training insights", { serial: true }, () => {
     await expect(deadlift).toBeVisible();
   });
 
-  test("persists both saved workouts and progress across a restart", async ({
-    app,
-    screen,
-  }) => {
+  test("persists both saved workouts and progress across a restart", async ({ app, screen }) => {
     await app.restart();
     await expect(screen.getByText("Start workout A")).toBeVisible();
     await tap(screen, screen.getByText("History"));
@@ -195,12 +184,8 @@ describe("training insights", { serial: true }, () => {
     await expect(screen.getByText("Workout A")).not.toBeVisible();
 
     await tap(screen, screen.getByText("Workout B"));
-    await expect(
-      screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/),
-    ).toBeVisible();
-    await expect(
-      screen.getByLabel(/^Squat, set 2 of 5, skipped/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/)).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 2 of 5, skipped/)).toBeVisible();
     await app.back();
     await tap(screen, screen.getByText("All"));
     await expect(screen.getByText("2 saved workouts")).toBeVisible();

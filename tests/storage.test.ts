@@ -4,42 +4,42 @@ import {
   finishSession,
   startSession,
   logSet,
+  type AppState,
 } from "../src/domain/workout";
+import { createStorage } from "../src/data/storage";
+import { createSqliteAdapter } from "./support/sqlite";
+import { requireValue } from "./support/require-value";
 
-// Run the actual SQL against SQLite; only the Expo native bridge is adapted to Node.
-vi.mock("expo-sqlite", async () => {
-  const { DatabaseSync } = await import("node:sqlite");
-  const db = new DatabaseSync(":memory:");
-  const adapter = {
-    execSync: (sql: string) => db.exec(sql),
-    runSync: (sql: string, ...args: any[]) => db.prepare(sql).run(...args),
-    getFirstSync: (sql: string, ...args: any[]) =>
-      db.prepare(sql).get(...args) ?? null,
-    getAllSync: (sql: string, ...args: any[]) => db.prepare(sql).all(...args),
-    withTransactionSync: (action: () => void) => {
-      db.exec("BEGIN");
-      try {
-        action();
-        db.exec("COMMIT");
-      } catch (e) {
-        db.exec("ROLLBACK");
-        throw e;
-      }
-    },
-  };
-  return { openDatabaseSync: () => adapter };
-});
-import { openDatabaseSync } from "expo-sqlite";
-import { loadState, saveState } from "../src/data/storage";
+const { database, reset } = createSqliteAdapter();
+
+const storage = createStorage(() => database);
+
+const loadState = () => storage.loadState();
+
+const saveState = (state: AppState) => storage.saveState(state);
 
 const NOW = 1792650000000;
+
+interface QueryPlanRow {
+  detail: string;
+}
+
+interface WorkoutCountRow {
+  count: number;
+}
+
 function savedWorkout() {
   let s = startSession(initialState("kg"), NOW);
-  for (const e of s.active!.exercises)
-    for (let i = 0; i < e.sets.length; i++)
+
+  for (const e of requireValue(s.active).exercises) {
+    for (let i = 0; i < e.sets.length; i++) {
       s = logSet(s, e.lift, i, 5, NOW + 1000);
+    }
+  }
+
   return finishSession(s, NOW + 20000);
 }
+
 function stateWithHistory(count: number, notes = "") {
   const s = savedWorkout();
   s.history = Array.from({ length: count }, (_, i) => ({
@@ -48,27 +48,24 @@ function stateWithHistory(count: number, notes = "") {
     finishedAt: NOW + count - i,
     notes,
   }));
+
   return s;
 }
+
 beforeEach(() => {
-  const db = openDatabaseSync("");
-  db.execSync("DROP TABLE IF EXISTS app_state; DROP TABLE IF EXISTS workouts;");
+  reset();
   loadState();
 });
+
 afterEach(() => vi.restoreAllMocks());
+
 describe("persistent workout storage", () => {
   it("loads a clean installation without a saved row", () => {
     expect(loadState()).toEqual(initialState());
   });
   it("resumes every counter, note, setting and deadline after reopening", () => {
-    const s = logSet(
-      startSession(initialState("kg"), NOW),
-      "squat",
-      2,
-      4,
-      NOW + 1000,
-    );
-    s.active!.notes = "Saved offline";
+    const s = logSet(startSession(initialState("kg"), NOW), "squat", 2, 4, NOW + 1000);
+    requireValue(s.active).notes = "Saved offline";
     s.settings.theme = "dark";
     saveState(s);
     expect(loadState()).toEqual(s);
@@ -87,7 +84,7 @@ describe("persistent workout storage", () => {
     saveState(state);
     const settings = { ...state.settings };
     Reflect.deleteProperty(settings, "plates");
-    const db = openDatabaseSync("");
+    const db = database;
     db.runSync(
       "UPDATE app_state SET json = ? WHERE id = 1",
       JSON.stringify({ ...state, settings, history: [] }),
@@ -96,9 +93,7 @@ describe("persistent workout storage", () => {
     expect(loaded).toEqual(state);
     const writes = vi.spyOn(db, "runSync");
     saveState(loaded);
-    expect(
-      writes.mock.calls.filter(([sql]) => String(sql).includes("workouts")),
-    ).toHaveLength(0);
+    expect(writes.mock.calls.filter(([sql]) => sql.includes("workouts"))).toHaveLength(0);
     expect(loadState()).toEqual(state);
   });
   it("persists completion, next weights and history together", () => {
@@ -107,13 +102,7 @@ describe("persistent workout storage", () => {
     expect(loadState()).toEqual(s);
   });
   it("can reopen a workout finished after the device clock moves backward", () => {
-    const active = logSet(
-      startSession(initialState("kg"), NOW),
-      "squat",
-      0,
-      5,
-      NOW + 1000,
-    );
+    const active = logSet(startSession(initialState("kg"), NOW), "squat", 0, 5, NOW + 1000);
     const finished = finishSession(active, NOW - 60000);
     saveState(finished);
     const loaded = loadState();
@@ -121,35 +110,25 @@ describe("persistent workout storage", () => {
     expect(loaded.history[0].finishedAt).toBe(NOW);
   });
   it("adds an index to existing databases for ordered history reads", () => {
-    const db = openDatabaseSync("");
+    const db = database;
     db.execSync("DROP INDEX workouts_finished_at");
     loadState();
-    const plan = db.getAllSync<{ detail: string }>(
+
+    const plan = db.getAllSync<QueryPlanRow>(
       "EXPLAIN QUERY PLAN SELECT json FROM workouts ORDER BY finished_at DESC",
     );
-    expect(
-      plan.some((row) => row.detail.includes("workouts_finished_at")),
-    ).toBe(true);
+
+    expect(plan.some((row) => row.detail.includes("workouts_finished_at"))).toBe(true);
     expect(plan.some((row) => row.detail.includes("TEMP B-TREE"))).toBe(false);
   });
   it("does not rewrite old workout rows when a counter changes", () => {
     const s = savedWorkout();
     saveState(s);
-    const db = openDatabaseSync("");
+    const db = database;
     const spy = vi.spyOn(db, "runSync");
-    const active = logSet(
-      startSession(s, NOW + 30000),
-      "squat",
-      0,
-      5,
-      NOW + 40000,
-    );
+    const active = logSet(startSession(s, NOW + 30000), "squat", 0, 5, NOW + 40000);
     saveState(active);
-    expect(
-      spy.mock.calls.filter(([sql]) =>
-        String(sql).includes("INSERT INTO workouts"),
-      ),
-    ).toHaveLength(0);
+    expect(spy.mock.calls.filter(([sql]) => sql.includes("INSERT INTO workouts"))).toHaveLength(0);
     spy.mockRestore();
   });
   it("rolls back progression when writing a history row fails", () => {
@@ -189,30 +168,29 @@ describe("persistent workout storage", () => {
   });
   it("imports the initial prototype storage format without losing history", () => {
     const s = savedWorkout();
-    const db = openDatabaseSync("");
+    const db = database;
     db.runSync("INSERT INTO app_state(id,json) VALUES(1,?)", JSON.stringify(s));
     const loaded = loadState();
     expect(loaded).toEqual(s);
     saveState(loaded);
-    expect(
-      db.getFirstSync<{ count: number }>(
-        "SELECT count(*) AS count FROM workouts",
-      )!.count,
-    ).toBe(1);
+    expect(db.getFirstSync<WorkoutCountRow>("SELECT count(*) AS count FROM workouts")?.count).toBe(
+      1,
+    );
     expect(loadState()).toEqual(s);
   });
   it.each([
     { name: "20,001 workouts", count: 20001, notes: "" },
     { name: "over 20 MB of history", count: 9000, notes: "n".repeat(2000) },
-  ])(
-    "saves and reopens $name beyond backup import limits",
-    ({ count, notes }) => {
-      const s = stateWithHistory(count, notes);
-      if (notes) expect(JSON.stringify(s).length).toBeGreaterThan(20_000_000);
-      saveState(s);
-      expect(loadState()).toEqual(s);
-    },
-  );
+  ])("saves and reopens $name beyond backup import limits", ({ count, notes }) => {
+    const s = stateWithHistory(count, notes);
+
+    if (notes) {
+      expect(JSON.stringify(s).length).toBeGreaterThan(20_000_000);
+    }
+
+    saveState(s);
+    expect(loadState()).toEqual(s);
+  });
   it("opens history without reserializing it and serializes only current state on a set save", () => {
     const s = stateWithHistory(1000);
     saveState(s);
@@ -220,13 +198,7 @@ describe("persistent workout storage", () => {
     const loaded = loadState();
     expect(stringify).not.toHaveBeenCalled();
     expect(loaded.history).toHaveLength(1000);
-    const active = logSet(
-      startSession(loaded, NOW + 100000),
-      "squat",
-      0,
-      5,
-      NOW + 101000,
-    );
+    const active = logSet(startSession(loaded, NOW + 100000), "squat", 0, 5, NOW + 101000);
     saveState(active);
     expect(stringify).toHaveBeenCalledTimes(1);
     expect(stringify.mock.calls[0][0]).toEqual({ ...active, history: [] });

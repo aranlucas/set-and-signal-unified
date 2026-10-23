@@ -29,9 +29,7 @@ describe("workout recovery", { serial: true }, () => {
     await app.restart();
     await expect(screen.getByText("Workout A")).toBeVisible();
     await expect(screen.getByText("2 / 15 sets")).toBeVisible();
-    await expect(
-      screen.getByLabel(/^Squat, set 2 of 5, 5 of 5 reps/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 2 of 5, 5 of 5 reps/)).toBeVisible();
 
     await discardWorkout(screen);
     await expect(screen.getByText("Start workout A")).toBeVisible();
@@ -66,9 +64,7 @@ describe("workout recovery", { serial: true }, () => {
     await expect(screen.getByText("1 saved workout")).toBeVisible();
 
     await tap(screen, screen.getByText("Workout A"));
-    await expect(
-      screen.getByLabel(/^Squat, set 2 of 5, skipped/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 2 of 5, skipped/)).toBeVisible();
     const skippedHint = screen.getByText(/– skipped · 0 no reps/);
     await screen.scrollUntilVisible(skippedHint);
     await expect(skippedHint).toBeVisible();

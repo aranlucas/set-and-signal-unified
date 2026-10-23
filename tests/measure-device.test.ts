@@ -8,7 +8,7 @@ import {
   parseUiNodes,
   percentile,
   summarize,
-} from "../measure-device.mjs";
+} from "../measure-device";
 
 describe("device measurement parsers (no adb calls)", () => {
   it("reads Android cold-start timings and rejects a failed/warm launch", () => {
@@ -23,9 +23,7 @@ Complete`),
     ).toEqual({ totalTimeMs: 1432, waitTimeMs: 1460 });
     expect(() => parseAmStart("Status: timeout\nWaitTime: 10000")).toThrow();
     expect(() =>
-      parseAmStart(
-        "Status: ok\nActivity not started, intent delivered\nWaitTime: 12",
-      ),
+      parseAmStart("Status: ok\nActivity not started, intent delivered\nWaitTime: 12"),
     ).toThrow();
   });
   it("reads gfxinfo totals, percentages, and frame percentiles", () => {
@@ -50,23 +48,18 @@ Number Missed Vsync: 9`),
       p95Ms: 25,
       p99Ms: 64,
     });
-    expect(() =>
-      parseGfxinfo("No process found for: app.fivefold.lifts"),
-    ).toThrow();
+    expect(() => parseGfxinfo("No process found for: app.fivefold.lifts")).toThrow();
   });
   it("extracts TOTAL PSS from modern and older meminfo formats", () => {
-    expect(
-      parsePss(" App Summary\n TOTAL PSS: 184,280     TOTAL RSS: 277120"),
-    ).toBe(184280);
-    expect(parsePss("        TOTAL   184280  154000   30000  1234")).toBe(
-      184280,
-    );
+    expect(parsePss(" App Summary\n TOTAL PSS: 184,280     TOTAL RSS: 277120")).toBe(184280);
+    expect(parsePss("        TOTAL   184280  154000   30000  1234")).toBe(184280);
     expect(() => parsePss("No process found")).toThrow();
   });
   it("decodes UI descriptions and bounds, retaining offscreen/disabled nodes", () => {
     const nodes = parseUiNodes(
       `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0"><node index="0" text="Start workout A" content-desc="" enabled="true" bounds="[32,1550][1048,1646]"><node text="" content-desc="Squat, set 1 of 5, not logged. Tap to log 5 reps" bounds="[48,400][192,544]"/><node text="Weights &amp; equipment &quot;kg&quot;" content-desc="Warm-up &amp; plates" enabled="false" bounds="[-20,2100][100,2200]"/></node></hierarchy>`,
     );
+
     expect(nodes[0]).toMatchObject({
       text: "Start workout A",
       x: 540,
@@ -84,29 +77,27 @@ Number Missed Vsync: 9`),
       x: 40,
     });
     expect(() => parseUiNodes("ERROR: could not get idle state")).toThrow();
-    expect(() =>
-      parseUiNodes('<hierarchy><node bounds="bad"/></hierarchy>'),
-    ).toThrow();
+    expect(() => parseUiNodes('<hierarchy><node bounds="bad"/></hierarchy>')).toThrow();
   });
   it("reads only complete valid measurement records from logcat", () => {
     expect(
-      parsePerfLine(
-        'I/ReactNativeJS(28471): FIVEFOLD_PERF {"name":"commit.render","ms":12.345}',
-      ),
+      parsePerfLine('I/ReactNativeJS(28471): FIVEFOLD_PERF {"name":"commit.render","ms":12.345}'),
     ).toEqual({ name: "commit.render", ms: 12.345 });
     expect(
       parsePerfLine(
         '10-22 12:42:17.004 28471 28501 I ReactNativeJS: FIVEFOLD_PERF {"name":"startup.seed","ms":240,"sessions":10000}',
       ),
     ).toMatchObject({ name: "startup.seed", sessions: 10000 });
+
     for (const line of [
       "normal message",
       'FIVEFOLD_PERF {"name":',
       'FIVEFOLD_PERF {"name":"bad","ms":-1}',
       'FIVEFOLD_PERF {"ms":12}',
       'FIVEFOLD_PERF {"name":"bad","ms":null}',
-    ])
+    ]) {
       expect(parsePerfLine(line)).toBeNull();
+    }
   });
   it("uses nearest-rank percentiles without mutating samples", () => {
     const values = [7, 1, 5, 3, 2];
@@ -128,11 +119,13 @@ Number Missed Vsync: 9`),
         "baseline",
       ]),
     ).toMatchObject({ starts: 15, workouts: 3 });
+
     for (const args of [
       [],
       ["--label", "../bad"],
       ["--serial", "x", "--apk", "x", "--label", "baseline", "--starts", "0"],
-    ])
+    ]) {
       expect(() => parseArguments(args)).toThrow();
+    }
   });
 });

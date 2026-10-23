@@ -1,6 +1,7 @@
 import type { E2EConfig } from "e2e";
-import { mobile } from "@e2e-dev/mobile";
+import { mobile, type MobileOptions } from "@e2e-dev/mobile";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { z } from "zod";
 
 // Installed-app tests. The suite launches whatever build is already installed
 // under this package id, so it exercises the release APK, not a dev server.
@@ -10,13 +11,28 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 // model. Set FREELLM_API_KEY in the shell that runs e2e. The endpoint's `auto`
 // model routes to the best model in the account's active chain, so no model
 // id has to be pinned here.
+const environment = z
+  .object({
+    FREELLM_BASE_URL: z
+      .string()
+      .url()
+      .default("https://freellmapi-production-1175.up.railway.app/v1"),
+    FREELLM_API_KEY: z.string().optional(),
+    E2E_DEVICE: z.string().optional(),
+  })
+  .parse(process.env);
+
 const freellm = createOpenAICompatible({
   name: "freellm",
-  baseURL:
-    process.env.FREELLM_BASE_URL ??
-    "https://freellmapi-production-1175.up.railway.app/v1",
-  apiKey: process.env.FREELLM_API_KEY,
+  baseURL: environment.FREELLM_BASE_URL,
+  apiKey: environment.FREELLM_API_KEY,
 });
+
+const deviceId = environment.E2E_DEVICE;
+
+const mobileOptions: MobileOptions = deviceId
+  ? { platform: "android", session: ["fivefold", deviceId].join("-"), device: deviceId }
+  : { platform: "android", session: "fivefold-android" };
 
 export default {
   agents: {
@@ -27,12 +43,8 @@ export default {
   targets: [
     {
       name: "android",
-      engine: mobile({
-        platform: "android",
-        // Separate pinned devices must not share agent-device's default session.
-        session: `fivefold-${process.env.E2E_DEVICE ?? "android"}`,
-        ...(process.env.E2E_DEVICE ? { device: process.env.E2E_DEVICE } : {}),
-      }),
+      // Separate pinned devices must not share agent-device's default session.
+      engine: mobile(mobileOptions),
       app: { bundleId: "app.fivefold.lifts" },
     },
   ],

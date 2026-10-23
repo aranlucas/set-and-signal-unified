@@ -1,106 +1,158 @@
 import { perfNow, perfEnd } from "../perf";
-import * as SQLite from "expo-sqlite";
+import { openDatabaseSync } from "expo-sqlite";
 import { initialState, startSession, type AppState } from "../domain/workout";
-import { validateState } from "../domain/backup";
+import { parseStoredSession, parseStoredState, validateState } from "../domain/backup";
 
-let database: SQLite.SQLiteDatabase | undefined;
-let persistedHistory: AppState["history"] = [];
-export function loadState(): AppState {
-  database = SQLite.openDatabaseSync("fivefold.db");
-  database.execSync(
-    "PRAGMA journal_mode = WAL; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS workouts (id TEXT PRIMARY KEY, finished_at REAL NOT NULL, json TEXT NOT NULL); CREATE INDEX IF NOT EXISTS workouts_finished_at ON workouts (finished_at DESC); PRAGMA user_version = 1;",
-  );
-  let row = database.getFirstSync<{ json: string }>(
-    "SELECT json FROM app_state WHERE id = 1",
-  );
-  if (
-    process.env.EXPO_PUBLIC_FIVEFOLD_PERF === "1" &&
-    process.env.EXPO_PUBLIC_FIVEFOLD_SEED &&
-    !row
-  ) {
-    const count = Number(process.env.EXPO_PUBLIC_FIVEFOLD_SEED);
-    if (Number.isSafeInteger(count) && count > 0) {
-      const started = perfNow();
-      const seeded = validateState(seedState(count));
-      const db = database;
-      db.withTransactionSync(() => {
-        db.runSync(
-          "INSERT INTO app_state (id, json) VALUES (1, ?)",
-          JSON.stringify({ ...seeded, history: [] }),
-        );
-        for (const session of seeded.history)
-          db.runSync(
-            "INSERT INTO workouts (id, finished_at, json) VALUES (?, ?, ?)",
-            session.id,
-            session.finishedAt!,
-            JSON.stringify(session),
-          );
-      });
-      perfEnd("startup.seed", started, { sessions: count });
-      row = db.getFirstSync<{ json: string }>(
-        "SELECT json FROM app_state WHERE id = 1",
-      );
-    }
-  }
-  if (!row) {
-    persistedHistory = [];
-    return initialState();
-  }
-  const saved = JSON.parse(row.json);
-  const rows = database.getAllSync<{ json: string }>(
-    "SELECT json FROM workouts ORDER BY finished_at DESC",
-  );
-  // Also reads the initial prototype format, migrating it on the next successful save.
-  const history = rows.length
-    ? rows.map((r) => JSON.parse(r.json))
-    : saved.history;
-  const state = validateState({ ...saved, history });
-  persistedHistory = rows.length ? state.history : [];
-  return state;
+type DatabaseValue = string | number | null;
+
+export interface StorageDatabase {
+  execSync(source: string): void;
+  runSync(source: string, ...params: DatabaseValue[]): void;
+  getFirstSync<T>(source: string, ...params: DatabaseValue[]): T | null;
+  getAllSync<T>(source: string, ...params: DatabaseValue[]): T[];
+  withTransactionSync(task: () => void): void;
 }
-export function saveState(state: AppState) {
-  if (!database) throw new Error("Workout storage is not ready.");
-  const db = database;
-  // Set taps write only the small current-state row, regardless of history size.
-  // Finalization commits its history row and next weights in one transaction.
-  db.withTransactionSync(() => {
-    db.runSync(
-      "INSERT INTO app_state (id, json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json",
-      JSON.stringify({ ...state, history: [] }),
+
+export interface StorageAdapter {
+  loadState(this: void): AppState;
+  saveState(this: void, state: AppState): void;
+}
+
+interface PersistedJsonRow {
+  json: string;
+}
+
+export function createStorage(
+  openDatabase: (name: string) => StorageDatabase = (name) => openDatabaseSync(name),
+): StorageAdapter {
+  let database: StorageDatabase | undefined;
+  let persistedHistory: AppState["history"] = [];
+
+  function readState(): AppState {
+    const db = openDatabase("fivefold.db");
+    database = db;
+    db.execSync(
+      "PRAGMA journal_mode = WAL; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS workouts (id TEXT PRIMARY KEY, finished_at REAL NOT NULL, json TEXT NOT NULL); CREATE INDEX IF NOT EXISTS workouts_finished_at ON workouts (finished_at DESC); PRAGMA user_version = 1;",
     );
-    if (state.history !== persistedHistory) {
-      const old = new Map(persistedHistory.map((s) => [s.id, s]));
-      const retained = new Set(state.history.map((s) => s.id));
-      for (const session of state.history)
-        if (old.get(session.id) !== session)
+    let row = db.getFirstSync<PersistedJsonRow>("SELECT json FROM app_state WHERE id = 1");
+
+    if (
+      process.env.EXPO_PUBLIC_FIVEFOLD_PERF === "1" &&
+      process.env.EXPO_PUBLIC_FIVEFOLD_SEED &&
+      !row
+    ) {
+      const count = Number(process.env.EXPO_PUBLIC_FIVEFOLD_SEED);
+
+      if (Number.isSafeInteger(count) && count > 0) {
+        const started = perfNow();
+        const seeded = validateState(seedState(count));
+        db.withTransactionSync(() => {
           db.runSync(
-            "INSERT INTO workouts (id, finished_at, json) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET finished_at = excluded.finished_at, json = excluded.json",
-            session.id,
-            session.finishedAt!,
-            JSON.stringify(session),
+            "INSERT INTO app_state (id, json) VALUES (1, ?)",
+            JSON.stringify({ ...seeded, history: [] }),
           );
-      for (const session of persistedHistory)
-        if (!retained.has(session.id))
-          db.runSync("DELETE FROM workouts WHERE id = ?", session.id);
+
+          for (const session of seeded.history) {
+            db.runSync(
+              "INSERT INTO workouts (id, finished_at, json) VALUES (?, ?, ?)",
+              session.id,
+              session.finishedAt,
+              JSON.stringify(session),
+            );
+          }
+        });
+        perfEnd("startup.seed", started, { sessions: count });
+        row = db.getFirstSync<PersistedJsonRow>("SELECT json FROM app_state WHERE id = 1");
+      }
     }
-  });
-  persistedHistory = state.history;
+
+    if (!row) {
+      persistedHistory = [];
+
+      return initialState();
+    }
+
+    const saved = parseStoredState(row.json);
+
+    const rows = db.getAllSync<PersistedJsonRow>(
+      "SELECT json FROM workouts ORDER BY finished_at DESC",
+    );
+
+    // Also reads the initial prototype format, migrating it on the next successful save.
+    const history = rows.length
+      ? rows.map((entry) => parseStoredSession(entry.json))
+      : saved.history;
+
+    const state = validateState({ ...saved, history });
+    persistedHistory = rows.length ? state.history : [];
+
+    return state;
+  }
+
+  function writeState(state: AppState): void {
+    if (!database) {
+      throw new Error("Workout storage is not ready.");
+    }
+
+    const db = database;
+    // Set taps write only the small current-state row, regardless of history size.
+    // Finalization commits its history row and next weights in one transaction.
+    db.withTransactionSync(() => {
+      db.runSync(
+        "INSERT INTO app_state (id, json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json",
+        JSON.stringify({ ...state, history: [] }),
+      );
+
+      if (state.history !== persistedHistory) {
+        const old = new Map(persistedHistory.map((session) => [session.id, session]));
+        const retained = new Set(state.history.map((session) => session.id));
+
+        for (const session of state.history) {
+          if (old.get(session.id) !== session) {
+            db.runSync(
+              "INSERT INTO workouts (id, finished_at, json) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET finished_at = excluded.finished_at, json = excluded.json",
+              session.id,
+              session.finishedAt,
+              JSON.stringify(session),
+            );
+          }
+        }
+
+        for (const session of persistedHistory) {
+          if (!retained.has(session.id)) {
+            db.runSync("DELETE FROM workouts WHERE id = ?", session.id);
+          }
+        }
+      }
+    });
+    persistedHistory = state.history;
+  }
+
+  return { loadState: readState, saveState: writeState };
 }
 
-function seedState(count: number, now = Date.now()): AppState | null {
-  if (
-    process.env.EXPO_PUBLIC_FIVEFOLD_PERF !== "1" ||
-    !process.env.EXPO_PUBLIC_FIVEFOLD_SEED
-  )
-    return null;
-  const state = { ...initialState("kg"), onboarded: true };
-  state.history = Array.from({ length: count }, (_, i) => {
+const defaultStorage = createStorage();
+
+export function loadState(): AppState {
+  return defaultStorage.loadState();
+}
+
+export function saveState(state: AppState): void {
+  defaultStorage.saveState(state);
+}
+
+function seedState(count: number, now = Date.now()): AppState {
+  const base = { ...initialState("kg"), onboarded: true };
+
+  const history = Array.from({ length: count }, (_unused, i) => {
     const finishedAt = now - (i + 1) * 60_000;
-    const session = startSession(
-      state,
-      finishedAt - 30_000,
-      i % 2 ? "B" : "A",
-    ).active!;
+    const started = startSession(base, finishedAt - 30_000, i % 2 ? "B" : "A");
+    const session = started.active;
+
+    if (!session) {
+      throw new Error("A seeded workout must start with an active session.");
+    }
+
     return {
       ...session,
       id: `seed-${i}`,
@@ -108,11 +160,10 @@ function seedState(count: number, now = Date.now()): AppState | null {
       exercises: session.exercises.map((exercise) => ({
         ...exercise,
         weight: 20 + (i % 100) * 2.5,
-        sets: exercise.sets.map((_, index) =>
-          index === 4 && i % 3 === 0 ? 3 : 5,
-        ),
+        sets: exercise.sets.map((_set, index) => (index === 4 && i % 3 === 0 ? 3 : 5)),
       })),
     };
   });
-  return state;
+
+  return { ...base, history };
 }

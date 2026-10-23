@@ -67,21 +67,15 @@ describe("settings", { serial: true }, () => {
     await expect(screen.getByText("60 kg")).toBeVisible();
   });
 
-  test("shows warm-ups and plates for the planned weight", async ({
-    screen,
-  }) => {
+  test("shows warm-ups and plates for the planned weight", async ({ screen }) => {
     await startWorkout(screen, "A", 15);
     await tap(screen, screen.getByLabel("Warm-up & plates for Squat"));
     await expect(screen.getByText("Squat · Warm-up & plates")).toBeVisible();
     await expect(
-      screen.getByText(
-        /2 × 5 at 20 kg.*1 × 5 at 30 kg.*1 × 3 at 40 kg.*1 × 1 at 52\.5 kg/,
-      ),
+      screen.getByText(/2 × 5 at 20 kg.*1 × 5 at 30 kg.*1 × 3 at 40 kg.*1 × 1 at 52\.5 kg/),
     ).toBeVisible();
     await expect(screen.getByText("1 × 20 kg")).toBeVisible();
-    await expect(
-      screen.getByText("Bar: 20 kg · Plates on each side"),
-    ).toBeVisible();
+    await expect(screen.getByText("Bar: 20 kg · Plates on each side")).toBeVisible();
     await screen.scrollUntilVisible(screen.getByText("Back to workout"));
     await tap(screen, screen.getByText("Back to workout"));
     await discardWorkout(screen);
@@ -126,12 +120,9 @@ describe("settings", { serial: true }, () => {
     await screen.scrollUntilVisible(screen.getByText("Keep screen awake"));
     await expect(screen.getByText("Keep screen awake")).toBeVisible();
 
-    await screen.scrollUntilVisible(
-      screen.getByText("After a successful set"),
-      {
-        direction: "up",
-      },
-    );
+    await screen.scrollUntilVisible(screen.getByText("After a successful set"), {
+      direction: "up",
+    });
     await tap(screen, screen.getByText("5:00").first());
     await screen.scrollUntilVisible(screen.getByText("Done"));
     await tap(screen, screen.getByText("Done"));

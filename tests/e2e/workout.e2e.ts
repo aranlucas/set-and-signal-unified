@@ -29,9 +29,7 @@ describe("workout A", { serial: true }, () => {
   test("runs the rest timer and undoes a set", async ({ screen }) => {
     await tap(screen, screen.getByLabel(/^Squat, set 1 of 5, not logged/));
     await expect(screen.getByText("1 / 15 sets")).toBeVisible();
-    await expect(
-      screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/)).toBeVisible();
 
     await expect(screen.getByText("Squat · Set 2/5")).toBeVisible();
     await expect(screen.getByText(/^Rest 1:(2\d|30)$/)).toBeVisible();
@@ -44,9 +42,7 @@ describe("workout A", { serial: true }, () => {
 
     await tap(screen, screen.getByText("Undo"));
     await expect(screen.getByText("0 / 15 sets")).toBeVisible();
-    await expect(
-      screen.getByLabel(/^Squat, set 1 of 5, not logged/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 1 of 5, not logged/)).toBeVisible();
   });
 
   test("keeps a logged set across a restart", async ({ app, screen }) => {
@@ -56,9 +52,7 @@ describe("workout A", { serial: true }, () => {
     await app.restart();
     await expect(screen.getByText("Workout A")).toBeVisible();
     await expect(screen.getByText("1 / 15 sets")).toBeVisible();
-    await expect(
-      screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/)).toBeVisible();
   });
 
   test("corrects reps, records zero and clears a set", async ({ screen }) => {
@@ -67,28 +61,19 @@ describe("workout A", { serial: true }, () => {
     await expect(screen.getByText("Logged: 5 reps.")).toBeVisible();
 
     await tap(screen, screen.getByText("3 reps"));
-    await expect(
-      screen.getByLabel(/^Squat, set 1 of 5, 3 of 5 reps/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 1 of 5, 3 of 5 reps/)).toBeVisible();
 
     await tap(screen, set());
     await tap(screen, screen.getByText("0 reps"));
-    await expect(
-      screen.getByLabel(/^Squat, set 1 of 5, 0 of 5 reps/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 1 of 5, 0 of 5 reps/)).toBeVisible();
 
     await tap(screen, set());
     await tap(screen, screen.getByText("Clear set"));
-    await expect(
-      screen.getByLabel(/^Squat, set 1 of 5, not logged/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 1 of 5, not logged/)).toBeVisible();
     await expect(screen.getByText("0 / 15 sets")).toBeVisible();
   });
 
-  test("records a note, logs every set and saves", async ({
-    device,
-    screen,
-  }) => {
+  test("records a note, logs every set and saves", async ({ device, screen }) => {
     const addNote = screen.getByText("Add note");
     await scrollWorkoutUntilVisible(screen, addNote);
     await tap(screen, addNote);

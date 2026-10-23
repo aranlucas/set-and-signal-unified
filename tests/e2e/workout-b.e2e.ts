@@ -24,9 +24,7 @@ describe("workout B", { serial: true }, () => {
     await expect(screen.getByText("Start workout B")).toBeVisible();
   });
 
-  test("completes workout B and advances the full cycle", async ({
-    screen,
-  }) => {
+  test("completes workout B and advances the full cycle", async ({ screen }) => {
     await startWorkout(screen, "B", 11);
     await expect(screen.getByText("Workout B")).toBeVisible();
     await expect(screen.getByText("1 × 5 reps")).toBeVisible();
@@ -44,10 +42,7 @@ describe("workout B", { serial: true }, () => {
     await expect(screen.getByText("32.5 kg")).toBeVisible();
   });
 
-  test("shows the deadlift set in workout B history", async ({
-    app,
-    screen,
-  }) => {
+  test("shows the deadlift set in workout B history", async ({ app, screen }) => {
     await tap(screen, screen.getByText("History"));
     await expect(screen.getByText("2 saved workouts")).toBeVisible();
     await expect(screen.getByText("Workout B")).toBeVisible();
@@ -57,9 +52,7 @@ describe("workout B", { serial: true }, () => {
     await expect(screen.getByText("Deadlift")).toBeVisible();
     await expect(screen.getByText("40 kg")).toBeVisible();
     await expect(screen.getByText(/1,262.5 kg volume/)).toBeVisible();
-    await expect(
-      screen.getByLabel(/^Deadlift, set 1 of 1, 5 of 5 reps/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Deadlift, set 1 of 1, 5 of 5 reps/)).toBeVisible();
 
     await app.back();
     await expect(screen.getByText("2 saved workouts")).toBeVisible();
@@ -82,9 +75,7 @@ describe("workout B", { serial: true }, () => {
     await expect(screen.getByText(/· 1\/15 sets$/).first()).toBeVisible();
 
     await tap(screen, screen.getByText("Workout A").first());
-    await expect(
-      screen.getByLabel(/^Squat, set 2 of 5, skipped/),
-    ).toBeVisible();
+    await expect(screen.getByLabel(/^Squat, set 2 of 5, skipped/)).toBeVisible();
   });
 
   test("keeps a skipped lift's planned weight", async ({ screen }) => {

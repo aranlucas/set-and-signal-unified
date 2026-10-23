@@ -9,7 +9,7 @@ and the sheets and dialogs that only exist on a device.
 The runner is [`e2e`](https://e2e.tester.army) with its
 [`@e2e-dev/mobile`](https://e2e.tester.army/docs/mobile) engine, which is built
 on [agent-device](https://github.com/callstack/agent-device) — the same device
-driver `android-smoke.mjs` already used. Tests are TypeScript, use
+driver `android-smoke.ts` already used. Tests are TypeScript, use
 Playwright-style locators and assertions, and the suite as committed needs no
 model or API key: every step is a locator or an assertion, with no
 `agent.act` / `agent.assert` call.
@@ -123,7 +123,7 @@ The installed-app scenarios are organized into serial groups, a navigation regre
 `finishWorkout` and `discardWorkout` helpers. It is not a `.e2e.ts` file, so
 the runner does not collect it.
 
-This now covers every scenario in `android-smoke.mjs`. The script
+This now covers every scenario in `android-smoke.ts`. The script
 stays as a smaller agent-device snapshot/click example, not as the test gate.
 
 ## Compose caveats
@@ -226,7 +226,7 @@ scale, and the accessibility fallback described above.
 
 ```sh
 pnpm run verify:apk
-node verify-apk.mjs artifacts/Fivefold-1.3.0.apk
+pnpm exec tsx verify-apk.ts artifacts/Fivefold-1.3.0.apk
 pnpm run test:e2e:matrix
 FIVEFOLD_E2E_AVDS=Pixel_API_35 FIVEFOLD_PREVIOUS_APK=artifacts/Fivefold-1.2.1.apk pnpm run test:e2e:matrix
 ```

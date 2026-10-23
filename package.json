@@ -1,8 +1,28 @@
 {
   "name": "fivefold",
-  "license": "0BSD",
   "version": "1.3.1",
+  "private": true,
+  "license": "0BSD",
   "main": "index.ts",
+  "scripts": {
+    "prepare": "husky",
+    "start": "expo start",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "E2E_TELEMETRY_DISABLED=1 e2e run --target android",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run format:check && pnpm test && pnpm run perf",
+    "build": "expo export --platform android --output-dir .expo/export/android",
+    "build:apk": "pnpm eas build --platform android --profile preview --local --output ./artifacts/Fivefold.apk",
+    "lint": "eslint . --max-warnings=0 && oxlint",
+    "eas": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@25.3.0",
+    "perf": "tsx check-performance.ts",
+    "perf:renders": "vitest run tests/renders.test.tsx",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "verify:apk": "tsx verify-apk.ts",
+    "test:e2e:matrix": "tsx e2e-matrix.ts"
+  },
   "dependencies": {
     "@expo/material-symbols": "^0.1.1",
     "@expo/ui": "~58.0.22",
@@ -20,45 +40,47 @@
     "expo-system-ui": "~58.0.6",
     "expo-widgets": "~58.0.22",
     "react": "19.3.0",
-    "react-native": "0.88.0"
+    "react-native": "0.88.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@ai-sdk/openai-compatible": "^3.0.75",
+    "@aranlucas/oxforge": "0.2.2",
+    "@babel/core": "7.29.7",
+    "@babel/traverse": "7.29.10",
+    "@babel/types": "7.29.8",
     "@e2e-dev/mobile": "^0.12.3",
     "@eslint/js": "^10.0.1",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__traverse": "^7.28.0",
     "@types/node": "^26.6.5",
     "@types/react": "~19.3.0",
-    "@types/react-test-renderer": "19.1.0",
     "e2e": "^0.21.2",
     "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
-    "prettier": "^3.9.10",
-    "react-test-renderer": "19.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "oxfmt": "0.74.0",
+    "oxlint": "1.89.0",
+    "oxlint-tsgolint": "7.0.2004",
+    "test-renderer": "1.3.0",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"
   },
-  "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:e2e": "E2E_TELEMETRY_DISABLED=1 e2e run --target android",
-    "check": "pnpm run lint && pnpm run typecheck && pnpm run format && pnpm test && pnpm run perf",
-    "build:apk": "pnpm eas build --platform android --profile preview --local --output ./artifacts/Fivefold.apk",
-    "lint": "eslint . --max-warnings=0",
-    "eas": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@25.3.0",
-    "perf": "tsx check-performance.ts",
-    "perf:renders": "vitest run tests/renders.test.tsx",
-    "format": "prettier --check \"**/*.{ts,tsx,js,mjs,cjs,json}\"",
-    "verify:apk": "node verify-apk.mjs",
-    "test:e2e:matrix": "node e2e-matrix.mjs"
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
+      "eslint --fix",
+      "oxfmt --no-error-on-unmatched-pattern"
+    ],
+    "*.{json,jsonc,json5,css,scss,md,mdx,yml,yaml,html,toml,vue,svelte,astro,graphql}": [
+      "oxfmt --no-error-on-unmatched-pattern"
+    ]
   },
-  "private": true,
-  "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=24"
-  }
+  },
+  "packageManager": "pnpm@12.15.0"
 }

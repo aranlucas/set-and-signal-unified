@@ -5,59 +5,51 @@ import {
   PLATE_SIZES,
   type PlateInventory,
 } from "../src/domain/plates";
-import {
-  changeUnit,
-  initialState,
-  plateLoad,
-  type Unit,
-} from "../src/domain/workout";
-import { parseBackup, validateState } from "../src/domain/backup";
+import { changeUnit, initialState, plateLoad, type Unit } from "../src/domain/workout";
+import { parseBackup, parseStoredState, validateState } from "../src/domain/backup";
+import { requireValue } from "./support/require-value";
 
 const empty = (): PlateInventory => ({
   kg: [0, 0, 0, 0, 0, 0, 0],
   lb: [0, 0, 0, 0, 0, 0],
 });
+
 // Exhaustive combinations, independent of the dynamic program and its ticks.
 function oracle(unit: Unit, counts: number[], bar: number) {
   const loads = new Map<number, number>();
+
   function visit(index: number, weight: number, count: number) {
     if (index === counts.length) {
       const total = bar + weight * 2;
       loads.set(total, Math.min(count, loads.get(total) ?? Infinity));
+
       return;
     }
-    for (let n = 0; n <= counts[index]; n++)
+
+    for (let n = 0; n <= counts[index]; n++) {
       visit(index + 1, weight + n * PLATE_SIZES[unit][index], count + n);
+    }
   }
+
   visit(0, 0, 0);
+
   return loads;
 }
+
 describe("plate solver", () => {
-  it.each(["kg", "lb"] as const)(
-    "preserves every legacy %s result from 0 to 500",
-    (unit) => {
-      const bar = unit === "kg" ? 20 : 45;
-      for (
-        let target = 0;
-        target <= 500;
-        target += unit === "kg" ? 0.25 : 0.5
-      ) {
-        const { perSide, remainder, belowBar } = loadPlates(
-          target,
-          bar,
-          unit,
-          null,
-        );
-        expect({ perSide, remainder, belowBar }).toEqual(
-          plateLoad(target, bar, unit),
-        );
-      }
-    },
-  );
+  it.each(["kg", "lb"] as const)("preserves every legacy %s result from 0 to 500", (unit) => {
+    const bar = unit === "kg" ? 20 : 45;
+
+    for (let target = 0; target <= 500; target += unit === "kg" ? 0.25 : 0.5) {
+      const { perSide, remainder, belowBar } = loadPlates(target, bar, unit, null);
+      expect({ perSide, remainder, belowBar }).toEqual(plateLoad(target, bar, unit));
+    }
+  });
   it.each(["kg", "lb"] as const)(
     "matches a brute-force %s oracle for several inventories",
     (unit) => {
       const bar = unit === "kg" ? 20 : 45;
+
       for (const counts of [
         PLATE_SIZES[unit].map((_, i) => i % 2),
         PLATE_SIZES[unit].map((_, i) => (i > 1 ? 1 : 0)),
@@ -65,39 +57,40 @@ describe("plate solver", () => {
       ]) {
         const inventory = { ...empty(), [unit]: counts };
         const loads = oracle(unit, counts, bar);
-        const totals = [...loads.keys()].sort((a, b) => a - b);
+        const totals = [...loads.keys()].toSorted((a, b) => a - b);
+
         for (
           let target = 0;
-          target <= totals.at(-1)! + 10;
+          target <= requireValue(totals.at(-1)) + 10;
           target += unit === "kg" ? 0.25 : 0.5
         ) {
           const result = loadPlates(target, bar, unit, inventory);
           expect(result.belowBar).toBe(target < bar);
           expect(result.exact).toBe(loads.has(target));
           expect(result.below?.loaded ?? null).toBe(
-            totals.filter((total) => total <= target).at(-1) ?? null,
+            totals.findLast((total) => total <= target) ?? null,
           );
           expect(result.above?.loaded ?? null).toBe(
             totals.find((total) => total >= target) ?? null,
           );
+
           for (const option of [result, result.below, result.above]) {
-            if (!option) continue;
+            if (!option) {
+              continue;
+            }
+
             expect(option.perSide.reduce((sum, p) => sum + p.count, 0)).toBe(
               loads.get(option.loaded),
             );
-            expect(
-              bar +
-                option.perSide.reduce(
-                  (sum, p) => sum + p.count * p.weight * 2,
-                  0,
-                ),
-            ).toBe(option.loaded);
-            for (const p of option.perSide)
+            expect(bar + option.perSide.reduce((sum, p) => sum + p.count * p.weight * 2, 0)).toBe(
+              option.loaded,
+            );
+
+            for (const p of option.perSide) {
               expect(p.count).toBeLessThanOrEqual(
-                counts[
-                  PLATE_SIZES[unit].findIndex((size) => size === p.weight)
-                ],
+                counts[PLATE_SIZES[unit].findIndex((size) => size === p.weight)],
               );
+            }
           }
         }
       }
@@ -111,10 +104,7 @@ describe("plate solver", () => {
       perSide: [{ weight: 10, count: 3 }],
     });
     // Where both 25+5 and three 10s exist, use two plates per side.
-    expect(
-      loadPlates(80, 20, "kg", { ...inventory, kg: [1, 0, 0, 3, 1, 0, 0] })
-        .perSide,
-    ).toEqual([
+    expect(loadPlates(80, 20, "kg", { ...inventory, kg: [1, 0, 0, 3, 1, 0, 0] }).perSide).toEqual([
       { weight: 25, count: 1 },
       { weight: 5, count: 1 },
     ]);
@@ -136,9 +126,10 @@ describe("plate solver", () => {
       below: null,
       above: { loaded: 20 },
     });
-    expect(
-      loadPlates(75, 20, "kg", { ...empty(), kg: [1, 0, 0, 0, 0, 0, 0] }),
-    ).toMatchObject({ below: { loaded: 70 }, above: null });
+    expect(loadPlates(75, 20, "kg", { ...empty(), kg: [1, 0, 0, 0, 0, 0, 0] })).toMatchObject({
+      below: { loaded: 70 },
+      above: null,
+    });
   });
   it("handles custom bars without rounding a target into an exact load", () => {
     const inventory = defaultPlateInventory();
@@ -175,6 +166,7 @@ describe("plate solver", () => {
     });
   });
 });
+
 describe("plate data", () => {
   it("defaults to standard gym and normalises old backups without copying history", () => {
     expect(initialState().settings.plates).toBeNull();
@@ -198,11 +190,10 @@ describe("plate data", () => {
     expect(parseBackup(JSON.stringify(state))).toEqual(state);
     const converted = changeUnit(state, "lb");
     expect(converted.settings.plates).toBe(state.settings.plates);
-    expect(changeUnit(converted, "kg").settings.plates).toBe(
-      state.settings.plates,
-    );
+    expect(changeUnit(converted, "kg").settings.plates).toBe(state.settings.plates);
   });
-  it.each([
+
+  const malformedInventories = [
     false,
     0,
     "standard",
@@ -214,11 +205,14 @@ describe("plate data", () => {
       kg: [n, 4, 4, 4, 4, 4, 4],
       lb: [4, 4, 4, 4, 4, 4],
     })),
-    { kg: Array(7), lb: Array(6) },
-  ])("rejects malformed inventory %j", (plates) => {
+    { kg: Array.from({ length: 7 }), lb: Array.from({ length: 6 }) },
+  ];
+
+  it.each(malformedInventories)("rejects malformed inventory %j", (plates) => {
     const state = initialState();
+
     expect(() =>
-      validateState({ ...state, settings: { ...state.settings, plates } }),
+      parseStoredState(JSON.stringify({ ...state, settings: { ...state.settings, plates } })),
     ).toThrow();
   });
 });

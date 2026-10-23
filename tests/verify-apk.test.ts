@@ -5,19 +5,15 @@ import {
   isPortrait,
   parseBadging,
   RELEASE_CERT_SHA256,
-} from "../verify-apk.mjs";
-import {
-  assertAvdStopped,
-  deviceSerials,
-  emulatorArguments,
-  matrixAvds,
-} from "../e2e-matrix.mjs";
+} from "../verify-apk";
+import { assertAvdStopped, deviceSerials, emulatorArguments, matrixAvds } from "../e2e-matrix";
 
 // Captured aapt2/apksigner lines from the signed 1.3.0 artifact, no SDK needed.
 const badging = `package: name='app.fivefold.lifts' versionCode='5' versionName='1.3.0' platformBuildVersionName='17'
 targetSdkVersion:'36'
 launchable-activity: name='app.fivefold.lifts.MainActivity' label='Fivefold' icon=''
 native-code: 'arm64-v8a' 'armeabi-v7a' 'x86' 'x86_64'`;
+
 const manifest = `E: manifest
     E: application
         E: activity (line=123)
@@ -27,7 +23,9 @@ const manifest = `E: manifest
         E: activity
           A: http://schemas.android.com/apk/res/android:name(0x01010003)="OtherActivity"
           A: http://schemas.android.com/apk/res/android:screenOrientation(0x0101001e)=0`;
+
 const ok = (stdout: string | Buffer) => ({ status: 0, stdout });
+
 const input = () => ({
   signer: ok(`V2 Signer: certificate SHA-256 digest: ${RELEASE_CERT_SHA256}`),
   alignment: ok("Verification successful"),
@@ -37,11 +35,13 @@ const input = () => ({
   sha256: "a".repeat(64),
   checksum: "a".repeat(64),
 });
+
 const expected = { version: "1.3.0", versionCode: 5 };
+
 const failures = (data: ReturnType<typeof input>) =>
   apkGates(data, expected)
-    .filter((g: { passed: boolean }) => !g.passed)
-    .map((g: { name: string }) => g.name);
+    .filter((gate) => !gate.passed)
+    .map((gate) => gate.name);
 
 describe("signed APK release gates", () => {
   test("accepts captured release metadata and a binary bundle", () => {
@@ -84,7 +84,7 @@ describe("signed APK release gates", () => {
     [
       "debug",
       (d: ReturnType<typeof input>) => {
-        d.badging.stdout += "\napplication-debuggable";
+        d.badging.stdout = `${d.badging.stdout.toString()}\napplication-debuggable`;
       },
       "not debuggable",
     ],
@@ -144,10 +144,7 @@ describe("signed APK release gates", () => {
     [
       "code",
       (d: ReturnType<typeof input>) => {
-        d.badging.stdout = badging.replace(
-          "versionCode='5'",
-          "versionCode='4'",
-        );
+        d.badging.stdout = badging.replace("versionCode='5'", "versionCode='4'");
       },
       "versionCode 5",
     ],
@@ -159,60 +156,52 @@ describe("signed APK release gates", () => {
   test("does not borrow portrait from another activity", () => {
     expect(isPortrait(manifest, "MissingActivity")).toBe(false);
     expect(isPortrait(manifest, "OtherActivity")).toBe(false);
-    expect(
-      isPortrait(
-        "E: application\n A: android:screenOrientation(1)=1",
-        "MainActivity",
-      ),
-    ).toBe(false);
+    expect(isPortrait("E: application\n A: android:screenOrientation(1)=1", "MainActivity")).toBe(
+      false,
+    );
   });
   test("explicit historical filename selects version but current build still checks code", () => {
-    expect(
-      expectedRelease("artifacts/Fivefold-1.3.0.apk", "1.3.1", 6, true),
-    ).toEqual({ version: "1.3.0", versionCode: undefined });
-    expect(
-      expectedRelease("artifacts/Fivefold-1.3.1.apk", "1.3.1", 6, true),
-    ).toEqual({ version: "1.3.1", versionCode: 6 });
+    expect(expectedRelease("artifacts/Fivefold-1.3.0.apk", "1.3.1", 6, true)).toEqual({
+      version: "1.3.0",
+      versionCode: undefined,
+    });
+    expect(expectedRelease("artifacts/Fivefold-1.3.1.apk", "1.3.1", 6, true)).toEqual({
+      version: "1.3.1",
+      versionCode: 6,
+    });
     expect(expectedRelease("custom.apk", "1.3.1", 6, true)).toEqual({
       version: "1.3.1",
       versionCode: 6,
     });
   });
 });
+
 test("matrix validates AVDs and sees occupied offline devices", () => {
-  expect(matrixAvds(undefined)).toEqual([
-    "Pixel_API_35",
-    "Agents_Android_17_API_37_2",
-  ]);
+  expect(matrixAvds()).toEqual(["Pixel_API_35", "Agents_Android_17_API_37_2"]);
   expect(() => matrixAvds("one,one")).toThrow(/distinct/);
   expect(() => matrixAvds("one,")).toThrow(/nonempty/);
   expect(
-    deviceSerials(
-      "List of devices attached\nemulator-5556\tdevice\nemulator-5560\toffline\n",
-    ),
+    deviceSerials("List of devices attached\nemulator-5556\tdevice\nemulator-5560\toffline\n"),
   ).toEqual(["emulator-5556", "emulator-5560"]);
 });
 
 test("matrix refuses running AVDs and reserves fresh even ports with read-only boots", () => {
   expect(() =>
-    assertAvdStopped("Pixel_API_35", [
-      { name: "Pixel_API_35", serial: "emulator-5556" },
-    ]),
+    assertAvdStopped("Pixel_API_35", [{ name: "Pixel_API_35", serial: "emulator-5556" }]),
   ).toThrow(/already running as emulator-5556.*will not be reused or killed/);
   expect(() =>
-    assertAvdStopped("Other", [
-      { name: "Pixel_API_35", serial: "emulator-5556" },
-    ]),
+    assertAvdStopped("Other", [{ name: "Pixel_API_35", serial: "emulator-5556" }]),
   ).not.toThrow();
-  for (const port of [5556, 5561, 5682])
+
+  for (const port of [5556, 5561, 5682]) {
     expect(() => emulatorArguments("Pixel_API_35", port)).toThrow(/even/);
+  }
+
   const args = emulatorArguments("Pixel_API_35", 5560);
-  for (const flag of [
-    "-read-only",
-    "-no-snapshot-save",
-    "-no-boot-anim",
-    "-no-audio",
-  ])
+
+  for (const flag of ["-read-only", "-no-snapshot-save", "-no-boot-anim", "-no-audio"]) {
     expect(args).toContain(flag);
+  }
+
   expect(args).not.toContain("-wipe-data");
 });

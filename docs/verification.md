@@ -69,15 +69,15 @@ See [installed-app E2E](e2e.md) for APK overrides, prerequisites and cleanup.
 | React Compiler, no bailouts | `pnpm exec vitest run tests/compiler.test.ts` |
 | Render counts for interactions | `pnpm run perf:renders` (`tests/renders.test.tsx`) |
 | CPU budgets, including worst-case bounded plate solver | `pnpm run perf` (`check-performance.ts`) |
-| Device performance A/B, startup, JS/render times, memory | `node measure-device.mjs --serial emulator-5556 --apk <instrumented-apk> --label baseline` then repeat with `--label candidate` (see `docs/react-audit.md`; instrumented artifacts must not ship) |
+| Device performance A/B, startup, JS/render times, memory | `pnpm exec tsx measure-device.ts --serial emulator-5556 --apk <instrumented-apk> --label baseline` then repeat with `--label candidate` (see `docs/react-audit.md`; instrumented artifacts must not ship) |
 | Installed-app workouts, settings, persistence, navigation, plates | `E2E_DEVICE=emulator-5556 pnpm run test:e2e` |
-| Android 15 and 17 device matrix | `pnpm run test:e2e:matrix` (`e2e-matrix.mjs`; AVDs must not already be running) |
+| Android 15 and 17 device matrix | `pnpm run test:e2e:matrix` (`e2e-matrix.ts`; AVDs must not already be running) |
 | Upgrade in place from latest signed release | `E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/upgrade.e2e.ts` |
 | Upgrade in place from 1.2.1 | `E2E_DEVICE=emulator-5556 FIVEFOLD_PREVIOUS_APK=artifacts/Fivefold-1.2.1.apk pnpm exec e2e run tests/e2e/upgrade.e2e.ts` |
 | Legacy backup restore, custom inventory and byte-identical round trip | `E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/backup.e2e.ts` |
 | 200% text tabs, plate columns/cap, workout sets/warning and tools | `E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/large-text.e2e.ts` |
 | Accessible names and enabled 48 dp targets across app surfaces | `E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/accessibility.e2e.ts` |
-| Release signature, 16 KB alignment, metadata/ABIs/portrait, bundle and checksum | `pnpm run verify:apk` (`verify-apk.mjs`; `node verify-apk.mjs artifacts/Fivefold-1.3.0.apk` checks the historical artifact) |
+| Release signature, 16 KB alignment, metadata/ABIs/portrait, bundle and checksum | `pnpm run verify:apk` (`verify-apk.ts`; `pnpm exec tsx verify-apk.ts artifacts/Fivefold-1.3.0.apk` checks the historical artifact) |
 
 Physical-device frame pacing and a human TalkBack experience still require
 human/device evaluation; the deterministic accessibility audit codifies the

@@ -2,14 +2,17 @@ import * as Notifications from "expo-notifications";
 import { NAMES, type Rest } from "../domain/workout";
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: () =>
+    Promise.resolve({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
 });
+
 const channel = "rest";
+
 export async function enableRestAlerts(): Promise<boolean> {
   await Notifications.setNotificationChannelAsync(channel, {
     name: "Rest timer",
@@ -18,19 +21,22 @@ export async function enableRestAlerts(): Promise<boolean> {
     vibrationPattern: [0, 200, 100, 200],
   });
   const status = await Notifications.requestPermissionsAsync();
+
   return status.granted;
 }
-let queue = Promise.resolve();
-export function syncRestAlert(
-  rest: Rest | null,
-  enabled: boolean,
-  onError: () => void,
-) {
+
+let queue: Promise<unknown> = Promise.resolve();
+
+export function syncRestAlert(rest: Rest | null, enabled: boolean, onError: () => void) {
   // Serialize cancellation/scheduling so a quick second tap cannot leave a stale alert.
   queue = queue
     .then(async () => {
       await Notifications.cancelScheduledNotificationAsync("fivefold-rest");
-      if (!enabled || !rest || rest.endsAt <= Date.now()) return;
+
+      if (!enabled || !rest || rest.endsAt <= Date.now()) {
+        return false;
+      }
+
       await Notifications.scheduleNotificationAsync({
         identifier: "fivefold-rest",
         content: {
@@ -48,6 +54,12 @@ export function syncRestAlert(
           delivery: "alarmClock",
         },
       });
+
+      return true;
     })
-    .catch(onError);
+    .catch(() => {
+      onError();
+
+      return false;
+    });
 }

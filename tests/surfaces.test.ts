@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  nextSetLabel,
-  notificationProps,
-  widgetProps,
-} from "../src/domain/surfaces";
+import { nextSetLabel, notificationProps, widgetProps } from "../src/domain/surfaces";
 import { initialState, logSet, startSession } from "../src/domain/workout";
+import { requireValue } from "./support/require-value";
+
 const NOW = 1792650000000;
 
 describe("widget and notification surfaces", () => {
@@ -12,11 +10,7 @@ describe("widget and notification surfaces", () => {
     const props = widgetProps(initialState("kg"), new Date(NOW));
     expect(props.title).toBe("Workout A");
     expect(props.progress).toBe(-1);
-    expect(props.lifts.map((l) => l.name)).toEqual([
-      "Squat",
-      "Bench press",
-      "Barbell row",
-    ]);
+    expect(props.lifts.map((l) => l.name)).toEqual(["Squat", "Bench press", "Barbell row"]);
     expect(props.lifts[0].detail).toBe("20 kg · 5×5");
     expect(props.footer).toBe("0 / 3 workouts this week");
   });
@@ -36,19 +30,22 @@ describe("widget and notification surfaces", () => {
   it("includes the rest deadline only while it is in the future", () => {
     let s = startSession(initialState("kg"), NOW);
     s = logSet(s, "squat", 0, 5, NOW);
-    const resting = notificationProps(s, NOW + 1000)!;
+    const resting = requireValue(notificationProps(s, NOW + 1000));
     expect(resting.title).toBe("Workout A · 1/15 sets");
     expect(resting.status).toMatch(/^Rest until .+ · Next: Squat · Set 2\/5$/);
-    expect(notificationProps(s, NOW + 91_000)!.status).toBe(
-      "Next: Squat · Set 2/5",
-    );
+    expect(requireValue(notificationProps(s, NOW + 91_000)).status).toBe("Next: Squat · Set 2/5");
   });
   it("prompts to finish once every set is logged", () => {
     let s = startSession(initialState("kg"), NOW);
-    for (const e of s.active!.exercises)
-      for (let i = 0; i < e.sets.length; i++) s = logSet(s, e.lift, i, 5, NOW);
+
+    for (const e of requireValue(s.active).exercises) {
+      for (let i = 0; i < e.sets.length; i++) {
+        s = logSet(s, e.lift, i, 5, NOW);
+      }
+    }
+
     expect(nextSetLabel(s.active)).toBe("All sets logged");
-    expect(notificationProps(s, NOW + 999_999)!.status).toBe(
+    expect(requireValue(notificationProps(s, NOW + 999_999)).status).toBe(
       "All sets logged · Tap to finish",
     );
   });

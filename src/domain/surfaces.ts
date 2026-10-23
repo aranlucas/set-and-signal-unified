@@ -13,6 +13,7 @@ import {
 /** Next unlogged set, e.g. "Squat · Set 2/5", or "All sets logged". */
 export function nextSetLabel(session: Session | null) {
   const next = session?.exercises.find((e) => e.sets.some((r) => r === null));
+
   return next
     ? `${NAMES[next.lift]} · Set ${next.sets.findIndex((r) => r === null) + 1}/${next.sets.length}`
     : "All sets logged";
@@ -21,7 +22,8 @@ export function nextSetLabel(session: Session | null) {
 /** Props for the home-screen widget: the active workout, or the next one. */
 export function widgetProps(state: AppState, now = new Date()) {
   const { active } = state;
-  if (active)
+
+  if (active) {
     return {
       eyebrow: "Workout in progress",
       title: `Workout ${active.kind}`,
@@ -32,6 +34,8 @@ export function widgetProps(state: AppState, now = new Date()) {
       })),
       footer: `Next: ${nextSetLabel(active)}`,
     };
+  }
+
   return {
     eyebrow: "Next workout",
     title: `Workout ${state.next}`,
@@ -47,8 +51,13 @@ export function widgetProps(state: AppState, now = new Date()) {
 /** Props for the ongoing workout notification; null when no workout is active. */
 export function notificationProps(state: AppState, now = Date.now()) {
   const { active, rest } = state;
-  if (!active) return null;
+
+  if (!active) {
+    return null;
+  }
+
   const next = nextSetLabel(active);
+
   return {
     title: `Workout ${active.kind} · ${loggedSets(active)}/${totalSets(active)} sets`,
     status:

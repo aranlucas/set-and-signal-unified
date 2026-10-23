@@ -1,11 +1,7 @@
 import { describe, test } from "@e2e-dev/mobile";
 import { expect } from "e2e";
-import {
-  expectAccessibleTargets,
-  scrollWorkoutUntilVisible,
-  startWorkout,
-  tap,
-} from "./support";
+import { runSequentially } from "../support/sequential";
+import { expectAccessibleTargets, scrollWorkoutUntilVisible, startWorkout, tap } from "./support";
 
 // Soft audit assertions collect every offender without losing the remaining
 // screens; one test retains soft failures while the entire journey continues.
@@ -35,19 +31,19 @@ describe("accessibility targets", { serial: true }, () => {
       await screen.scrollUntilVisible(screen.getByText("Done"));
       await expectAccessibleTargets(screen, "Plates editor enabled (bottom)");
       await tap(screen, screen.getByText("Done"));
-      for (const title of [
-        "Progression",
-        "Rest & focus",
-        "Appearance",
-        "Backup & export",
-      ]) {
-        await screen.scrollUntilVisible(screen.getByText(title));
-        await tap(screen, screen.getByText(title));
-        await expectAccessibleTargets(screen, title);
-        await screen.scrollUntilVisible(screen.getByText("Done"));
-        await expectAccessibleTargets(screen, `${title} (bottom)`);
-        await tap(screen, screen.getByText("Done"));
-      }
+
+      await runSequentially(
+        ["Progression", "Rest & focus", "Appearance", "Backup & export"],
+        async (title) => {
+          await screen.scrollUntilVisible(screen.getByText(title));
+          await tap(screen, screen.getByText(title));
+          await expectAccessibleTargets(screen, title);
+          await screen.scrollUntilVisible(screen.getByText("Done"));
+          await expectAccessibleTargets(screen, `${title} (bottom)`);
+          await tap(screen, screen.getByText("Done"));
+        },
+      );
+
       await tap(screen, screen.getByText("Train"));
 
       const edit = screen.getByLabel("Edit Squat weight");
@@ -97,9 +93,7 @@ describe("accessibility targets", { serial: true }, () => {
       await app.back();
       await tap(screen, screen.getByText("Progress"));
       await expectAccessibleTargets(screen, "Progress (top)");
-      await screen.scrollUntilVisible(
-        screen.getByLabel("View Deadlift progress"),
-      );
+      await screen.scrollUntilVisible(screen.getByLabel("View Deadlift progress"));
       await expectAccessibleTargets(screen, "Progress (bottom)");
     },
   );

@@ -1,102 +1,130 @@
-import "./support/native";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { act } from "react";
-import {
-  create,
-  type ReactTestInstance,
-  type ReactTestRenderer,
-} from "react-test-renderer";
-import { afterEach, expect, it, vi } from "vitest";
-import App from "../App";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { z } from "zod";
+import App from "../app";
 import * as actions from "../src/data/actions";
 import { defaultPlateInventory } from "../src/domain/plates";
 import { retry } from "../src/data/store";
 import { initialState, startSession, logSet } from "../src/domain/workout";
 import { finishedHistory, NOW } from "./support/fixture";
 import { resetStorage, savedState } from "./support/storage";
+import { runSequentially } from "./support/sequential";
+import { configureTestNativeServices } from "./support/native";
+import { parseJson } from "./support/parse-json";
+import {
+  act,
+  cleanup,
+  hostCallback,
+  hostProps,
+  modifierAction,
+  render,
+  semanticDescription,
+  text,
+  unmount,
+  type Root,
+  type TestInstance,
+} from "./support/native-renderer";
 
-declare global {
-  var __FIVEFOLD_RENDER__: ((name: string) => void) | undefined;
-  var IS_REACT_ACT_ENVIRONMENT: boolean;
-}
-type Counts = { total: number; byComponent: Record<string, number> };
+const CountsSchema = z.object({
+  total: z.number(),
+  byComponent: z.record(z.string(), z.number()),
+});
+
+const CountsRecordSchema = z.record(z.string(), CountsSchema);
+
+type Counts = z.infer<typeof CountsSchema>;
+
 const history = finishedHistory();
-let renderer: ReactTestRenderer | undefined;
-const text = (node: ReactTestInstance): string =>
-  node.children
-    .map((child) => (typeof child === "string" ? child : text(child)))
-    .join("");
-function host(
-  type: string,
-  predicate: (node: ReactTestInstance) => boolean = () => true,
-) {
-  const nodes = renderer!.root.findAll(
+
+let renderer: Root | undefined;
+
+const currentRenderer = () => {
+  if (!renderer) {
+    throw new Error("App has not been rendered");
+  }
+
+  return renderer;
+};
+
+function host(type: string, predicate: (node: TestInstance) => boolean = () => true) {
+  const nodes = currentRenderer().container.queryAll(
     (node) => node.type === type && predicate(node),
   );
+
   expect(nodes, `unique ${type}`).toHaveLength(1);
+
   return nodes[0];
 }
+
 const button = (label: string) =>
-  renderer!.root.findAll(
+  currentRenderer().container.queryAll(
     (node) =>
-      typeof node.type === "string" &&
-      ["Button", "TextButton", "FilledTonalButton"].includes(node.type) &&
-      text(node) === label,
+      ["Button", "TextButton", "FilledTonalButton"].includes(node.type) && text(node) === label,
   )[0];
-function description(node: ReactTestInstance) {
-  return (
-    node.props.modifiers?.find((modifier: any) => modifier.name === "semantics")
-      ?.args[0]?.contentDescription ?? ""
-  );
-}
+
+const description = semanticDescription;
+
+const click = (node: TestInstance) => hostCallback(node, "onClick")();
+
+beforeEach(() => {
+  configureTestNativeServices();
+});
+
 const counter = (index: number) =>
-  host("FilledTonalButton", (node) =>
-    description(node).startsWith(`Squat, set ${index} of 5`),
-  );
-async function interact(action: () => void) {
+  host("FilledTonalButton", (node) => description(node).startsWith(`Squat, set ${index} of 5`));
+
+async function interact(action: () => void | Promise<void>) {
   await act(async () => {
-    action();
+    await action();
   });
   await act(async () => {
     await vi.advanceTimersByTimeAsync(5);
   });
 }
+
 async function press(label: string) {
   const target = button(label);
   expect(target, label).toBeDefined();
-  await interact(() => target.props.onClick());
+  await interact(() => click(target));
 }
+
 function hasText(value: string) {
   expect(
-    renderer!.root.findAll(
-      (node) => String(node.type) === "Text" && text(node) === value,
-    ),
+    currentRenderer().container.queryAll((node) => node.type === "Text" && text(node) === value),
     value,
   ).not.toHaveLength(0);
 }
+
 async function fresh(active = true, resting = false, myPlates = false) {
   vi.setSystemTime(NOW);
   let state = { ...initialState("kg"), onboarded: true, history };
+
   if (myPlates) {
     state.settings.plates = defaultPlateInventory();
     state.settings.plates.kg[6] = 0;
     state.plans.squat.weight = 102.5;
   }
-  if (active) state = startSession(state, NOW);
-  if (resting) state = logSet(state, "squat", 0, 5, NOW);
+
+  if (active) {
+    state = startSession(state, NOW);
+  }
+
+  if (resting) {
+    state = logSet(state, "squat", 0, 5, NOW);
+  }
+
   resetStorage(state);
   retry();
-  await act(async () => {
-    renderer = create(<App />);
-  });
+  renderer = render(<App />);
   await act(async () => {
     await vi.advanceTimersByTimeAsync(5);
   });
 }
-afterEach(async () => {
-  if (renderer) await act(async () => renderer!.unmount());
+
+afterEach(() => {
+  cleanup();
   renderer = undefined;
-  delete globalThis.__FIVEFOLD_RENDER__;
+  delete globalThis.fivefoldRenderCounter;
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -104,33 +132,28 @@ afterEach(async () => {
 it("records compiled component invocations for the 10,000-session interaction baseline", async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   vi.useFakeTimers();
-  const originalError = console.error;
-  vi.spyOn(console, "error").mockImplementation((...args) => {
-    if (
-      typeof args[0] === "string" &&
-      args[0].startsWith("react-test-renderer is deprecated.")
-    )
-      return;
-    originalError(...args);
-  });
   const results: Record<string, Counts> = {};
   let counts: Record<string, number> = {};
-  globalThis.__FIVEFOLD_RENDER__ = (name) => {
+  globalThis.fivefoldRenderCounter = (name) => {
     counts[name] = (counts[name] ?? 0) + 1;
   };
+
   const measure = async (name: string, action: () => Promise<void>) => {
     counts = {};
     await action();
+
     const byComponent = Object.fromEntries(
-      Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)),
+      Object.entries(counts).toSorted(([a], [b]) => a.localeCompare(b)),
     );
+
     results[name] = {
       total: Object.values(byComponent).reduce((sum, count) => sum + count, 0),
       byComponent,
     };
   };
-  const cleanup = async () => {
-    await act(async () => renderer!.unmount());
+
+  const unmountCurrent = () => {
+    unmount(currentRenderer());
     renderer = undefined;
     vi.clearAllTimers();
   };
@@ -140,33 +163,31 @@ it("records compiled component invocations for the 10,000-session interaction ba
   expect(savedState().active?.kind).toBe("A");
   expect(description(counter(1))).toContain("not logged");
   hasText("0 / 15 sets");
-  await cleanup();
+  unmountCurrent();
 
   await fresh();
-  await measure("log-set", () => interact(() => counter(1).props.onClick()));
+  await measure("log-set", () => interact(() => click(counter(1))));
   expect(text(counter(1))).toBe("5");
   expect(savedState().active?.exercises[0].sets[0]).toBe(5);
   hasText("Rest 1:30");
-  await cleanup();
+  unmountCurrent();
 
   await fresh(true, true);
-  await measure("log-second-set", () =>
-    interact(() => counter(2).props.onClick()),
-  );
+  await measure("log-second-set", () => interact(() => click(counter(2))));
   expect(text(counter(2))).toBe("5");
   expect(savedState().rest?.setIndex).toBe(1);
   hasText("Squat · Set 3/5");
   hasText("Rest 1:30");
-  await cleanup();
+  unmountCurrent();
 
   await fresh();
   await press("Add note");
   await measure("note-keystroke", () =>
-    interact(() => host("OutlinedTextField").props.onValueChange("a")),
+    interact(() => hostCallback(host("OutlinedTextField"), "onValueChange")("a")),
   );
   expect(savedState().active?.notes).toBe("a");
-  expect(host("OutlinedTextField").props.value.get()).toBe("a");
-  await cleanup();
+  expect(hostProps(host("OutlinedTextField")).value?.get()).toBe("a");
+  unmountCurrent();
 
   await fresh(true, true);
   const deadline = savedState().rest?.endsAt;
@@ -177,100 +198,96 @@ it("records compiled component invocations for the 10,000-session interaction ba
   });
   hasText("Rest 1:29");
   expect(savedState().rest?.endsAt).toBe(deadline);
-  await cleanup();
+  unmountCurrent();
 
   const tabs = ["History", "Progress", "Settings", "Train"];
-  for (let index = 0; index < tabs.length; index++) {
+
+  await runSequentially(tabs, async (tab, index) => {
     await fresh();
+
     // Each measured tab has a fresh root and follows the same navigation order.
-    for (const tab of index ? [tabs[index - 1]] : [])
-      await interact(() =>
-        host("NavigationBarItem", (node) => text(node) === tab).props.onClick(),
-      );
-    const tab = tabs[index];
+    const previousTab = index > 0 ? tabs[index - 1] : undefined;
+
+    if (previousTab) {
+      await interact(() => click(host("NavigationBarItem", (node) => text(node) === previousTab)));
+    }
+
     await measure(`tab-${tab.toLowerCase()}`, () =>
-      interact(() =>
-        host("NavigationBarItem", (node) => text(node) === tab).props.onClick(),
-      ),
+      interact(() => click(host("NavigationBarItem", (node) => text(node) === tab))),
     );
-    expect(
-      host("NavigationBarItem", (node) => text(node) === tab).props.selected,
-    ).toBe(true);
+    expect(hostProps(host("NavigationBarItem", (node) => text(node) === tab)).selected).toBe(true);
     expect(savedState().active?.kind).toBe("A");
+
     if (tab === "History") {
       hasText("10000 saved workouts");
       expect(
-        renderer!.root.findAll(
-          (node) => String(node.type) === "LazyColumn.Item",
-        ),
+        currentRenderer().container.queryAll((node) => node.type === "LazyColumn.Item"),
       ).toHaveLength(10_000);
     }
-    if (tab === "Progress") hasText("Lift records");
-    if (tab === "Settings") hasText("Weights & equipment");
-    if (tab === "Train")
+
+    if (tab === "Progress") {
+      hasText("Lift records");
+    }
+
+    if (tab === "Settings") {
+      hasText("Weights & equipment");
+    }
+
+    if (tab === "Train") {
       expect(description(counter(1))).toContain("not logged");
-    await cleanup();
-  }
+    }
+
+    unmountCurrent();
+  });
 
   await fresh();
   await measure("open-weight-sheet", () =>
-    interact(() =>
-      host(
-        "TextButton",
-        (node) => description(node) === "Edit Squat weight",
-      ).props.onClick(),
-    ),
+    interact(() => click(host("TextButton", (node) => description(node) === "Edit Squat weight"))),
   );
   expect(host("ModalBottomSheet")).toBeDefined();
   hasText("Total weight, including bar");
-  await cleanup();
+  unmountCurrent();
 
   await fresh();
   await interact(() =>
-    host(
-      "TextButton",
-      (node) => description(node) === "Edit Squat weight",
-    ).props.onClick(),
+    click(host("TextButton", (node) => description(node) === "Edit Squat weight")),
   );
   await measure("close-weight-sheet", () => press("Cancel"));
   expect(
-    renderer!.root.findAll((node) => String(node.type) === "ModalBottomSheet"),
+    currentRenderer().container.queryAll((node) => node.type === "ModalBottomSheet"),
   ).toHaveLength(0);
   expect(savedState().active?.exercises[0].weight).toBe(20);
-  await cleanup();
+  unmountCurrent();
 
   await fresh();
-  await interact(() =>
-    host(
-      "NavigationBarItem",
-      (node) => text(node) === "Settings",
-    ).props.onClick(),
-  );
-  const openRow = async (label: string) =>
+  await interact(() => click(host("NavigationBarItem", (node) => text(node) === "Settings")));
+
+  const openRow = (label: string) =>
     interact(() =>
-      host("ListItem", (node) => text(node).startsWith(label))
-        .props.modifiers.find((m: any) => m.name === "clickable")
-        .args[0](),
+      modifierAction(
+        host("ListItem", (node) => text(node).startsWith(label)),
+        "clickable",
+        0,
+      )(),
     );
+
   await openRow("Weights & equipment");
   hasText("Standard gym");
   await openRow("Plates");
-  await interact(() =>
-    host(
-      "Row",
-      (node) =>
-        text(node).startsWith("Count my plates") &&
-        node.props.modifiers?.some((m: any) => m.name === "toggleable"),
-    )
-      .props.modifiers.find((m: any) => m.name === "toggleable")
-      .args[1](),
+
+  const plateToggle = host(
+    "Row",
+    (node) =>
+      text(node).startsWith("Count my plates") &&
+      Boolean(hostProps(node).modifiers?.some((entry) => entry.name === "toggleable")),
   );
+
+  await interact(() => modifierAction(plateToggle, "toggleable", 1)());
   await measure("plates-step", () =>
     interact(() =>
-      host(
-        "FilledTonalButton",
-        (node) => description(node) === "Add a pair of 20 kg plates",
-      ).props.onClick(),
+      click(
+        host("FilledTonalButton", (node) => description(node) === "Add a pair of 20 kg plates"),
+      ),
     ),
   );
   expect(savedState().settings.plates?.kg).toEqual([4, 5, 4, 4, 4, 4, 4]);
@@ -278,102 +295,114 @@ it("records compiled component invocations for the 10,000-session interaction ba
   hasText("5 pairs");
   expect(results["plates-step"].byComponent.WorkoutScreen ?? 0).toBe(0);
   expect(results["plates-step"].byComponent.ExerciseCard ?? 0).toBe(0);
+
   const removeSmall = () =>
-    host(
-      "FilledTonalButton",
-      (node) => description(node) === "Remove a pair of 1.25 kg plates",
-    );
-  for (let i = 0; i < 4; i++)
-    await interact(() => removeSmall().props.onClick());
+    host("FilledTonalButton", (node) => description(node) === "Remove a pair of 1.25 kg plates");
+
+  await runSequentially([0, 1, 2, 3], async () => {
+    await interact(() => click(removeSmall()));
+  });
+
   hasText("0 pairs");
-  expect(removeSmall().props.enabled).toBe(false);
-  for (let i = 0; i < 15; i++)
-    await interact(() => actions.stepPlatePair("kg", 1, 1));
+  expect(hostProps(removeSmall()).enabled).toBe(false);
+
+  await runSequentially(
+    Array.from({ length: 15 }, (_, index) => index),
+    async () => {
+      await interact(() => {
+        actions.stepPlatePair("kg", 1, 1);
+      });
+    },
+  );
+
   hasText("20 pairs");
   expect(
-    host(
-      "FilledTonalButton",
-      (node) => description(node) === "Add a pair of 20 kg plates",
-    ).props.enabled,
+    hostProps(
+      host("FilledTonalButton", (node) => description(node) === "Add a pair of 20 kg plates"),
+    ).enabled,
   ).toBe(false);
-  await cleanup();
+  unmountCurrent();
 
   await fresh(true, false, true);
   hasText("Your plates load 100 kg, not 102.5 kg.");
   await measure("tools-inexact", () =>
     interact(() =>
-      host(
-        "IconButton",
-        (node) =>
-          text(node) === "" &&
-          node.findAll(
-            (child) =>
-              String(child.type) === "Icon" &&
-              child.props.contentDescription === "Warm-up & plates for Squat",
-          ).length === 1,
-      ).props.onClick(),
+      click(
+        host(
+          "IconButton",
+          (node) =>
+            text(node) === "" &&
+            node.queryAll(
+              (child) =>
+                child.type === "Icon" &&
+                hostProps(child).contentDescription === "Warm-up & plates for Squat",
+            ).length === 1,
+        ),
+      ),
     ),
   );
   hasText("You can't load 102.5 kg with your plates.");
   hasText("Closest below: 100 kg");
   hasText("Closest above: 105 kg");
-  await interact(() =>
-    host(
-      "FilterChip",
-      (node) => text(node) === "Closest above: 105 kg",
-    ).props.onClick(),
-  );
+  await interact(() => click(host("FilterChip", (node) => text(node) === "Closest above: 105 kg")));
   hasText("105 kg total · Plates on each side");
   hasText("2 × 20 kg");
   hasText("1 × 2.5 kg");
   expect(savedState().active?.exercises[0].weight).toBe(102.5);
   // Unrelated settings must not invoke cards even while inventory guidance is active.
   counts = {};
-  await interact(() => actions.updateSettings({ haptics: false }));
+  await interact(() => {
+    actions.updateSettings({ haptics: false });
+  });
   expect(counts.ExerciseCard ?? 0).toBe(0);
   expect(counts.WorkoutScreen ?? 0).toBe(0);
   await press("Back to workout");
-  await interact(() => actions.countMyPlates(false));
+  await interact(() => {
+    actions.countMyPlates(false);
+  });
   await interact(() =>
-    host(
-      "IconButton",
-      (node) =>
-        node.findAll(
-          (child) =>
-            String(child.type) === "Icon" &&
-            child.props.contentDescription === "Warm-up & plates for Squat",
-        ).length === 1,
-    ).props.onClick(),
+    click(
+      host(
+        "IconButton",
+        (node) =>
+          node.queryAll(
+            (child) =>
+              child.type === "Icon" &&
+              hostProps(child).contentDescription === "Warm-up & plates for Squat",
+          ).length === 1,
+      ),
+    ),
   );
   hasText("1 × 1.25 kg");
   hasText("Standard plates: 25, 20, 15, 10, 5, 2.5, 1.25 kg.");
-  await cleanup();
+  unmountCurrent();
 
-  const baseline = JSON.parse(
+  const baseline = parseJson(
     readFileSync("artifacts/perf/renders-baseline.json", "utf8"),
-  ) as Record<string, Counts>;
-  for (const scenario of [
-    "log-set",
-    "log-second-set",
-    "note-keystroke",
-    "rest-tick",
-  ]) {
-    expect(results[scenario].total, scenario).toBeLessThanOrEqual(
-      baseline[scenario].total,
-    );
-  }
-  const beforePlates = JSON.parse(
-    readFileSync("artifacts/perf/renders-pre-plates.json", "utf8"),
-  ) as Record<string, Counts>;
-  for (const [scenario, before] of Object.entries(beforePlates))
-    expect(results[scenario].total, scenario).toBeLessThanOrEqual(before.total);
-  const label = process.env.FIVEFOLD_PERF_LABEL ?? "current";
-  if (!/^[\w-]+$/.test(label)) throw new Error("Invalid FIVEFOLD_PERF_LABEL");
-  mkdirSync("artifacts/perf", { recursive: true });
-  writeFileSync(
-    `artifacts/perf/renders-${label}.json`,
-    JSON.stringify(results, null, 2) + "\n",
+    CountsRecordSchema,
   );
+
+  for (const scenario of ["log-set", "log-second-set", "note-keystroke", "rest-tick"]) {
+    expect(results[scenario].total, scenario).toBeLessThanOrEqual(baseline[scenario].total);
+  }
+
+  const beforePlates = parseJson(
+    readFileSync("artifacts/perf/renders-pre-plates.json", "utf8"),
+    CountsRecordSchema,
+  );
+
+  for (const [scenario, before] of Object.entries(beforePlates)) {
+    expect(results[scenario].total, scenario).toBeLessThanOrEqual(before.total);
+  }
+
+  const label = z.string().default("current").parse(process.env.FIVEFOLD_PERF_LABEL);
+
+  if (!/^[\w-]+$/.test(label)) {
+    throw new Error("Invalid FIVEFOLD_PERF_LABEL");
+  }
+
+  mkdirSync("artifacts/perf", { recursive: true });
+  writeFileSync(`artifacts/perf/renders-${label}.json`, JSON.stringify(results, null, 2) + "\n");
   expect(results).toMatchInlineSnapshot(`
     {
       "close-weight-sheet": {
