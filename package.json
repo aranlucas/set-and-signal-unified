@@ -6,6 +6,7 @@
   "keywords": [],
   "type": "module",
   "scripts": {
+    "prepare": "husky",
     "dev": "portless run vite",
     "typegen": "cf workers types",
     "generate:api": "pnpm --filter garmin-api-codegen generate",
