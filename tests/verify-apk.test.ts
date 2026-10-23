@@ -6,7 +6,12 @@ import {
   parseBadging,
   RELEASE_CERT_SHA256,
 } from "../verify-apk.mjs";
-import { deviceSerials, matrixAvds } from "../e2e-matrix.mjs";
+import {
+  assertAvdStopped,
+  deviceSerials,
+  emulatorArguments,
+  matrixAvds,
+} from "../e2e-matrix.mjs";
 
 // Captured aapt2/apksigner lines from the signed 1.3.0 artifact, no SDK needed.
 const badging = `package: name='app.fivefold.lifts' versionCode='5' versionName='1.3.0' platformBuildVersionName='17'
@@ -186,4 +191,28 @@ test("matrix validates AVDs and sees occupied offline devices", () => {
       "List of devices attached\nemulator-5556\tdevice\nemulator-5560\toffline\n",
     ),
   ).toEqual(["emulator-5556", "emulator-5560"]);
+});
+
+test("matrix refuses running AVDs and reserves fresh even ports with read-only boots", () => {
+  expect(() =>
+    assertAvdStopped("Pixel_API_35", [
+      { name: "Pixel_API_35", serial: "emulator-5556" },
+    ]),
+  ).toThrow(/already running as emulator-5556.*will not be reused or killed/);
+  expect(() =>
+    assertAvdStopped("Other", [
+      { name: "Pixel_API_35", serial: "emulator-5556" },
+    ]),
+  ).not.toThrow();
+  for (const port of [5556, 5561, 5682])
+    expect(() => emulatorArguments("Pixel_API_35", port)).toThrow(/even/);
+  const args = emulatorArguments("Pixel_API_35", 5560);
+  for (const flag of [
+    "-read-only",
+    "-no-snapshot-save",
+    "-no-boot-anim",
+    "-no-audio",
+  ])
+    expect(args).toContain(flag);
+  expect(args).not.toContain("-wipe-data");
 });

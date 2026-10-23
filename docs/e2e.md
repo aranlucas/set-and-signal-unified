@@ -96,7 +96,7 @@ deterministic suites never acquire a model, so they pass without the key.
 
 ## What it covers
 
-Five serial groups, a navigation regression, and a smoke test, 35 tests total:
+The installed-app scenarios are organized into serial groups, a navigation regression, and a smoke test:
 
 - `tests/e2e/workout.e2e.ts` (8): clean install starts A; logging a set runs
   the rest timer, `+30s` and `Skip`; `Undo` restores a set; a logged set
@@ -201,8 +201,10 @@ E2E_DEVICE=emulator-5556 pnpm exec e2e run tests/e2e/accessibility.e2e.ts
   target. It enumerates engine roles first; the Android adapter maps clickable
   Compose View rows to generic groups and does not expose their clickable flag
   or name through locator attributes, so UIAutomator supplements those nodes
-  and merged descendant names. A subsequent engine query verifies dumping did
-  not break the session. Sizes use `wm density`; targets touching scroll/app
+  and merged descendant names. Android allows only one automation connection:
+  the test retires the snapshot helper before dumping, then a subsequent engine
+  query verifies that the same session reconnects without restarting the app.
+  Sizes use `wm density`; targets touching scroll/app
   bar/rest dock clipping edges are excluded until fully exposed. Failure
   messages list screen, label, class, bounds and dp size. This deterministic
   audit complements a human TalkBack pass.
@@ -243,7 +245,7 @@ The pure gates and matrix parsing have SDK-free Vitest coverage in
 The matrix boots each AVD read-only on an unused even port starting at 5560,
 waits for boot, installs the APK and runs the full suite with a pinned serial.
 It preserves all environment variables, including both upgrade APK overrides,
-and tees output to `artifacts/release-<version>/e2e-android<Android version>.log`.
+and tees output to `artifacts/release-<version>/e2e-android<API>.log`.
 Each device prints API level, passed/failed/skipped counts and duration. It
 kills only the emulator it started, and fails clearly if an AVD is already
 running rather than reusing or killing it. Shut down those QA AVDs yourself

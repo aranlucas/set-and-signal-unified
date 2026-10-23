@@ -8,7 +8,7 @@ import {
 } from "./support";
 
 // Soft audit assertions collect every offender without losing the remaining
-// screens; each following test navigates from the previous one's final state.
+// screens; one test retains soft failures while the entire journey continues.
 describe("accessibility targets", { serial: true }, () => {
   test(
     "audits names and 48 dp targets across every release surface",
@@ -18,11 +18,17 @@ describe("accessibility targets", { serial: true }, () => {
       await app.open();
       await expect(screen.getByText("45 lb").first()).toBeVisible();
       await expectAccessibleTargets(screen, "first-run home (lb)");
+      await screen.scrollUntilVisible(screen.getByText("Start workout A"));
+      await expectAccessibleTargets(screen, "first-run home (bottom)");
       await tap(screen, screen.getByText("Settings"));
       await expectAccessibleTargets(screen, "Settings list");
       await tap(screen, screen.getByText("Weights & equipment"));
       await expectAccessibleTargets(screen, "Weights & equipment (top)");
-      await screen.scrollUntilVisible(screen.getByText("Plates"));
+      await screen.scrollUntilVisible(screen.getByText("Done"));
+      await expectAccessibleTargets(screen, "Weights & equipment (bottom)");
+      await screen.scrollUntilVisible(screen.getByText("Plates"), {
+        direction: "up",
+      });
       await tap(screen, screen.getByText("Plates"));
       await tap(screen, screen.getByText("Count my plates"));
       await expectAccessibleTargets(screen, "Plates editor enabled (top)");
@@ -57,6 +63,16 @@ describe("accessibility targets", { serial: true }, () => {
       await tap(screen, firstSet);
       await expect(screen.getByText(/^Rest \d/)).toBeVisible();
       await expectAccessibleTargets(screen, "Rest dock after one set");
+      await scrollWorkoutUntilVisible(screen, screen.getByText("Add note"));
+      await expectAccessibleTargets(screen, "Active workout (bottom)");
+      await tap(screen, screen.getByText("Add note"));
+      await expectAccessibleTargets(screen, "Workout note editor");
+      await tap(screen, screen.getByText("Hide note"));
+      await scrollWorkoutUntilVisible(
+        screen,
+        screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/),
+        { direction: "up" },
+      );
       await tap(screen, screen.getByLabel(/^Squat, set 1 of 5, 5 of 5 reps/));
       await expectAccessibleTargets(screen, "Rep editor");
       await tap(screen, screen.getByText("5 reps", { exact: true }));
@@ -76,6 +92,8 @@ describe("accessibility targets", { serial: true }, () => {
       await expectAccessibleTargets(screen, "History list");
       await tap(screen, screen.getByText("Workout A"));
       await expectAccessibleTargets(screen, "History detail");
+      await screen.scrollUntilVisible(screen.getByText("Delete workout"));
+      await expectAccessibleTargets(screen, "History detail (bottom)");
       await app.back();
       await tap(screen, screen.getByText("Progress"));
       await expectAccessibleTargets(screen, "Progress (top)");

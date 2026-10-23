@@ -29,6 +29,27 @@ export function deviceSerials(output) {
         /^([^\s]+)\s+(?:device|offline|unauthorized)\b/.exec(line)?.[1] ?? [],
     );
 }
+export function emulatorArguments(name, port) {
+  if (!Number.isInteger(port) || port < 5560 || port > 5680 || port % 2 !== 0)
+    throw new Error("Matrix emulator port must be even, from 5560 to 5680");
+  return [
+    "-avd",
+    name,
+    "-port",
+    String(port),
+    "-read-only",
+    "-no-snapshot-save",
+    "-no-boot-anim",
+    "-no-audio",
+  ];
+}
+export function assertAvdStopped(name, running) {
+  const existing = running.find((device) => device.name === name);
+  if (existing)
+    throw new Error(
+      `${name} is already running as ${existing.serial}; stop it yourself before running the matrix. It will not be reused or killed.`,
+    );
+}
 async function portFree(port) {
   return new Promise((resolve) => {
     const server = createServer();
@@ -66,12 +87,16 @@ async function waitForBoot(adb, serial, child) {
   }
   throw new Error(`${serial} did not boot within 240 seconds`);
 }
-function runTests(serial, log) {
+function runTests(serial, log, reportDirectory) {
   return new Promise((resolve) => {
-    const child = spawn("pnpm", ["run", "test:e2e"], {
-      env: { ...process.env, E2E_DEVICE: serial },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const child = spawn(
+      "pnpm",
+      ["run", "test:e2e", "--output", reportDirectory],
+      {
+        env: { ...process.env, E2E_DEVICE: serial },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
     child.stdout.on("data", (data) => {
       process.stdout.write(data);
       log.write(data);
@@ -116,31 +141,20 @@ export async function main() {
       ownsDevice = false;
     try {
       // Read-only does not make simultaneous copies of one AVD safe. Refuse it.
-      for (const running of deviceSerials(adb(["devices"])).filter((s) =>
-        s.startsWith("emulator-"),
-      )) {
-        const avd = adb(["-s", running, "emu", "avd", "name"])
-          .split(/\r?\n/)[0]
-          .trim();
-        if (avd === name)
-          throw new Error(
-            `${name} is already running as ${running}; stop it yourself before running the matrix. It will not be reused or killed.`,
-          );
-      }
+      const runningAvds = deviceSerials(adb(["devices"]))
+        .filter((serial) => serial.startsWith("emulator-"))
+        .map((serial) => ({
+          serial,
+          name: adb(["-s", serial, "emu", "avd", "name"])
+            .split(/\r?\n/)[0]
+            .trim(),
+        }));
+      assertAvdStopped(name, runningAvds);
       const port = await freePort(adb);
       serial = `emulator-${port}`;
       child = spawn(
         join(root, "emulator/emulator"),
-        [
-          "-avd",
-          name,
-          "-port",
-          String(port),
-          "-read-only",
-          "-no-snapshot-save",
-          "-no-boot-anim",
-          "-no-audio",
-        ],
+        emulatorArguments(name, port),
         { stdio: "ignore" },
       );
       let spawnError;
@@ -167,12 +181,15 @@ export async function main() {
         "getprop",
         "ro.build.version.release",
       ]).trim();
-      const logPath = join(out, `e2e-android${release}.log`);
+      const logPath = join(out, `e2e-android${api}.log`);
       log = createWriteStream(logPath);
       log.write(`AVD ${name}, ${serial}, Android ${release}, API ${api}\n`);
       log.write(adb(["-s", serial, "install", "-r", apk]));
-      const code = await runTests(serial, log);
-      const report = JSON.parse(readFileSync(".e2e/report.json", "utf8"));
+      const reportDirectory = resolve(`.e2e/matrix-${serial}-${Date.now()}`);
+      const code = await runTests(serial, log, reportDirectory);
+      const report = JSON.parse(
+        readFileSync(join(reportDirectory, "report.json"), "utf8"),
+      );
       const summary = report.run.summary;
       counts = `${summary.passed} passed / ${summary.failed} failed / ${summary.skipped} skipped`;
       if (code !== 0 || report.run.exitCode !== 0)

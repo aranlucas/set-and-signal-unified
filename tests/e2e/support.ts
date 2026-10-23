@@ -13,8 +13,13 @@ import { expect, type Locator, type Screen } from "e2e";
 // sibling button. Tapping the label's centre reaches the control, but a sheet
 // that is still sliding up reports a box below its final position, so wait for
 // two matching reads before tapping.
-export async function tap(screen: Screen, target: Locator) {
+export async function tap(
+  screen: Screen,
+  target: Locator,
+  { stableFor = 0 }: { stableFor?: number } = {},
+) {
   let box = await target.boundingBox();
+  let stableSince = Date.now();
   await expect
     .poll(
       async () => {
@@ -27,7 +32,8 @@ export async function tap(screen: Screen, target: Locator) {
           Math.abs(next.width - box.width) < 1 &&
           Math.abs(next.height - box.height) < 1;
         box = next;
-        return stable;
+        if (!stable) stableSince = Date.now();
+        return stable && Date.now() - stableSince >= stableFor;
       },
       { message: "Target must settle before tapping" },
     )
@@ -238,6 +244,10 @@ export async function expectAccessibleTargets(screen: Screen, name: string) {
       });
     }
   }
+  // UiAutomation is exclusive: retire the helper instrumentation before the
+  // separate UIAutomator client connects. The next engine read reconnects its
+  // helper in the same session, without closing or restarting the app.
+  adb("shell", "am", "force-stop", "com.callstack.agentdevice.snapshothelper");
   const xml = adb("exec-out", "uiautomator", "dump", "/dev/tty");
   const nodes = parseAccessibilityTree(xml);
   expect(
