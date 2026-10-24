@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { isActivityType, type SummaryType } from "./schemas";
 import { GarminEvents } from "../events/store";
+import { logEvent, type IngestDiagnostic } from "../events/diagnostics";
 import {
   eventPermission,
   eventReply,
@@ -62,6 +63,7 @@ export class GarminUserData extends DurableObject<Env> {
       return;
     }
 
+    const diagnostics: IngestDiagnostic[] = [];
     this.ctx.storage.transactionSync(() => {
       for (const row of records) {
         const permission = isActivityType(row.type) ? "ACTIVITY_EXPORT" : "HEALTH_EXPORT";
@@ -117,9 +119,19 @@ export class GarminUserData extends DurableObject<Env> {
           row.startTime ?? null,
           row.duration ?? null,
         );
-        this.events.enqueue(row, known);
+        const diagnostic = this.events.enqueue(row, known);
+
+        if (diagnostic) {
+          diagnostics.push(diagnostic);
+        }
       }
     });
+
+    // An aborted batch must never report a queued event as durable acceptance.
+    for (const diagnostic of diagnostics) {
+      logEvent(diagnostic);
+    }
+
     await this.events.schedule();
   }
   list(type: SummaryType, startDate: string, endDate: string, limit: number, offset: number) {

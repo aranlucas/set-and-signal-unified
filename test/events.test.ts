@@ -31,6 +31,27 @@ const occurrence = z.object({
   cursor: z.null(),
 });
 
+const diagnostic = z.object({
+  event: z.string(),
+  event_id: z.string().optional(),
+  subscription: z.string().optional(),
+  source: z.string().optional(),
+  name: z.string().optional(),
+  outcome: z.string().optional(),
+  subscriptions: z.number().optional(),
+  deliveries: z.number().optional(),
+  attempt: z.number().optional(),
+  status: z.number().optional(),
+  reason: z.string().optional(),
+});
+
+function captureDiagnostics() {
+  const logs = vi.spyOn(console, "info").mockImplementation(() => {});
+
+  return () =>
+    logs.mock.calls.map(([value]) => diagnostic.parse(JSON.parse(z.string().parse(value))));
+}
+
 type Delivery = { url: string; body: string; headers: Record<string, string> };
 
 type CountRow = { count: number };
@@ -215,6 +236,185 @@ it("discovers permission-filtered event schemas through the MCP SDK", async () =
   await expect(
     f.client.request({ method: "events/list", params: { cursor: "invalid" } }, schema),
   ).rejects.toMatchObject({ code: -32602 });
+});
+
+it("traces a source through filtering, signed fan-out, retries, and unsubscribe without logging payloads", async () => {
+  const logs = captureDiagnostics();
+  const f = await fixture();
+  await f.push({ activities: [f.activity("before-subscription")] });
+  const a = await f.subscribe();
+  const b = await f.subscribe(f.params("https://another.example.com/two"));
+
+  const c = await f.subscribe(
+    f.params("https://callback.example.com/cycling", { activityTypes: ["CYCLING"] }),
+  );
+
+  await f.subscribe();
+  await f.push({ activities: [f.activity("workout-with-private-name")] });
+  await f.push({ activities: [f.activity("workout-with-private-name")] });
+  await f.push({
+    activities: [
+      { ...f.activity("imported"), importSource: "garmin-personal-api" },
+      { ...f.activity("manual"), isManual: true },
+    ],
+  });
+  f.state.callbackStatus = 503;
+  await f.flush();
+  f.state.callbackStatus = 200;
+  await f.flush();
+  await f.client.request({ method: "events/unsubscribe", params: f.params() }, z.object({}));
+  await f.client.request(
+    { method: "events/unsubscribe", params: f.params("https://another.example.com/two") },
+    z.object({}),
+  );
+  await f.push({ activities: [f.activity("only-cycling-subscribed")] });
+
+  const records = logs();
+  expect(
+    records.filter((row) => row.event === "mcp_event_ingest").map((row) => row.outcome),
+  ).toEqual(["no_subscriptions", "queued", "duplicate", "import", "manual", "filtered"]);
+
+  const queued = required(
+    records.find((row) => row.event === "mcp_event_ingest" && row.outcome === "queued"),
+    "queued diagnostic",
+  );
+
+  expect(queued).toMatchObject({
+    subscriptions: 3,
+    deliveries: 2,
+    name: "garmin.activity.completed",
+  });
+  expect(queued.source).toMatch(/^[a-f0-9]{64}$/);
+  expect(
+    records
+      .filter((row) => row.event === "mcp_event_subscription_created")
+      .map((row) => row.subscription),
+  ).toEqual([a.id, b.id, c.id]);
+  expect(records).toContainEqual(
+    expect.objectContaining({ event: "mcp_event_subscription_refreshed", subscription: a.id }),
+  );
+
+  for (const sub of [a, b]) {
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        event: "mcp_event_webhook",
+        event_id: queued.event_id,
+        subscription: sub.id,
+        attempt: 1,
+        status: 503,
+        outcome: "http_5xx",
+      }),
+    );
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        event: "mcp_event_delivery_retry",
+        event_id: queued.event_id,
+        subscription: sub.id,
+        attempt: 1,
+      }),
+    );
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        event: "mcp_event_delivery_finished",
+        event_id: queued.event_id,
+        subscription: sub.id,
+        attempt: 2,
+        outcome: "delivered",
+      }),
+    );
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        event: "mcp_event_subscription_deleted",
+        subscription: sub.id,
+        reason: "unsubscribe",
+      }),
+    );
+  }
+
+  expect(
+    occurrence.parse(JSON.parse(required(f.deliveries[0], "signed delivery").body)).eventId,
+  ).toBe(queued.event_id);
+  expect(JSON.stringify(records)).not.toMatch(
+    /workout-with-private-name|RUNNING|distanceInMeters|latitude|longitude|userId|provider-secret|private-test-access|whsec_|https?:/,
+  );
+  expect(JSON.stringify(records)).not.toContain(f.id);
+  expect(await f.count("event_deliveries")).toBe(0);
+}, 40000);
+
+it.each([
+  { status: 413, attempts: 0, outcome: "http_4xx" },
+  { status: 503, attempts: 4, outcome: "retry_exhausted" },
+])(
+  "records a terminal delivery outcome for $status after $attempts previous attempts",
+  async ({ status, attempts, outcome }) => {
+    const logs = captureDiagnostics();
+    const f = await fixture();
+    await f.subscribe();
+    await f.push({ activities: [f.activity()] });
+    await runInDurableObject(f.store, (_instance, context) =>
+      context.storage.sql.exec("UPDATE event_deliveries SET attempts=?", attempts).toArray(),
+    );
+    f.state.callbackStatus = status;
+    await f.flush();
+    expect(logs()).toContainEqual(
+      expect.objectContaining({
+        event: "mcp_event_delivery_finished",
+        attempt: attempts + 1,
+        outcome,
+      }),
+    );
+    expect(await f.count("event_deliveries")).toBe(0);
+    expect(await f.count("event_subscriptions")).toBe(1);
+  },
+);
+
+it("records expired delivery deadlines without claiming a webhook was sent", async () => {
+  const logs = captureDiagnostics();
+  const f = await fixture();
+  await f.subscribe();
+  await f.push({ activities: [f.activity()] });
+  await runInDurableObject(f.store, (_instance, context) =>
+    context.storage.sql.exec("UPDATE event_deliveries SET deadline=0").toArray(),
+  );
+  await f.flush();
+  expect(logs()).toContainEqual(
+    expect.objectContaining({
+      event: "mcp_event_delivery_finished",
+      attempt: 0,
+      outcome: "deadline_exceeded",
+    }),
+  );
+  expect(logs().filter((row) => row.event === "mcp_event_webhook")).toEqual([]);
+  expect(f.deliveries).toEqual([]);
+});
+
+it("does not report queued ingestion when the summary transaction rolls back", async () => {
+  const logs = captureDiagnostics();
+  const f = await fixture();
+  await f.subscribe();
+
+  const row = {
+    type: "activities" as const,
+    summaryId: "rolled-back",
+    date: "2026-10-24",
+    receivedAt: Date.now(),
+    data: JSON.stringify(f.activity("rolled-back")),
+  };
+
+  const failure = await runInDurableObject(f.store, async (instance) => {
+    try {
+      await instance.ingest([row, { ...row, summaryId: "malformed", data: "{" }]);
+
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : "unknown";
+    }
+  });
+
+  expect(failure).toContain("Expected property name");
+  expect(await f.store.get("activities", row.summaryId)).toBeNull();
+  expect(await f.count("event_deliveries")).toBe(0);
+  expect(logs().filter((record) => record.event === "mcp_event_ingest")).toEqual([]);
 });
 
 it("delivers one logical workout to each matching subscription, with verified signatures after eviction", async () => {

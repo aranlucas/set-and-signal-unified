@@ -4,6 +4,7 @@ import { z } from "zod";
 import { garminCredential, type AuthBroker } from "../auth";
 import { TrainingClient } from "../training/client";
 import { GarminError } from "../garmin-error";
+import { logEvent, type DeliveryOutcome, type IngestDiagnostic } from "./diagnostics";
 import type { StoredSummary } from "../push/store";
 import {
   activityFilters,
@@ -70,6 +71,8 @@ type NextRow = { next: number | null };
 type BodyRow = { body: string };
 
 type VerificationExpiryRow = { expires_at: number };
+
+type SubscriptionIdentity = Pick<SubscriptionRow, "id" | "name">;
 
 function hash(parts: string[]): string {
   return createHash("sha256").update(JSON.stringify(parts)).digest("hex");
@@ -298,6 +301,12 @@ export class GarminEvents {
     );
     await this.schedule();
 
+    logEvent({
+      event: previous ? "mcp_event_subscription_refreshed" : "mcp_event_subscription_created",
+      subscription: id,
+      name,
+    });
+
     return { id, refreshBefore: new Date(expires).toISOString(), cursor: null, truncated: false };
   }
 
@@ -307,15 +316,32 @@ export class GarminEvents {
     const url = callbackUrl(params.delivery.url);
     const id = `sub_${hash([owner.subject, owner.garminUserId, name, url, args])}`;
     this.invalidate();
-    this.sql.exec("DELETE FROM event_subscriptions WHERE id=? AND owner=?", id, owner.subject);
+
+    const deleted = this.sql
+      .exec(
+        "DELETE FROM event_subscriptions WHERE id=? AND owner=? RETURNING id",
+        id,
+        owner.subject,
+      )
+      .toArray();
+
     this.cleanup();
     await this.schedule();
+
+    if (deleted.length) {
+      logEvent({
+        event: "mcp_event_subscription_deleted",
+        subscription: id,
+        name,
+        reason: "unsubscribe",
+      });
+    }
 
     return {};
   }
 
   /** Invoked synchronously inside the summary-ingestion transaction; no external I/O. */
-  enqueue(row: StoredSummary, known: boolean) {
+  enqueue(row: StoredSummary, known: boolean): IngestDiagnostic | undefined {
     const names = {
       activities: "garmin.activity.completed",
       sleeps: "garmin.sleep.available",
@@ -324,8 +350,25 @@ export class GarminEvents {
 
     const type = z.enum(["activities", "sleeps", "bodyComps"]).safeParse(row.type);
 
-    if (!type.success || known) {
+    if (!type.success) {
       return;
+    }
+
+    const name = names[type.data];
+    const id = `evt_${hash([this.ctx.id.toString(), name, String(row.startTime ?? row.summaryId)])}`;
+
+    const diagnostic: IngestDiagnostic = {
+      event: "mcp_event_ingest",
+      name,
+      event_id: id,
+      source: hash([row.type, row.summaryId]),
+      outcome: "duplicate",
+      subscriptions: 0,
+      deliveries: 0,
+    };
+
+    if (known) {
+      return diagnostic;
     }
 
     const source = z
@@ -333,13 +376,18 @@ export class GarminEvents {
       .safeParse(JSON.parse(row.data));
 
     if (!source.success || source.data.importSource || source.data.isManual) {
-      return;
+      return {
+        ...diagnostic,
+        outcome: !source.success
+          ? "invalid_summary"
+          : source.data.importSource
+            ? "import"
+            : "manual",
+      };
     }
 
-    const name = names[type.data];
-
     if (this.blocked(name)) {
-      return;
+      return { ...diagnostic, outcome: "permission_withdrawn" };
     }
 
     const metrics =
@@ -362,8 +410,6 @@ export class GarminEvents {
         Date.now(),
       )
       .toArray();
-
-    const id = `evt_${hash([this.ctx.id.toString(), name, String(row.startTime ?? row.summaryId)])}`;
 
     const body = JSON.stringify({
       eventId: id,
@@ -392,30 +438,50 @@ export class GarminEvents {
       }
 
       this.sql.exec("INSERT OR IGNORE INTO event_occurrences VALUES (?,?,?)", id, name, body);
-      this.sql.exec(
-        "INSERT OR IGNORE INTO event_deliveries VALUES (?,?,0,?,?)",
-        id,
-        subscription.id,
-        Date.now() + RETRY_WINDOW,
-        Date.now() + 1000,
-      );
+      diagnostic.deliveries += this.sql
+        .exec(
+          "INSERT OR IGNORE INTO event_deliveries VALUES (?,?,0,?,?) RETURNING event_id",
+          id,
+          subscription.id,
+          Date.now() + RETRY_WINDOW,
+          Date.now() + 1000,
+        )
+        .toArray().length;
     }
+
+    return {
+      ...diagnostic,
+      subscriptions: subscriptions.length,
+      outcome: diagnostic.deliveries
+        ? "queued"
+        : subscriptions.length
+          ? "filtered"
+          : "no_subscriptions",
+    };
   }
 
   clear(permission?: string) {
     this.invalidate();
 
-    if (permission) {
-      const names =
-        permission === "ACTIVITY_EXPORT"
-          ? ["garmin.activity.completed"]
-          : ["garmin.sleep.available", "garmin.body_composition.recorded"];
+    const deleted = permission
+      ? this.sql
+          .exec<SubscriptionIdentity>(
+            "DELETE FROM event_subscriptions WHERE (?='ACTIVITY_EXPORT' AND name='garmin.activity.completed') OR (?<>'ACTIVITY_EXPORT' AND name<>'garmin.activity.completed') RETURNING id,name",
+            permission,
+            permission,
+          )
+          .toArray()
+      : this.sql
+          .exec<SubscriptionIdentity>("DELETE FROM event_subscriptions RETURNING id,name")
+          .toArray();
 
-      for (const name of names) {
-        this.sql.exec("DELETE FROM event_subscriptions WHERE name=?", name);
-      }
-    } else {
-      this.sql.exec("DELETE FROM event_subscriptions");
+    for (const row of deleted) {
+      logEvent({
+        event: "mcp_event_subscription_deleted",
+        subscription: row.id,
+        name: row.name,
+        reason: permission ? "access_revoked" : "cleared",
+      });
     }
 
     this.cleanup();
@@ -434,7 +500,23 @@ export class GarminEvents {
 
   private cleanup() {
     const now = Date.now();
-    this.sql.exec("DELETE FROM event_subscriptions WHERE expires_at<=?", now);
+
+    const expired = this.sql
+      .exec<SubscriptionIdentity>(
+        "DELETE FROM event_subscriptions WHERE expires_at<=? RETURNING id,name",
+        now,
+      )
+      .toArray();
+
+    for (const row of expired) {
+      logEvent({
+        event: "mcp_event_subscription_deleted",
+        subscription: row.id,
+        name: row.name,
+        reason: "expired",
+      });
+    }
+
     this.sql.exec(
       "DELETE FROM event_verifications WHERE expires_at<=? OR NOT EXISTS (SELECT 1 FROM event_subscriptions)",
       now,
@@ -443,10 +525,24 @@ export class GarminEvents {
       "UPDATE event_subscriptions SET previous_secret=NULL,previous_until=0 WHERE previous_secret IS NOT NULL AND previous_until<=?",
       now,
     );
-    this.sql.exec(
-      "DELETE FROM event_deliveries WHERE deadline<=? OR subscription_id NOT IN (SELECT id FROM event_subscriptions)",
-      now,
-    );
+
+    const discarded = this.sql
+      .exec<DeliveryRow>(
+        "DELETE FROM event_deliveries WHERE deadline<=? OR subscription_id NOT IN (SELECT id FROM event_subscriptions) RETURNING *",
+        now,
+      )
+      .toArray();
+
+    for (const job of discarded) {
+      logEvent({
+        event: "mcp_event_delivery_finished",
+        event_id: job.event_id,
+        subscription: job.subscription_id,
+        attempt: job.attempts,
+        outcome: job.deadline <= now ? "deadline_exceeded" : "subscription_unavailable",
+      });
+    }
+
     this.sql.exec(
       "DELETE FROM event_occurrences WHERE id NOT IN (SELECT event_id FROM event_deliveries)",
     );
@@ -483,17 +579,32 @@ export class GarminEvents {
     await this.schedule();
   }
 
-  private finish(job: DeliveryRow) {
-    this.sql.exec(
-      "DELETE FROM event_deliveries WHERE event_id=? AND subscription_id=?",
-      job.event_id,
-      job.subscription_id,
-    );
+  private finish(job: DeliveryRow, outcome: DeliveryOutcome) {
+    const removed = this.sql
+      .exec(
+        "DELETE FROM event_deliveries WHERE event_id=? AND subscription_id=? RETURNING event_id",
+        job.event_id,
+        job.subscription_id,
+      )
+      .toArray();
+
+    if (removed.length) {
+      logEvent({
+        event: "mcp_event_delivery_finished",
+        event_id: job.event_id,
+        subscription: job.subscription_id,
+        attempt: job.attempts,
+        outcome,
+      });
+    }
   }
 
-  private retry(job: DeliveryRow) {
+  private retry(job: DeliveryRow, outcome: DeliveryOutcome) {
     if (job.attempts >= 4 || job.deadline <= Date.now()) {
-      this.finish(job);
+      this.finish(
+        { ...job, attempts: job.attempts + 1 },
+        job.deadline <= Date.now() ? "deadline_exceeded" : "retry_exhausted",
+      );
 
       return;
     }
@@ -502,19 +613,31 @@ export class GarminEvents {
       Math.min(5 * MINUTE, 5000 * 2 ** job.attempts) * (0.8 + Math.random() * 0.4),
     );
 
-    this.sql.exec(
-      "UPDATE event_deliveries SET attempts=attempts+1,next_at=? WHERE event_id=? AND subscription_id=?",
-      Date.now() + delay,
-      job.event_id,
-      job.subscription_id,
-    );
+    const updated = this.sql
+      .exec(
+        "UPDATE event_deliveries SET attempts=attempts+1,next_at=? WHERE event_id=? AND subscription_id=? RETURNING event_id",
+        Date.now() + delay,
+        job.event_id,
+        job.subscription_id,
+      )
+      .toArray();
+
+    if (updated.length) {
+      logEvent({
+        event: "mcp_event_delivery_retry",
+        event_id: job.event_id,
+        subscription: job.subscription_id,
+        attempt: job.attempts + 1,
+        outcome,
+      });
+    }
   }
 
   private async deliver(job: DeliveryRow) {
     const subscription = this.subscription(job.subscription_id);
 
     if (!subscription || subscription.expires_at <= Date.now()) {
-      this.finish(job);
+      this.finish(job, "subscription_unavailable");
 
       return;
     }
@@ -525,13 +648,20 @@ export class GarminEvents {
     );
 
     if (access === "denied") {
+      this.finish(job, "access_revoked");
       this.sql.exec("DELETE FROM event_subscriptions WHERE id=?", subscription.id);
+      logEvent({
+        event: "mcp_event_subscription_deleted",
+        subscription: subscription.id,
+        name: subscription.name,
+        reason: "access_revoked",
+      });
 
       return;
     }
 
     if (access === "unavailable") {
-      this.retry(job);
+      this.retry(job, "authorization_unavailable");
 
       return;
     }
@@ -539,7 +669,14 @@ export class GarminEvents {
     const secret = await openSecret(subscription.secret, this.env.GARMIN_PUSH_TOKEN);
 
     if (!secret) {
+      this.finish(job, "invalid_secret");
       this.sql.exec("DELETE FROM event_subscriptions WHERE id=?", subscription.id);
+      logEvent({
+        event: "mcp_event_subscription_deleted",
+        subscription: subscription.id,
+        name: subscription.name,
+        reason: "invalid_secret",
+      });
 
       return;
     }
@@ -563,13 +700,20 @@ export class GarminEvents {
       this.blocked(current.name) ||
       !event
     ) {
-      this.finish(job);
+      this.finish(
+        job,
+        job.deadline <= Date.now()
+          ? "deadline_exceeded"
+          : !event
+            ? "payload_unavailable"
+            : "subscription_unavailable",
+      );
 
       return;
     }
 
     if (current.version !== subscription.version) {
-      this.retry(job);
+      this.retry(job, "subscription_changed");
 
       return;
     }
@@ -585,13 +729,30 @@ export class GarminEvents {
 
       await response.body?.cancel();
 
+      const outcome = response.ok ? "delivered" : response.status >= 500 ? "http_5xx" : "http_4xx";
+      logEvent({
+        event: "mcp_event_webhook",
+        event_id: job.event_id,
+        subscription: current.id,
+        attempt: job.attempts + 1,
+        status: response.status,
+        outcome,
+      });
+
       if (response.ok || (response.status < 500 && ![408, 425, 429].includes(response.status))) {
-        this.finish(job);
+        this.finish({ ...job, attempts: job.attempts + 1 }, outcome);
       } else {
-        this.retry(job);
+        this.retry(job, outcome);
       }
     } catch {
-      this.retry(job);
+      logEvent({
+        event: "mcp_event_webhook",
+        event_id: job.event_id,
+        subscription: current.id,
+        attempt: job.attempts + 1,
+        outcome: "transport_error",
+      });
+      this.retry(job, "transport_error");
     }
   }
 }
