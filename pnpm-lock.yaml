@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      '@garmin/fitsdk':
+        specifier: 21.218.0
+        version: 21.218.0
       '@modelcontextprotocol/hono':
         specifier: 2.0.2
         version: 2.0.2(@modelcontextprotocol/server@2.3.1)(hono@4.13.13)
@@ -497,6 +500,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@garmin/fitsdk@21.218.0':
+    resolution: {integrity: sha512-Jbhedp3AJ/xJBSuiPBlPpwH5QISXd+GYtfnAUZ3u68hUqkzHiRWUhla8xj4tW/05w6gKsErEt+7GQCFap+a2kQ==}
 
   '@hey-api/codegen-core@0.9.1':
     resolution: {integrity: sha512-s97jL1dgTMuiMHv2BZ1X4Tgd99Mf9GOvGdNqNcGwIMmnR+PgYNoraj4Zvp134MKsNCap/m7k0r0vKKnl56pj4w==}
@@ -1980,6 +1986,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@garmin/fitsdk@21.218.0': {}
 
   '@hey-api/codegen-core@0.9.1':
     dependencies:

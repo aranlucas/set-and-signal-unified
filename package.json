@@ -23,6 +23,7 @@
     "format:check": "oxfmt --check"
   },
   "dependencies": {
+    "@garmin/fitsdk": "21.218.0",
     "@modelcontextprotocol/hono": "2.0.2",
     "@modelcontextprotocol/server": "2.3.1",
     "hono": "4.13.13",

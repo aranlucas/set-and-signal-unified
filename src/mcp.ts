@@ -6,6 +6,7 @@ import { listSummariesInput, summaryType, isActivityType } from "./push/schemas"
 import type { GarminUserData } from "./push/store";
 import { registerEvents } from "./events/mcp";
 import type { EventOwner } from "./events/protocol";
+import { registerActivityFileTools } from "./activity/mcp";
 
 const result = (data: z.infer<ReturnType<typeof z.json>>) => {
   const output = {
@@ -37,6 +38,7 @@ export function createServer(
   );
 
   registerTrainingTools(server, accessToken, fetcher);
+  registerActivityFileTools(server);
   const client = new TrainingClient(accessToken, fetcher);
 
   if (eventOwner) {

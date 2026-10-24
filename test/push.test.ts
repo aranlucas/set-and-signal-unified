@@ -75,6 +75,14 @@ it("drops all credentials and callback URLs even in nested summaries", async () 
   expect(row).toContain("heartRate");
 });
 
+it("preserves provider-supplied strength fields in JSON activity details", async () => {
+  const id = crypto.randomUUID();
+  const sets = [{ repetitions: 8, weightKg: 22.5, exercise: "benchPress", restSeconds: 60 }];
+  await push({ activityDetails: [{ ...record(id), sets, workoutId: 123 }] });
+  const stored = await userStore(env, id).get("activityDetails", "daily-1");
+  expect(JSON.parse(stored ?? "null")).toMatchObject({ sets, workoutId: 123 });
+});
+
 it("supports pagination, durable deletion and subsequent collection", async () => {
   const id = crypto.randomUUID();
   const store = userStore(env, id);
