@@ -131,7 +131,8 @@ it("imports the verified walk through the real receiver with local dates, units 
 
   expect(stored).toContain('"deviceName":"Garmin watch"');
   expect(stored).not.toContain("importSource");
-});
+  // Hosted two-CPU builds can spend over five seconds starting the first SQLite object.
+}, 15_000);
 
 it("accepts Garmin's plain-text token response", async () => {
   const fetcher = personalFetch();
