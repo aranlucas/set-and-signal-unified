@@ -38,6 +38,8 @@ The connector's existing JWT verifier and `GarminTokens` service binding require
 
 ## Live checks
 
+The real-account workout lifecycle test was removed on October 24, 2026, after two deleted test fixtures remained as broken home-page cards. Garmin's summary API still returned the cards while the referenced workout and schedule endpoints returned 404, including schedule deletion. Workout mutation coverage now uses mocked Garmin responses; live Training API verification uses the read-only `exchange-live` calendar check. Do not create real-account workout fixtures for testing. The lifecycle result below is a historical record, not a current test command.
+
 Chrome completed the shared Auth → Garmin → Auth consent flow with Activities, Daily Health Stats, and Training enabled. Garmin is shown as a linked account in Auth. The app callback is Auth's `/api/auth/callback/garmin`.
 
 The `training-live` Vitest project passed Auth refresh, the 12-tool catalog, permission-checked Health/Activity reads, and all nine workout/calendar operations. It created a clearly named 60-second workout, read and edited it, scheduled it, read/listed and moved the calendar entry, then deleted both fixtures and verified no matching calendar entries remained on either date. Its temporary Auth refresh grant was revoked, and another refresh was rejected.

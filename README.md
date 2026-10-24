@@ -68,13 +68,7 @@ pnpm smoke
 
 `pnpm check` runs Worker type generation, TypeScript, Oxlint, formatting, and Worker tests. The Cloudflare Vitest project provides fake secrets and a local store; it never uses production data. `jose` is a direct dependency for maintained, typed JWT/JWKS verification; Better Auth owns authorization and consent in the shared Auth service. MCP transport/registration uses `@modelcontextprotocol/server`, and inputs/provider payloads use Zod.
 
-For the opt-in real-account lifecycle test, prepare a private session file outside the repository containing `base`, `issuer`, `clientId`, and `refreshToken` through the real browser OAuth flow. Then run:
-
-```sh
-GARMIN_E2E_SESSION_FILE=/private/path/session.json pnpm exec vitest run --project training-live
-```
-
-The live test creates a clearly named 60-second workout, reads and edits it, schedules and moves it, deletes both fixtures, verifies the two-day calendar is clean, and revokes its test refresh grant. It writes a private cleanup journal beside the session file. Auth access JWTs have a 15-minute lifetime; revoking a refresh grant prevents refresh immediately, while disconnecting Garmin blocks the broker on the next request.
+Workout and schedule mutations are tested with mocked Garmin responses in the Worker suite. Do not create workouts or calendar entries in a real Garmin account for testing. The former `training-live` lifecycle test was removed after deleted fixtures left broken cards in Garmin Connect's home-page summaries. Use the read-only `exchange-live` test below for live Training API verification.
 
 To verify real Auth token exchange and a read-only Garmin API call through the deployed MCP, provision a temporary confidential client in Auth with `client_secret_basic`, `authorization_code` and `urn:ietf:params:oauth:grant-type:token-exchange` grants, the Garmin MCP resource, and `garmin:access` scope. Complete PKCE and consent with that client. Save `base`, `issuer`, `clientId`, `clientSecret`, and the resulting `subjectToken` in a private JSON file outside the repository. Request no refresh grant; the access token expires within 15 minutes.
 

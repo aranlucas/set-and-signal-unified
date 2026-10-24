@@ -14,6 +14,6 @@ The Training client follows the approved Training API V2 2.0 contract:
 - Preserve numeric schedule-create IDs. An empty successful mutation becomes `accepted:true`, without fabricating an ID.
 - Never retry ambiguous writes automatically or claim that a watch received a workout.
 
-Worker tests exercise all nine tools, schema bounds, error redaction, abort handling, response limits, redirect rejection, and numeric/empty write responses. The opt-in real-account test exercises all nine tools, Auth refresh, and fixture cleanup over MCP HTTP. Physical watch synchronization and a real near-expiry Garmin token refresh require separate observation; the rotating-token refresh path is tested with Better Auth and real Durable Object RPC under Miniflare.
+Worker tests exercise all nine tools with mocked Garmin responses, plus schema bounds, error redaction, abort handling, response limits, redirect rejection, and numeric/empty write responses. Do not create real-account workouts or calendar entries for testing. Live Training API verification uses the read-only `exchange-live` calendar check. Physical watch synchronization and a real near-expiry Garmin token refresh require separate observation; the rotating-token refresh path is tested with Better Auth and real Durable Object RPC under Miniflare.
 
 Official reference material is available to approved developers in the [Garmin developer portal](https://developerportal.garmin.com/developer-programs/programs-docs). Confidential source PDFs and app credentials are not checked into this repository.

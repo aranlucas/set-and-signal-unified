@@ -22,20 +22,10 @@ export default defineConfig({
           include: ["test/**/*.test.ts"],
           exclude: [
             "test/smoke.test.ts",
-            "test/training-live.test.ts",
             "test/push-live.test.ts",
             "test/exchange-live.test.ts",
             "test/personal-backfill-live.test.ts",
           ],
-        },
-      },
-      // Opt-in real Garmin writes; a browser-authorized private session file is required.
-      {
-        test: {
-          name: "training-live",
-          include: ["test/training-live.test.ts"],
-          environment: "node",
-          testTimeout: 120_000,
         },
       },
       {
