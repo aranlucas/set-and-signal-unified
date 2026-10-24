@@ -375,6 +375,7 @@ it("verifies signed Auth tokens and serves the merged catalog over actual MCP HT
   const catalogText = await catalog.text();
   expect(catalogText).toContain("garmin.activity.completed");
   expect(catalogText).toContain("garmin.sleep.available");
+  expect(catalogText).toContain("garmin.health_snapshot.available");
   expect(catalogText).not.toContain("private-garmin-token");
 });
 

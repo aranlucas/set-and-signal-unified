@@ -168,6 +168,18 @@ async function fixture() {
     samples: [{ latitude: 1, longitude: 2 }],
   });
 
+  const healthSnapshot = (summaryId = "snapshot-1", startTimeInSeconds = 1792500000) => ({
+    userId: id,
+    summaryId,
+    calendarDate: "2026-10-20",
+    startTimeInSeconds,
+    durationInSeconds: 120,
+    averageHeartRateInBeatsPerMinute: 60,
+    stress: 20,
+    samples: [{ heartRate: 60, respiration: 12, pulseOx: 98 }],
+    userAccessToken: "provider-secret",
+  });
+
   async function flush() {
     await runInDurableObject(store, (_instance, context) =>
       context.storage.sql.exec("UPDATE event_deliveries SET next_at=0").toArray(),
@@ -198,6 +210,7 @@ async function fixture() {
     subscribe,
     push,
     activity,
+    healthSnapshot,
     flush,
     count,
   };
@@ -226,16 +239,270 @@ it("discovers permission-filtered event schemas through the MCP SDK", async () =
     "garmin.activity.completed",
     "garmin.sleep.available",
     "garmin.body_composition.recorded",
+    "garmin.health_snapshot.available",
   ]);
   f.state.permissions = ["HEALTH_EXPORT"];
   expect(
     (await f.client.request({ method: "events/list", params: {} }, schema)).events.map(
       (event) => event.name,
     ),
-  ).toEqual(["garmin.sleep.available", "garmin.body_composition.recorded"]);
+  ).toEqual([
+    "garmin.sleep.available",
+    "garmin.body_composition.recorded",
+    "garmin.health_snapshot.available",
+  ]);
+  f.state.permissions = ["ACTIVITY_EXPORT"];
+  expect(
+    (await f.client.request({ method: "events/list", params: {} }, schema)).events.map(
+      (event) => event.name,
+    ),
+  ).toEqual(["garmin.activity.completed"]);
   await expect(
     f.client.request({ method: "events/list", params: { cursor: "invalid" } }, schema),
   ).rejects.toMatchObject({ code: -32602 });
+});
+
+it("advertises a no-filter Health Snapshot schema and rejects unsupported snapshot filters", async () => {
+  const f = await fixture();
+
+  const catalog = await f.client.request(
+    { method: "events/list", params: {} },
+    z.object({
+      events: z.array(
+        z.object({ name: z.string(), inputSchema: z.json(), payloadSchema: z.json() }),
+      ),
+    }),
+  );
+
+  const definition = required(
+    catalog.events.find((event) => event.name === "garmin.health_snapshot.available"),
+    "Health Snapshot definition",
+  );
+
+  expect(definition).toMatchObject({
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    payloadSchema: {
+      additionalProperties: false,
+      properties: { type: { const: "healthSnapshot" } },
+      required: ["type", "summaryId", "calendarDate", "receivedAt"],
+    },
+  });
+
+  const properties = z
+    .object({ properties: z.record(z.string(), z.json()) })
+    .parse(definition.payloadSchema).properties;
+
+  expect(Object.keys(properties).toSorted()).toEqual([
+    "calendarDate",
+    "durationInSeconds",
+    "receivedAt",
+    "startTimeInSeconds",
+    "summaryId",
+    "type",
+  ]);
+
+  for (const args of [
+    { activityTypes: ["RUNNING"] },
+    { minDurationSeconds: 60 },
+    { userId: "other" },
+  ]) {
+    await expect(
+      f.subscribe({ ...f.params(), name: "garmin.health_snapshot.available", arguments: args }),
+    ).rejects.toMatchObject({ code: -32602 });
+  }
+
+  expect(f.state.verifications).toBe(0);
+  expect(await f.count("event_subscriptions")).toBe(0);
+});
+
+it("signs Health Snapshot fan-out and retries without leaking measurements or replaying revisions", async () => {
+  const f = await fixture();
+  const params = { ...f.params(), name: "garmin.health_snapshot.available" };
+  const a = await f.subscribe(params);
+
+  const b = await f.subscribe({
+    ...f.params("https://another.example.com/snapshots"),
+    name: params.name,
+  });
+
+  await f.subscribe();
+  await f.subscribe({ ...f.params(), name: "garmin.sleep.available" });
+
+  const snapshot = f.healthSnapshot();
+  f.state.callbackStatus = 503;
+  expect(await f.push({ healthSnapshot: [snapshot] })).toHaveProperty("status", 200);
+  await f.push({ healthSnapshot: [snapshot] });
+  await f.push({
+    healthSnapshot: [{ ...snapshot, summaryId: "snapshot-revised", durationInSeconds: 121 }],
+    hrv: [snapshot],
+    dailies: [snapshot],
+  });
+  expect(await f.count("event_deliveries")).toBe(2);
+  await f.flush();
+  expect(await f.count("event_deliveries")).toBe(2);
+  f.state.callbackStatus = 200;
+  await f.flush();
+  expect(f.deliveries.length).toBeGreaterThanOrEqual(4);
+  expect((await f.subscribe(params)).id).toBe(a.id);
+
+  const events = f.deliveries.map((delivery) =>
+    occurrence.parse(new Webhook(secret).verify(delivery.body, delivery.headers)),
+  );
+
+  expect(new Set(events.map((event) => event.eventId)).size).toBe(1);
+  expect(
+    new Set(f.deliveries.map((delivery) => delivery.headers["x-mcp-subscription-id"])),
+  ).toEqual(new Set([a.id, b.id]));
+
+  for (const delivery of f.deliveries) {
+    const raw = z
+      .object({ timestamp: z.iso.datetime(), data: z.record(z.string(), z.json()) })
+      .parse(JSON.parse(delivery.body));
+
+    expect(JSON.parse(delivery.body)).toMatchObject({ name: params.name, cursor: null });
+    expect(raw.data).toEqual({
+      type: "healthSnapshot",
+      summaryId: snapshot.summaryId,
+      calendarDate: snapshot.calendarDate,
+      receivedAt: raw.timestamp,
+      startTimeInSeconds: snapshot.startTimeInSeconds,
+      durationInSeconds: snapshot.durationInSeconds,
+    });
+    expect(delivery.body).not.toContain(f.id);
+    expect(delivery.body).not.toMatch(
+      /samples|heartRate|HeartRate|stress|respiration|pulseOx|provider-secret|private-test-access|userId/,
+    );
+  }
+
+  expect(await f.count("event_occurrences")).toBe(0);
+  expect(await f.count("event_deliveries")).toBe(0);
+  await f.push({
+    healthSnapshot: [{ ...snapshot, summaryId: "snapshot-final", durationInSeconds: 122 }],
+  });
+  expect(await f.count("event_deliveries")).toBe(0);
+  expect(await f.store.get("healthSnapshot", "snapshot-final")).not.toBeNull();
+  await f.push({ healthSnapshot: [f.healthSnapshot("next-snapshot", 1792504000)] });
+  expect(await f.count("event_deliveries")).toBe(2);
+  await f.flush();
+
+  const next = occurrence.parse(
+    JSON.parse(required(f.deliveries.at(-1), "next snapshot delivery").body),
+  );
+
+  expect(next.data.summaryId).toBe("next-snapshot");
+  expect(next.eventId).not.toBe(events[0]?.eventId);
+}, 40000);
+
+it("retains Health Snapshot subscriptions and pending delivery across eviction", async () => {
+  const f = await fixture();
+  const params = { ...f.params(), name: "garmin.health_snapshot.available" };
+  const subscription = await f.subscribe(params);
+  await f.push({ healthSnapshot: [f.healthSnapshot()] });
+  await evictDurableObject(f.store);
+  await f.flush();
+  expect((await f.subscribe(params)).id).toBe(subscription.id);
+  expect(f.deliveries).toHaveLength(1);
+
+  const delivery = required(f.deliveries[0], "persisted snapshot delivery");
+
+  expect(new Webhook(secret).verify(delivery.body, delivery.headers)).toMatchObject({
+    name: params.name,
+    data: { type: "healthSnapshot", summaryId: "snapshot-1" },
+  });
+}, 40000);
+
+it("suppresses Health Snapshot history, imports and manual records without inventing absent timing", async () => {
+  const f = await fixture();
+  const historical = f.healthSnapshot("historical");
+  await f.push({ healthSnapshot: [historical] });
+  await f.subscribe({ ...f.params(), name: "garmin.health_snapshot.available" });
+  await f.push({
+    healthSnapshot: [
+      historical,
+      { ...f.healthSnapshot("imported", 1792501000), importSource: "garmin-personal-api" },
+      { ...f.healthSnapshot("manual", 1792502000), isManual: true },
+    ],
+  });
+  await f.store.ingest([
+    {
+      type: "healthSnapshot",
+      summaryId: "received-before-subscription",
+      date: "2026-10-20",
+      receivedAt: 1,
+      data: JSON.stringify({ summaryId: "received-before-subscription" }),
+    },
+  ]);
+  expect(await f.count("event_deliveries")).toBe(0);
+
+  const withoutTiming = { userId: f.id, summaryId: "without-timing", calendarDate: "2026-10-20" };
+  await f.push({ healthSnapshot: [withoutTiming] });
+  await f.flush();
+  expect(f.deliveries).toHaveLength(1);
+
+  const raw = z
+    .object({ timestamp: z.iso.datetime(), data: z.record(z.string(), z.json()) })
+    .parse(JSON.parse(required(f.deliveries[0], "snapshot delivery").body));
+
+  expect(raw.data).toEqual({
+    type: "healthSnapshot",
+    summaryId: withoutTiming.summaryId,
+    calendarDate: withoutTiming.calendarDate,
+    receivedAt: raw.timestamp,
+  });
+  await f.push({ healthSnapshot: [withoutTiming] });
+  expect(await f.count("event_deliveries")).toBe(0);
+});
+
+it("requires Health permission for snapshots and isolates revocation from activity subscriptions and other accounts", async () => {
+  const f = await fixture();
+  const params = { ...f.params(), name: "garmin.health_snapshot.available" };
+  f.state.permissions = ["ACTIVITY_EXPORT"];
+  await expect(f.subscribe(params)).rejects.toMatchObject({ code: -32012 });
+  f.state.permissions.push("HEALTH_EXPORT");
+  await f.subscribe(params);
+  await f.subscribe();
+  expect(
+    await f.store.subscribeEvent({ subject: "different-account", garminUserId: f.id }, params),
+  ).toMatchObject({ ok: false, code: -32012 });
+
+  const otherId = crypto.randomUUID();
+  const otherStore = userStore(env, otherId);
+  onTestFinished(() => otherStore.clear());
+  await f.push({ healthSnapshot: [{ ...f.healthSnapshot(), userId: otherId }] });
+  expect(await f.count("event_deliveries")).toBe(0);
+  await f.push({ healthSnapshot: [f.healthSnapshot()], activities: [f.activity()] });
+  expect(await f.count("event_deliveries")).toBe(2);
+  await f.store.permissions(["ACTIVITY_EXPORT"], 1);
+  expect(await f.count("event_subscriptions")).toBe(1);
+  expect(await f.count("event_deliveries")).toBe(1);
+  await expect(f.subscribe(params)).rejects.toMatchObject({ code: -32012 });
+  await f.flush();
+  expect(f.deliveries).toHaveLength(1);
+  expect(
+    occurrence.parse(JSON.parse(required(f.deliveries[0], "activity delivery").body)).name,
+  ).toBe("garmin.activity.completed");
+});
+
+it("rechecks Health Snapshot sharing before delivery and cancels pending deliveries on unsubscribe", async () => {
+  const f = await fixture();
+  const params = { ...f.params(), name: "garmin.health_snapshot.available" };
+  await f.subscribe(params);
+  await f.push({ healthSnapshot: [f.healthSnapshot()] });
+  f.state.permissions = ["ACTIVITY_EXPORT"];
+  await f.flush();
+  expect(f.deliveries).toHaveLength(0);
+  expect(await f.count("event_subscriptions")).toBe(0);
+  expect(await f.count("event_occurrences")).toBe(0);
+  f.state.permissions.push("HEALTH_EXPORT");
+  await f.subscribe(params);
+  await f.push({ healthSnapshot: [f.healthSnapshot("cancelled", 1792501000)] });
+  expect(await f.count("event_deliveries")).toBe(1);
+  await f.client.request({ method: "events/unsubscribe", params }, z.object({}));
+  expect(await f.count("event_subscriptions")).toBe(0);
+  expect(await f.count("event_deliveries")).toBe(0);
+  expect(await f.count("event_occurrences")).toBe(0);
+  await f.flush();
+  expect(f.deliveries).toHaveLength(0);
 });
 
 it("traces a source through filtering, signed fan-out, retries, and unsubscribe without logging payloads", async () => {

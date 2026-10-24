@@ -15,6 +15,7 @@ export const eventName = z.enum([
   "garmin.activity.completed",
   "garmin.sleep.available",
   "garmin.body_composition.recorded",
+  "garmin.health_snapshot.available",
 ]);
 
 export type EventName = z.infer<typeof eventName>;
@@ -107,13 +108,26 @@ export const summaryTiming = activityMetrics.pick({
 });
 
 export const eventData = activityMetrics.extend({
-  type: z.enum(["activities", "sleeps", "bodyComps"]),
+  type: z.enum(["activities", "sleeps", "bodyComps", "healthSnapshot"]),
   summaryId: z.string(),
   calendarDate: z.string(),
   receivedAt: z.iso.datetime(),
 });
 
 const payloadSchema = z.toJSONSchema(eventData);
+
+const healthSnapshotPayloadSchema = z.toJSONSchema(
+  eventData
+    .pick({
+      type: true,
+      summaryId: true,
+      calendarDate: true,
+      receivedAt: true,
+      startTimeInSeconds: true,
+      durationInSeconds: true,
+    })
+    .extend({ type: z.literal("healthSnapshot") }),
+);
 
 export const eventDefinitions = [
   {
@@ -137,7 +151,15 @@ export const eventDefinitions = [
       "A new body composition measurement was received after Garmin sync. No historical replay. Read measurements with get_garmin_summary.",
     inputSchema: z.toJSONSchema(z.strictObject({})),
   },
-].map((definition) => ({ ...definition, delivery: ["webhook"], payloadSchema }));
+  {
+    name: "garmin.health_snapshot.available" as const,
+    title: "Health Snapshot available",
+    description:
+      "A new Health Snapshot summary was received after Garmin sync. Later revisions of the same snapshot do not trigger another event. No historical replay. Read measurements with get_garmin_summary; if the summary was superseded, use list_garmin_summaries for its calendarDate and start time.",
+    inputSchema: z.toJSONSchema(z.strictObject({})),
+    payloadSchema: healthSnapshotPayloadSchema,
+  },
+].map((definition) => ({ delivery: ["webhook"], payloadSchema, ...definition }));
 
 export type EventReply<T> =
   | { ok: true; result: T }

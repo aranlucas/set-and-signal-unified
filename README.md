@@ -53,7 +53,7 @@ FIT availability is explicit: `available`, `not_received`, `downloading`, `expir
 
 ### Events
 
-Event-capable MCP clients can subscribe to `garmin.activity.completed` (Workout finished), `garmin.sleep.available`, and `garmin.body_composition.recorded`. Every matching authorized subscription receives an independent signed webhook. Workout completion supports sport and minimum-duration filters and fires after Garmin sync. Repeated deliveries, existing records, and historical imports do not create new completion events. Subscriptions, pending deliveries, retries, and expiry persist in the account's Durable Object. [Event setup, delivery semantics, and verification limits](docs/mcp-events.md).
+Event-capable MCP clients can subscribe to `garmin.activity.completed` (Workout finished), `garmin.sleep.available`, `garmin.body_composition.recorded`, and `garmin.health_snapshot.available`. Every matching authorized subscription receives an independent signed webhook. Workout completion supports sport and minimum-duration filters and fires after Garmin sync. Repeated deliveries, existing records, and historical imports do not create new completion events. Subscriptions, pending deliveries, retries, and expiry persist in the account's Durable Object. [Event setup, delivery semantics, and verification limits](docs/mcp-events.md).
 
 ### One-time personal activity import
 

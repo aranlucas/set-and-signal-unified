@@ -347,9 +347,10 @@ export class GarminEvents {
       activities: "garmin.activity.completed",
       sleeps: "garmin.sleep.available",
       bodyComps: "garmin.body_composition.recorded",
+      healthSnapshot: "garmin.health_snapshot.available",
     } as const;
 
-    const type = z.enum(["activities", "sleeps", "bodyComps"]).safeParse(row.type);
+    const type = eventData.shape.type.safeParse(row.type);
 
     if (!type.success) {
       return;
