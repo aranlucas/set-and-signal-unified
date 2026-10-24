@@ -207,6 +207,7 @@ it("fetches FIT sets directly through the existing get_garmin_summary activity r
   });
 });
 
+// This large roundtrip encodes 12,000 samples and persists/reloads more than 2 MiB.
 it("returns all FIT data from get_garmin_summary and retains decoded files larger than a SQLite value across eviction", async () => {
   const { client, store, id, fetcher } = await connect({
     fileResponse: () => new Response(recordedFitFixture(12000)),
@@ -250,7 +251,7 @@ it("returns all FIT data from get_garmin_summary and retains decoded files large
   expect(
     fetcher.mock.calls.filter(([input]) => requestUrl(input).includes("activityFile?")),
   ).toHaveLength(1);
-});
+}, 15_000);
 
 it("rejects a background Auth account mismatch before downloading", async () => {
   const { store, id, fetcher } = await connect();

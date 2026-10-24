@@ -11,10 +11,12 @@ export const MAX_EXERCISE_ENTRIES = 4_000;
 
 export const MAX_DECODED_FIT_BYTES = 8 * 1024 * 1024;
 
+const jsonRecord = z.record(z.string(), z.json());
+
 // SDK messages contain 64-bit integers. JSON has no lossless numeric representation
 // for them, so use native JSON serialization with decimal strings at that boundary.
 function fitJson(value: Mesg | FitMessages) {
-  return z.record(z.string(), z.json()).parse(
+  return jsonRecord.parse(
     JSON.parse(
       JSON.stringify(
         value,
