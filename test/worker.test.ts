@@ -30,10 +30,10 @@ beforeAll(async () => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-const jwt = () =>
+const jwt = (subject = "auth-alice") =>
   new SignJWT({ scope: "garmin:access" })
     .setProtectedHeader({ alg: "RS256", kid: "fixture" })
-    .setSubject("auth-alice")
+    .setSubject(subject)
     .setIssuer(env.AUTH_ISSUER)
     .setAudience(`${base}/mcp`)
     .setIssuedAt()
@@ -58,6 +58,184 @@ async function send(path: string, init?: RequestInit, config = env) {
 
   return response;
 }
+
+function accountRequest(
+  method: "resources/list" | "resources/read",
+  config: Env,
+  authorization?: string,
+) {
+  const headers = new Headers({
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+    "MCP-Protocol-Version": "2026-07-28",
+    "Mcp-Method": method,
+  });
+
+  const meta = {
+    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+    "io.modelcontextprotocol/clientInfo": { name: "account-test", version: "1.0.0" },
+    "io.modelcontextprotocol/clientCapabilities": {},
+  };
+
+  const params =
+    method === "resources/read" ? { uri: "garmin://account", _meta: meta } : { _meta: meta };
+
+  if (authorization) {
+    headers.set("Authorization", `Bearer ${authorization}`);
+  }
+
+  if (method === "resources/read") {
+    headers.set("Mcp-Name", "garmin://account");
+  }
+
+  return send(
+    "/mcp",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method,
+        params,
+      }),
+    },
+    config,
+  );
+}
+
+it("lists and reads the authenticated Garmin account without another upstream lookup", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation((input) => {
+    expect(requestUrl(input)).toBe(`${env.AUTH_ISSUER}/jwks`);
+
+    return Promise.resolve(Response.json({ keys: [{ ...jwk, kid: "fixture", alg: "RS256" }] }));
+  });
+
+  vi.stubGlobal("fetch", fetcher);
+
+  const config = bindings({
+    accessToken: "private-account-resource-token",
+    expiresAt: Date.now() + 60_000,
+    garminUserId: "garmin-http-account",
+  });
+
+  const token = await jwt();
+  const listed = await accountRequest("resources/list", config, token);
+  expect(listed.status).toBe(200);
+  expect(await listed.json()).toMatchObject({
+    result: {
+      resources: [
+        { name: "garmin-account", uri: "garmin://account", mimeType: "application/json" },
+      ],
+    },
+  });
+  const read = await accountRequest("resources/read", config, token);
+  const text = await read.text();
+  expect(read.status, text).toBe(200);
+  expect(JSON.parse(text)).toMatchObject({
+    result: {
+      ttlMs: 0,
+      cacheScope: "private",
+      contents: [
+        {
+          uri: "garmin://account",
+          mimeType: "application/json",
+          text: '{"userId":"garmin-http-account"}',
+        },
+      ],
+    },
+  });
+  expect(text).not.toContain("private-account-resource-token");
+  expect(text).not.toContain("auth-alice");
+  expect(text).not.toContain(token);
+  expect(config.AUTH.accessToken.mock.calls).toEqual([["auth-alice"], ["auth-alice"]]);
+  expect(
+    fetcher.mock.calls.every(([input]) => requestUrl(input) === `${env.AUTH_ISSUER}/jwks`),
+  ).toBe(true);
+});
+
+it.each(["resources/list", "resources/read"] as const)(
+  "requires authentication before %s can expose account metadata",
+  async (method) => {
+    const config = bindings({
+      accessToken: "private-account-resource-token",
+      expiresAt: Date.now() + 60_000,
+      garminUserId: "garmin-http-account",
+    });
+
+    for (const token of [undefined, "invalid-token"]) {
+      const response = await accountRequest(method, config, token);
+      expect(response.status).toBe(401);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(await response.text()).toBe("");
+    }
+
+    expect(config.AUTH.accessToken).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  { name: "disconnected", credential: null },
+  {
+    name: "expired",
+    credential: { accessToken: "private-expired-token", expiresAt: 1, garminUserId: "old-account" },
+  },
+  { name: "missing account ID", credential: { accessToken: "private-token", expiresAt: 9e12 } },
+  {
+    name: "empty account ID",
+    credential: { accessToken: "private-token", expiresAt: 9e12, garminUserId: "" },
+  },
+])("does not expose an account for $name credentials", async ({ credential }) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(Response.json({ keys: [{ ...jwk, kid: "fixture", alg: "RS256" }] })),
+    ),
+  );
+  const config = bindings(null);
+  config.AUTH.accessToken.mockResolvedValue(credential);
+  const response = await accountRequest("resources/read", config, await jwt());
+  expect(response.status).toBe(401);
+  expect(await response.text()).toBe("");
+});
+
+it("isolates account resources across HTTP callers and rechecks a disconnected link", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(Response.json({ keys: [{ ...jwk, kid: "fixture", alg: "RS256" }] })),
+    ),
+  );
+  const config = bindings(null);
+  config.AUTH.accessToken.mockImplementation((subject: string) =>
+    Promise.resolve({
+      accessToken: `private-${subject}`,
+      expiresAt: Date.now() + 60_000,
+      garminUserId: subject === "auth-alice" ? "garmin-alice" : "garmin-bob",
+    }),
+  );
+  const aliceToken = await jwt();
+  const bobToken = await jwt("auth-bob");
+
+  const [alice, bob] = await Promise.all([
+    accountRequest("resources/read", config, aliceToken),
+    accountRequest("resources/read", config, bobToken),
+  ]);
+
+  const aliceText = await alice.text();
+  const bobText = await bob.text();
+  expect(alice.status, aliceText).toBe(200);
+  expect(bob.status, bobText).toBe(200);
+  expect(aliceText).toContain("garmin-alice");
+  expect(aliceText).not.toContain("garmin-bob");
+  expect(bobText).toContain("garmin-bob");
+  expect(bobText).not.toContain("garmin-alice");
+  expect(aliceText + bobText).not.toContain("private-");
+  config.AUTH.accessToken.mockResolvedValue(null);
+  const disconnected = await accountRequest("resources/read", config, aliceToken);
+  expect(disconnected.status).toBe(401);
+  expect(await disconnected.text()).toBe("");
+});
 
 it("advertises shared Auth and rejects unauthenticated, legacy-key and retired issuer access", async () => {
   const metadata = await (await send("/.well-known/oauth-protected-resource/mcp")).json();

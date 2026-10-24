@@ -10,6 +10,12 @@ https://garmin-mcp.aranlucas.workers.dev/mcp
 
 Auth handles client registration, PKCE, consent, access/refresh tokens, and Garmin account linking. The Garmin callback is `https://auth.aranlucas.workers.dev/api/auth/callback/garmin`. Existing Personal and Training connections must be removed and connected again at `/mcp`; their issuers and grants are retired. `/training/mcp`, `/authorize`, and the old local token/registration endpoints are no longer served.
 
+## Account resource
+
+`resources/list` advertises the read-only `garmin://account` resource with MIME type `application/json`. Read it through `resources/read` with `{"uri":"garmin://account"}` to obtain `{"userId":"<immutable Garmin User ID>"}`. This is Garmin's `userID` for developer-portal requests such as an Activity File resend, not the Auth subject, display name, email address, activity ID, or a credential.
+
+The resource uses the linked account identity already validated by the authenticated `/mcp` request. The existing Auth broker check still runs on every request and may refresh an expired Garmin credential; reading this resource adds no further token lookup or Garmin API call. It accepts no account selector and returns no access tokens, refresh tokens, or other profile fields. MCP result cache hints specify private scope and a zero cache lifetime. Unauthenticated requests, invalid credentials, and disconnected accounts receive HTTP 401; a server without linked-account identity returns a fixed resource-unavailable error rather than an empty or guessed ID. Reconnect Garmin in Auth if the account is unavailable.
+
 ## Tools and data availability
 
 - Nine Training tools: create/get/update/delete workout; schedule/get/update/delete calendar entry; list calendar entries.
