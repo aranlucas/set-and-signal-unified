@@ -8,6 +8,7 @@ import { registerEvents } from "./events/mcp";
 import type { EventOwner } from "./events/protocol";
 import { registerActivityTools, activityFit } from "./activity/mcp";
 import { garminActivityId } from "./activity/files";
+import { dayInput, getGarminDay } from "./day";
 
 const result = (data: z.infer<ReturnType<typeof z.json>>) => {
   const output = {
@@ -95,6 +96,38 @@ export function createServer(
   };
 
   registerActivityTools(server, activityAccess);
+
+  server.registerTool(
+    "get_garmin_day",
+    {
+      description:
+        "Gather one calendar day's stored Garmin data across all Health/Activity categories. Health sections include full received summaries; activity sections contain summaryId/activityId references for get_garmin_summary or get_garmin_activity, without samples or FIT downloads. Uses Garmin's calendarDate, otherwise the device-offset local start date. Each section reports available, not_received, or permission_denied, with receipt timestamps and hasMore/nextOffset. Continue a section with list_garmin_summaries using its type, this date for both startDate/endDate, and nextOffset. Missing data does not mean zero. No historical fetch, recovery score, or inferred measurements. Source: Garmin Connect.",
+      inputSchema: dayInput,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (input, ctx) => {
+      try {
+        const permissions = await client.getPermissions(ctx.mcpReq.signal);
+
+        return result(await getGarminDay(store, input, permissions));
+      } catch {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: "Garmin day data is unavailable. Check your connection and permissions in Auth and try again.",
+            },
+          ],
+        };
+      }
+    },
+  );
 
   server.registerTool(
     "list_garmin_summaries",

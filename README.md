@@ -21,6 +21,7 @@ The resource uses the linked account identity already validated by the authentic
 - Nine Training tools: create/get/update/delete workout; schedule/get/update/delete calendar entry; list calendar entries.
 - `list_garmin_summaries`: paginate Health/Activity push summaries by category and a date range of at most 31 days.
 - `get_garmin_summary`: retrieve a received record by category and summary ID.
+- `get_garmin_day`: gather one date's Health summaries and Activity references across all categories, with per-category availability and pagination.
 - `get_garmin_activity`: retrieve a stored activity by Garmin activity ID, combining its summary, JSON details, and all automatically decoded FIT messages and fields.
 - Activity reads through `get_garmin_summary` also include the complete decoded FIT payload under `fit` when the record has an `activityId`.
 - `delete_stored_garmin_data`: delete this connector's retained Health/Activity data after explicit confirmation.
@@ -30,6 +31,20 @@ Health categories include dailies (steps and daily heart rate), epochs, sleeps, 
 **Garmin Starter has no automatic historical backfill.** Summaries start arriving after the user authorizes sharing and syncs their device. Empty results mean no received records, not zero activity. Stored records have no automatic expiration: users can delete stored data, disconnect Garmin, or withdraw sharing permissions to remove the affected records. The connector downloads only FIT files announced through Garmin’s Activity API delivery. Profile/settings, goals, fitness age, and women's health tools from the Personal API are not exposed.
 
 Workout mutations require user approval of details and dates. Do not repeat an ambiguous write automatically. A successful schedule operation does not confirm watch delivery.
+
+### Read a day's data
+
+Call `get_garmin_day` with:
+
+```json
+{ "date": "2026-10-23", "limitPerType": 50 }
+```
+
+`limitPerType` is optional (default 50, maximum 100). The result's `data.sections` contains every supported summary category. Health records contain `{ summaryId, receivedAt, summary }`, preserving Garmin's measurement fields and units. Activity records contain `{ summaryId, receivedAt, activityId }`; `activityId` is `null` when Garmin did not supply a valid activity ID. Use `get_garmin_summary` with the section's type and summary ID for the full record, or `get_garmin_activity` with an activity ID for combined activity details and FIT data. The day tool does not download files or embed activity samples.
+
+Each section reports `availability` as `available`, `not_received`, or `permission_denied`. Missing records do not mean zero measurements or activity. Current Health and Activity sharing permissions are checked independently, so an authorized category remains readable when the other is denied. Permission lookup failures return a tool error rather than an empty day.
+
+Records follow the stored Garmin `calendarDate`, or the device-offset local start date when no calendar date was supplied. Receipt timestamps indicate when this connector received the record, not when the measurement happened. Every measurement within the page is preserved; no recovery score or other interpretation is calculated. When a section has `hasMore: true`, continue with `list_garmin_summaries`, passing its type, the requested date as both `startDate` and `endDate`, and `nextOffset` as `offset`.
 
 ### Complete activity data from FIT
 
