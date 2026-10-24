@@ -116,6 +116,65 @@ it("verifies signed Auth tokens and serves the merged catalog over actual MCP HT
   expect(text).not.toContain('"get_profile"');
 });
 
+it.each([
+  { name: "Garmin audience and scope", fields: {}, status: 200 },
+  {
+    name: "another Auth resource's audience",
+    fields: { aud: "https://auth.aranlucas.workers.dev" },
+    status: 401,
+  },
+  { name: "missing Garmin scope", fields: { scope: "email" }, status: 401 },
+  { name: "wrong issuer", fields: { iss: "https://other.example" }, status: 401 },
+  { name: "expired subject lifetime", fields: { exp: 1 }, status: 401 },
+])("checks Auth exchange-shaped tokens with $name", async ({ fields, status }) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(Response.json({ keys: [{ ...jwk, kid: "fixture", alg: "RS256" }] })),
+    ),
+  );
+
+  const config = bindings({
+    accessToken: "private-garmin-token",
+    expiresAt: Date.now() + 3600000,
+    garminUserId: "garmin-alice",
+  });
+
+  // Match Auth's RFC 8693 output; the real exchange and its consent checks live in Auth.
+  const token = await new SignJWT({
+    sub: "auth-alice",
+    iss: config.AUTH_ISSUER,
+    aud: `${base}/mcp`,
+    scope: "garmin:access",
+    client_id: "exchange-service",
+    sid: "subject-session",
+    reference_id: "subject-reference",
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 60,
+    ...fields,
+  })
+    .setProtectedHeader({ alg: "RS256", kid: "fixture", typ: "at+jwt" })
+    .sign(privateKey);
+
+  const response = await send(
+    "/mcp",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    },
+    config,
+  );
+
+  expect(response.status).toBe(status);
+  expect(config.AUTH.accessToken.mock.calls).toEqual(status === 200 ? [["auth-alice"]] : []);
+  expect((await response.text()).includes('"list_garmin_summaries"')).toBe(status === 200);
+});
+
 it("fails closed for wrong audience, issuer, scope, expiry and disconnected accounts", async () => {
   const config = bindings(null);
   vi.stubGlobal(

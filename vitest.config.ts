@@ -20,7 +20,12 @@ export default defineConfig({
         test: {
           name: "worker",
           include: ["test/**/*.test.ts"],
-          exclude: ["test/smoke.test.ts", "test/training-live.test.ts", "test/push-live.test.ts"],
+          exclude: [
+            "test/smoke.test.ts",
+            "test/training-live.test.ts",
+            "test/push-live.test.ts",
+            "test/exchange-live.test.ts",
+          ],
         },
       },
       // Opt-in real Garmin writes; a browser-authorized private session file is required.
@@ -38,6 +43,14 @@ export default defineConfig({
           include: ["test/push-live.test.ts"],
           environment: "node",
           testTimeout: 30000,
+        },
+      },
+      {
+        test: {
+          name: "exchange-live",
+          include: ["test/exchange-live.test.ts"],
+          environment: "node",
+          testTimeout: 30_000,
         },
       },
       // Live deployment checks; run explicitly with `pnpm run smoke`.

@@ -1,6 +1,18 @@
-# Verification — 2026-10-23
+# Verification
 
 The merged connector is deployed at `https://garmin-mcp.aranlucas.workers.dev/mcp`. Its Auth issuer is `https://auth.aranlucas.workers.dev/api/auth`.
+
+## Token exchange — 2026-10-24
+
+The opt-in `exchange-live` Vitest project passed against the deployed Auth and Garmin MCP services. A temporary confidential client requested only `garmin:access`, with authorization-code and RFC 8693 exchange grants. The existing Garmin-linked account completed native PKCE and consent. No refresh grant was requested or refresh token issued.
+
+The test exchanged the resulting Auth access token at `/api/auth/oauth2/token`, verified both tokens against Auth's public JWKS, and checked the exact Garmin audience, scope, user/session/reference preservation, and expiry bounded by the subject token. The exchange response contained no refresh or ID token. The exchanged token successfully initialized MCP and listed the deployed tool catalog, including Training and Health/Activity tools. The initial run stopped at tool listing.
+
+The subsequent retry used a fresh temporary client and extended `exchange-live` to invoke the read-only `list_workout_schedules` tool. This calls Garmin's `/partner-gateway/rest/user/permissions`, requires `WORKOUT_IMPORT`, and fetches `/training-api/schedule?startDate=2026-10-24&endDate=2026-10-24`. The tool succeeded and returned a validated empty calendar array (0 entries). The test passed again with verbose output confirming the date and count. This verifies an actual upstream Garmin read through the exchanged Auth token and private broker. It does not imply an empty activity history. No Garmin data was created, edited, or deleted.
+
+The temporary client was deleted through Auth's native client-management API; a subsequent lookup returned HTTP 404 `client not found`. The private credential file and its directory were removed. Locally verified access JWTs retain their normal short expiry; client deletion is not evidence of immediate JWT invalidation at the resource server.
+
+The connector's existing JWT verifier and `GarminTokens` service binding required no runtime changes. Production discovery already advertised `https://auth.aranlucas.workers.dev/api/auth`, and Auth advertised the token-exchange grant. `pnpm check` passes with 100 Worker tests, including five cases matching exchanged-token claims. The live exchange test runs separately and requires a fresh private fixture.
 
 ## Automated checks
 
