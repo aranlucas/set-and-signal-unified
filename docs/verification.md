@@ -10,6 +10,14 @@ The combined deployment passed `pnpm check` with 105 Worker tests, including old
 
 Verified production version: `9662d633-02e4-40d9-9816-d24a11ceedff`. Other sections record earlier verification runs.
 
+## Webhook URL migration — 2026-10-24
+
+The webhook migration was deployed at `/webhook/garmin/<GARMIN_PUSH_TOKEN>` in Worker version `e092259e-ca4b-41c3-897f-0a337dd57138`. The subsequent retention deployment above preserved this route. Garmin's API Tools successfully saved all 21 configured URLs in this format. Reading the configuration after a fresh navigation confirmed the full credential-bearing paths persisted. Enabled and on-hold flags were unchanged; activity-file delivery remains disabled. The original `/garmin/push/<GARMIN_PUSH_TOKEN>` route still accepts deliveries for compatibility.
+
+The initially proposed `/webhook/garmin?token=...` format worked against the receiver, but Garmin's configuration tool silently discarded the query string on save. A fresh read confirmed it was absent. The original working URLs were immediately restored before deploying and configuring the path-credential alternative. The receiver continues to reject credential-free delivery; the query-token route is not supported in the final implementation.
+
+The initial webhook checks passed with 104 Worker tests, including authenticated persistence through both routes and rejection of missing/incorrect path credentials or a query token alone. After rebasing onto the merged import and retention changes, `pnpm check` passed with 111 Worker tests; the production build and API-generation check also passed. `pnpm smoke` passed all three production checks. The opt-in `push-live` test passed on the new path with an isolated synthetic user ID: authenticated delivery, duplicate acceptance, invalid-credential and invalid-category rejection, and fixture cleanup. Its temporary secret file and cleanup journal were removed. This verifies receiver behavior and saved Garmin configuration, not a new device-originated delivery.
+
 ## Token exchange — 2026-10-24
 
 The opt-in `exchange-live` Vitest project passed against the deployed Auth and Garmin MCP services. A temporary confidential client requested only `garmin:access`, with authorization-code and RFC 8693 exchange grants. The existing Garmin-linked account completed native PKCE and consent. No refresh grant was requested or refresh token issued.

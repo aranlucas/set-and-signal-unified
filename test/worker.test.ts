@@ -209,6 +209,28 @@ it("fails closed for wrong audience, issuer, scope, expiry and disconnected acco
   }
 });
 
+it.each([
+  "/webhook/garmin",
+  "/webhook/garmin/wrong",
+  `/webhook/garmin?${new URLSearchParams({ token: env.GARMIN_PUSH_TOKEN })}`,
+])("rejects Garmin delivery without a valid path credential at %s", async (path) => {
+  const id = crypto.randomUUID();
+
+  const response = await send(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "garmin-client-id": "public-client-id",
+    },
+    body: JSON.stringify({
+      dailies: [{ userId: id, summaryId: "rejected-push", calendarDate: "2026-10-23" }],
+    }),
+  });
+
+  expect(response.status).toBe(404);
+  expect(await userStore(env, id).get("dailies", "rejected-push")).toBeNull();
+});
+
 it("has one keyless setup with honest retention and AI consent details", async () => {
   const home = await (await send("/")).text();
   expect(home).toContain("Sign in with Auth");
@@ -220,17 +242,20 @@ it("has one keyless setup with honest retention and AI consent details", async (
   expect(privacy).toContain("Auth connected accounts");
 });
 
-it("accepts and durably stores Garmin delivery through the HTTP router", async () => {
-  const id = crypto.randomUUID();
+it.each([`/webhook/garmin/${env.GARMIN_PUSH_TOKEN}`, `/garmin/push/${env.GARMIN_PUSH_TOKEN}`])(
+  "accepts and durably stores Garmin delivery at %s",
+  async (path) => {
+    const id = crypto.randomUUID();
 
-  const response = await send(`/garmin/push/${env.GARMIN_PUSH_TOKEN}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      dailies: [{ userId: id, summaryId: "http-push", calendarDate: "2026-10-23", steps: 321 }],
-    }),
-  });
+    const response = await send(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dailies: [{ userId: id, summaryId: "http-push", calendarDate: "2026-10-23", steps: 321 }],
+      }),
+    });
 
-  expect(response.status).toBe(200);
-  expect(await userStore(env, id).get("dailies", "http-push")).toContain('"steps":321');
-});
+    expect(response.status).toBe(200);
+    expect(await userStore(env, id).get("dailies", "http-push")).toContain('"steps":321');
+  },
+);

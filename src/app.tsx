@@ -72,6 +72,11 @@ app.get("/training", (c) => c.redirect("/#connect", 308));
 
 app.get("/training/privacy", (c) => c.redirect("/privacy", 308));
 
+app.post("/webhook/garmin/:credential", (c) =>
+  receivePush(c.req.raw, c.env, c.req.param("credential")),
+);
+
+// Keep existing Garmin configurations and queued deliveries working during migration.
 app.post("/garmin/push/:credential", (c) =>
   receivePush(c.req.raw, c.env, c.req.param("credential")),
 );

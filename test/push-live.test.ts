@@ -27,7 +27,7 @@ it("accepts authenticated production push deliveries and cleans the isolated fix
   };
 
   const post = (token: string, body: string) =>
-    fetch(`${base}/garmin/push/${token}`, {
+    fetch(`${base}/webhook/garmin/${token}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       redirect: "error",
