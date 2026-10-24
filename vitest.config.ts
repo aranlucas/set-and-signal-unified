@@ -25,6 +25,7 @@ export default defineConfig({
             "test/training-live.test.ts",
             "test/push-live.test.ts",
             "test/exchange-live.test.ts",
+            "test/personal-backfill-live.test.ts",
           ],
         },
       },
@@ -51,6 +52,14 @@ export default defineConfig({
           include: ["test/exchange-live.test.ts"],
           environment: "node",
           testTimeout: 30_000,
+        },
+      },
+      {
+        test: {
+          name: "personal-backfill-live",
+          include: ["test/personal-backfill-live.test.ts"],
+          environment: "node",
+          testTimeout: 600_000,
         },
       },
       // Live deployment checks; run explicitly with `pnpm run smoke`.

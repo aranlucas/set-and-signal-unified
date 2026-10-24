@@ -19,9 +19,22 @@ Auth handles client registration, PKCE, consent, access/refresh tokens, and Garm
 
 Health categories include dailies (steps and daily heart rate), epochs, sleeps, bodyComps, stressDetails, userMetrics, pulseox, allDayRespiration, healthSnapshot, hrv, bloodPressures, skinTemp, nutrition, hydration, and breathingVariations. Activity categories include activities, activityDetails, manuallyUpdatedActivities, and moveIQActivities. Responses use Garmin's approved push models, rather than the retired Personal API response models.
 
-**Garmin Starter has no historical backfill.** Summaries start arriving after the user authorizes sharing and syncs their device. Empty results mean no received records, not zero activity. Records expire 90 days after their latest accepted delivery. Original activity-file downloads, profile/settings, goals, fitness age, and women's health tools from the Personal API are not exposed by this connector.
+**Garmin Starter has no automatic historical backfill.** Summaries start arriving after the user authorizes sharing and syncs their device. Empty results mean no received records, not zero activity. Stored records have no automatic expiration: users can delete stored data, disconnect Garmin, or withdraw sharing permissions to remove the affected records. Original activity-file downloads, profile/settings, goals, fitness age, and women's health tools from the Personal API are not exposed by this connector.
 
 Workout mutations require user approval of details and dates. Do not repeat an ambiguous write automatically. A successful schedule operation does not confirm watch delivery.
+
+### One-time personal activity import
+
+An operator can fetch their own activities with a Personal API key or access token and deliver normalized summaries through the existing private push endpoint. This is an explicit local import, not Garmin Starter backfill. It adds no public credential-entry endpoint and does not save the Personal credential in the connector. Imported summaries carry `importSource: "garmin-personal-api"` and use Garmin's activity ID as the summary ID, so repeats update the same record. Native Garmin deliveries take precedence over imports. The existing account permission, disconnect, and deletion rules apply; imported records have no automatic expiration.
+
+Prepare a private JSON file outside the repository with `personalApiKey` (or `personalAccessToken`), `garminUserId`, `pushToken`, `expectedActivityId`, `startDate`, and `endDate`. Resolve `garminUserId` from the account's existing Auth Garmin link; do not substitute the numeric Personal API profile ID. Verify `expectedActivityId` in that same user's Garmin Connect account. The importer checks that the activity is present and validates all fetched pages before delivering anything. It imports activity summaries, not detailed samples or other health categories.
+
+```sh
+GARMIN_BACKFILL_SETTINGS_FILE=/private/path/backfill.json pnpm exec vitest run --project personal-backfill-live
+GARMIN_BACKFILL_SETTINGS_FILE=/private/path/backfill.json GARMIN_BACKFILL_COMMIT=1 pnpm exec vitest run --project personal-backfill-live
+```
+
+The first command only fetches and validates. The second imports through the production receiver. Both write a private activity-ID journal beside the settings file. Verify the imported records afterward with `list_garmin_summaries`. Keep both the Personal credential and push credential out of command arguments and logs.
 
 ## Architecture
 
@@ -29,7 +42,9 @@ The connector verifies Auth's RS256 access JWTs with exact issuer, `/mcp` audien
 
 Auth also supports [RFC 8693 token exchange](https://github.com/sidequest-labs/auth/blob/main/docs/oauth.md#token-exchange-between-auth-resources). An exchanged Auth access token works here when its audience is exactly `https://garmin-mcp.aranlucas.workers.dev/mcp` and its scope includes `garmin:access`. Exchange cannot add scopes absent from the subject token, so an identity-only Auth token cannot gain Garmin access. A service performing exchange needs an operator-provisioned confidential client, the permitted incoming and target resources, and consent. This connector only verifies the resulting token; it needs no exchange client or secret. Exchange does not return Garmin credentials or replace the private `GarminTokens` binding. Direct MCP clients continue using Auth's PKCE authorization and refresh flow.
 
-Garmin push delivery is persisted in one SQLite Durable Object per immutable Garmin user ID. Records are upserted; more complete Health summaries replace earlier summaries for the same start time. A daily alarm deletes expired records, and reads also exclude them immediately. Tools cannot choose another user's store. Each Health/Activity read checks current Garmin permissions. Deregistration purges records and blocks late retries; permission changes purge and block only the withdrawn category. Reconnecting through Auth starts collection again.
+Garmin push delivery is persisted in one SQLite Durable Object per immutable Garmin user ID. Records are upserted; more complete Health summaries replace earlier summaries for the same start time. Records remain available regardless of their activity or delivery age. Legacy cleanup alarms are canceled without deleting history. Tools cannot choose another user's store. Each Health/Activity read checks current Garmin permissions. Deregistration purges records and blocks late retries; permission changes purge and block only the withdrawn category. Reconnecting through Auth starts collection again.
+
+Retention was checked against the [current Garmin Connect Developer License Agreement, Rev H](https://developerportal.garmin.com/sites/default/files/Garmin%20Connect%20Developer%20License%20Agreement%20-%20Rev%20H.pdf) on October 24, 2026. Annex A(f)(vii) describes retention for the account lifetime or until a deletion request, whichever comes first; section 15.4 requires consent and data-subject controls. Neither that agreement nor the Personal API supplemental terms reviewed requires a fixed 90-day limit. The connector's former limit was an application choice.
 
 Garmin's endpoint configuration supports URLs, without a custom authentication-header field. The private delivery URL contains an HMAC credential derived from the Garmin app secret with the fixed context `garmin-mcp/push/v1`. Keep that configured URL private. The server validates it with constant-time comparison. Do not use the public client ID as authentication. Delivery credentials and callback URLs are stripped from returned data. The service disables automatic invocation logs and URL tracing, and logs only fixed operational event names.
 

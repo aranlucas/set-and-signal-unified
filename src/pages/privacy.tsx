@@ -36,13 +36,19 @@ export function PrivacyPage() {
               <p>
                 Garmin MCP stores Health and Activity summaries delivered by Garmin, including the
                 measurements and activity details you choose to share. Records are isolated by
-                Garmin account and retained for 90 days after the last delivery. Expired records
-                stop appearing immediately and are deleted by a daily cleanup.
+                Garmin account and retained until you delete them or disconnect Garmin. Withdrawing
+                sharing permission deletes records for the affected category. There is no automatic
+                expiration.
               </p>
               <p>
                 Health and activity collection begins after linking and syncing with Garmin. Garmin
                 Starter provides no historical backfill. Workouts and calendar changes are sent to
                 Garmin when you request them; Garmin controls device synchronization.
+              </p>
+              <p>
+                You can explicitly import your own activity history using the Personal API. Imported
+                records follow the same deletion controls; the connector does not retain the
+                Personal API credential used for the import.
               </p>
             </div>
           </section>

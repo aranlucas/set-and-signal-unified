@@ -1,13 +1,9 @@
 import { DurableObject } from "cloudflare:workers";
 import { isActivityType, type SummaryType } from "./schemas";
 
-const RETENTION_MS = 90 * 86400_000;
-
 type DataRow = { data: string };
 
 type ReceivedRow = DataRow & { received_at: number };
-
-type CountRow = { n: number };
 
 type ValueRow = { value: number };
 
@@ -37,7 +33,7 @@ export class GarminUserData extends DurableObject<Env> {
       "CREATE INDEX IF NOT EXISTS summaries_date ON summaries(type,date,id)",
     );
   }
-  async ingest(records: StoredSummary[]) {
+  ingest(records: StoredSummary[]) {
     if (this.isRevoked()) {
       return;
     }
@@ -77,7 +73,7 @@ export class GarminUserData extends DurableObject<Env> {
         }
 
         this.ctx.storage.sql.exec(
-          "INSERT INTO summaries VALUES (?,?,?,?,?,?,?) ON CONFLICT(type,id) DO UPDATE SET date=excluded.date,received_at=excluded.received_at,data=excluded.data,start_time=excluded.start_time,duration=excluded.duration",
+          "INSERT INTO summaries VALUES (?,?,?,?,?,?,?) ON CONFLICT(type,id) DO UPDATE SET date=excluded.date,received_at=excluded.received_at,data=excluded.data,start_time=excluded.start_time,duration=excluded.duration WHERE json_extract(excluded.data,'$.importSource') IS NOT 'garmin-personal-api' OR json_extract(summaries.data,'$.importSource') = 'garmin-personal-api'",
           row.type,
           row.summaryId,
           row.date,
@@ -88,20 +84,14 @@ export class GarminUserData extends DurableObject<Env> {
         );
       }
     });
-
-    // An alarm deletes expired data even when the user never connects again.
-    if ((await this.ctx.storage.getAlarm()) === null) {
-      await this.ctx.storage.setAlarm(Date.now() + 86400_000);
-    }
   }
   list(type: SummaryType, startDate: string, endDate: string, limit: number, offset: number) {
     const rows = this.ctx.storage.sql
       .exec<ReceivedRow>(
-        "SELECT data,received_at FROM summaries WHERE type=? AND date>=? AND date<=? AND received_at>? ORDER BY date,id LIMIT ? OFFSET ?",
+        "SELECT data,received_at FROM summaries WHERE type=? AND date>=? AND date<=? ORDER BY date,id LIMIT ? OFFSET ?",
         type,
         startDate,
         endDate,
-        Date.now() - RETENTION_MS,
         limit + 1,
         offset,
       )
@@ -117,12 +107,7 @@ export class GarminUserData extends DurableObject<Env> {
   }
   get(type: SummaryType, id: string) {
     const row = this.ctx.storage.sql
-      .exec<DataRow>(
-        "SELECT data FROM summaries WHERE type=? AND id=? AND received_at>?",
-        type,
-        id,
-        Date.now() - RETENTION_MS,
-      )
+      .exec<DataRow>("SELECT data FROM summaries WHERE type=? AND id=?", type, id)
       .toArray()[0];
 
     return row?.data ?? null;
@@ -181,14 +166,8 @@ export class GarminUserData extends DurableObject<Env> {
     );
   }
   override async alarm() {
-    this.ctx.storage.sql.exec(
-      "DELETE FROM summaries WHERE received_at<=?",
-      Date.now() - RETENTION_MS,
-    );
-
-    if (this.ctx.storage.sql.exec<CountRow>("SELECT count(*) AS n FROM summaries").one().n > 0) {
-      await this.ctx.storage.setAlarm(Date.now() + 86400_000);
-    }
+    // A previous deployment may have scheduled cleanup. Cancel it without deleting history.
+    await this.ctx.storage.deleteAlarm();
   }
 }
 

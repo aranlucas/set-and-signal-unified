@@ -54,7 +54,8 @@ it("serves keyless setup, honest privacy, and app branding", async () => {
   expect(home).toContain("Sign in with Auth");
   expect(home).not.toContain("Create your Garmin key");
   const privacy = await (await fetch(`${base}/privacy`)).text();
-  expect(privacy).toContain("90 days");
+  expect(privacy).toContain("retained until you delete them or disconnect Garmin");
+  expect(privacy).not.toContain("90 days");
   expect(privacy).toContain("historical backfill");
   expect(privacy).toContain("AI transparency");
   const icon = await fetch(`${base}/icon.svg`);

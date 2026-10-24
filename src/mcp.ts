@@ -9,7 +9,7 @@ const result = (data: z.infer<ReturnType<typeof z.json>>) => {
   const output = {
     source: "Garmin Connect",
     availability:
-      "Only push data received since linking; 90-day retention; no Starter historical backfill.",
+      "Stored Garmin summaries, including explicitly imported history; no automatic expiration. Starter has no automatic historical backfill.",
     data,
   };
 
@@ -28,7 +28,7 @@ export function createServer(
     { name: "garmin", version: "2.0.0" },
     {
       instructions:
-        "Garmin Connect via Auth. Health and activity tools read push data received since linking, retained for 90 days. Starter has no historical backfill. Empty results do not mean no activity occurred. Workout tools change Garmin Connect: confirm details and dates first, never automatically retry ambiguous writes. Successful scheduling does not confirm watch delivery. Garmin credentials must never appear in results." +
+        "Garmin Connect via Auth. Health and activity tools read received or explicitly imported summaries with no automatic expiration. Deletion, Garmin disconnect, or withdrawal of sharing permission removes the affected stored data. Starter has no automatic historical backfill. Empty results do not mean no activity occurred. Workout tools change Garmin Connect: confirm details and dates first, never automatically retry ambiguous writes. Successful scheduling does not confirm watch delivery. Garmin credentials must never appear in results." +
         TRAINING_INSTRUCTIONS,
     },
   );

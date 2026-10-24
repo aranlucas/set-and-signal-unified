@@ -118,7 +118,7 @@ it("deletes on deregistration and permission withdrawal and blocks late retries"
   }
 });
 
-it("never reads expired records and deletes them on a real Durable Object alarm", async () => {
+it("retains old records across eviction and safely handles legacy cleanup alarms", async () => {
   const store = userStore(env, crypto.randomUUID());
   await store.ingest([
     {
@@ -129,8 +129,18 @@ it("never reads expired records and deletes them on a real Durable Object alarm"
       data: '{"steps":1}',
     },
   ]);
-  expect(await store.get("dailies", "old")).toBeNull();
-  expect((await store.list("dailies", "2026-10-23", "2026-10-23", 50, 0)).records).toEqual([]);
+  expect(await store.get("dailies", "old")).toBe('{"steps":1}');
+  expect((await store.list("dailies", "2026-10-23", "2026-10-23", 50, 0)).records).toHaveLength(1);
+  expect(
+    await runInDurableObject(store, (_instance, state) => state.storage.getAlarm()),
+  ).toBeNull();
+  await evictDurableObject(store);
+  expect(await store.get("dailies", "old")).toBe('{"steps":1}');
+
+  // Simulate a cleanup alarm scheduled by the previous production version.
+  await runInDurableObject(store, (_instance, state) =>
+    state.storage.setAlarm(Date.now() + 86400_000),
+  );
   expect(await runDurableObjectAlarm(store)).toBe(true);
 
   const count = await runInDurableObject(
@@ -139,7 +149,11 @@ it("never reads expired records and deletes them on a real Durable Object alarm"
       state.storage.sql.exec<CountRow>("SELECT count(*) AS n FROM summaries").one().n,
   );
 
-  expect(count).toBe(0);
+  expect(count).toBe(1);
+  expect(await store.get("dailies", "old")).toBe('{"steps":1}');
+  expect(
+    await runInDurableObject(store, (_instance, state) => state.storage.getAlarm()),
+  ).toBeNull();
 });
 
 it("uses the provider calendar date or device offset, including nested activity details", () => {

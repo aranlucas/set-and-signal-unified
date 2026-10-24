@@ -214,7 +214,8 @@ it("has one keyless setup with honest retention and AI consent details", async (
   expect(home).toContain("Sign in with Auth");
   expect(home).not.toContain("Create your Garmin key");
   const privacy = await (await send("/privacy")).text();
-  expect(privacy).toContain("90 days");
+  expect(privacy).toContain("retained until you delete them or disconnect Garmin");
+  expect(privacy).not.toContain("90 days");
   expect(privacy).toContain("train, evaluate, or improve AI models");
   expect(privacy).toContain("Auth connected accounts");
 });

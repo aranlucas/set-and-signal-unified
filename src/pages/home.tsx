@@ -165,7 +165,7 @@ export function HomePage({ publicUrl }: HomePageProps) {
           <div>
             <h2 id="privacy-cta-title">Your data stays yours.</h2>
             <p>
-              Health summaries are retained for 90 days. Delete stored data or disconnect at any
+              Your history has no automatic expiration. Delete stored data or disconnect at any
               time.
             </p>
           </div>

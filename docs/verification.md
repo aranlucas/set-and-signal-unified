@@ -2,6 +2,14 @@
 
 The merged connector is deployed at `https://garmin-mcp.aranlucas.workers.dev/mcp`. Its Auth issuer is `https://auth.aranlucas.workers.dev/api/auth`.
 
+## Retention update — 2026-10-24
+
+Removed automatic 90-day expiry after reviewing Garmin's current Rev H agreement and Personal API supplemental terms. The agreement's Annex A(f)(vii) describes account-lifetime retention or an earlier deletion request; section 15.4 preserves consent and data-subject controls. The connector retains explicit deletion, disconnect, and sharing-permission withdrawal behavior. Legacy cleanup alarms cancel themselves without deleting records or rescheduling.
+
+The combined deployment passed `pnpm check` with 105 Worker tests, including old delivery timestamps, persistence across eviction, legacy alarm handling, and deletion controls. All three production smoke checks pass. Post-deployment MCP reads preserve imported history and return the new no-expiration metadata.
+
+Verified production version: `9662d633-02e4-40d9-9816-d24a11ceedff`. Other sections record earlier verification runs.
+
 ## Token exchange — 2026-10-24
 
 The opt-in `exchange-live` Vitest project passed against the deployed Auth and Garmin MCP services. A temporary confidential client requested only `garmin:access`, with authorization-code and RFC 8693 exchange grants. The existing Garmin-linked account completed native PKCE and consent. No refresh grant was requested or refresh token issued.
