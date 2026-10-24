@@ -1,36 +1,98 @@
 import type { McpServer } from "@modelcontextprotocol/server";
-import { decodeStrengthActivityFile, strengthFileInput } from "./strength";
+import { z } from "zod";
+import type { GarminUserData } from "../push/store";
+import { fetchActivityFile, garminActivityId, type FitDetails } from "./files";
 
-export function registerActivityFileTools(server: McpServer) {
+type ActivityAccess = {
+  store: DurableObjectStub<GarminUserData>;
+  accessToken: string;
+  fetcher: typeof fetch;
+  permitted: (signal: AbortSignal) => Promise<void>;
+};
+
+export async function activityFit(access: ActivityAccess, activityId: string, signal: AbortSignal) {
+  const { store, accessToken, fetcher, permitted } = access;
+  const file = await store.claimActivityFile(activityId);
+
+  if (file.data) {
+    return z.record(z.string(), z.json()).parse(JSON.parse(file.data));
+  }
+
+  if (!file.callback || !file.version || !file.summaryId) {
+    return { availability: file.state, sets: [] };
+  }
+
+  let decoded: FitDetails | null = null;
+
+  try {
+    decoded = {
+      ...(await fetchActivityFile(file.callback, accessToken, signal, fetcher)),
+      activityId,
+      fileSummaryId: file.summaryId,
+    };
+  } catch {
+    // Never expose callback credentials, parser diagnostics, or partial FIT messages. A one-use
+    // download may have been consumed, so an ambiguous failure is not retried.
+  }
+
+  await permitted(signal);
+  const saved = await store.finishActivityFile(activityId, file.version, decoded);
+
+  return saved
+    ? z.record(z.string(), z.json()).parse(JSON.parse(saved))
+    : { availability: "unavailable", sets: [] };
+}
+
+export function registerActivityTools(server: McpServer, access: ActivityAccess) {
   server.registerTool(
-    "decode_strength_activity_file",
+    "get_garmin_activity",
     {
       description:
-        "Decode recorded strength exercises, sets, repetitions, weights in kg, and explicit rest sets from a user-provided original FIT activity file. Supply canonical base64 of the uncompressed file, up to 1 MiB. Does not download from Garmin, accept URLs, store files, infer missing values, or prove a match to a stored activity. No recorded sets means unavailable, not no strength training.",
-      inputSchema: strengthFileInput,
+        "Get a stored Garmin activity by activityId from list_garmin_summaries, including its summary, JSON details, and all SDK-decoded FIT message types and fields. Includes samples, GPS, sessions, laps, events, device metadata, developer fields, and strength sets when recorded. Uses cached FIT data or downloads a pending received file. Garmin file links expire after 24 hours. Missing data means unavailable, not no activity. Does not fetch historical activities. Source: Garmin Connect.",
+      inputSchema: z.strictObject({ activityId: garminActivityId }),
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: false,
+        openWorldHint: true,
       },
     },
-    (input) => {
+    async ({ activityId }, ctx) => {
       try {
-        const output = decodeStrengthActivityFile(input.fitBase64);
+        const signal = ctx.mcpReq.signal;
+        await access.permitted(signal);
+        const activity = await access.store.getActivity(activityId);
+        const fit = activity ? await activityFit(access, activityId, signal) : null;
+        // Re-read after download: deletion or withdrawal during I/O must not return old summaries.
+        const current = activity ? await access.store.getActivity(activityId) : null;
+
+        const output = {
+          source: "Garmin Connect",
+          data: current
+            ? {
+                activityId,
+                summary: current.summary
+                  ? z.record(z.string(), z.json()).parse(JSON.parse(current.summary))
+                  : null,
+                details: current.details
+                  ? z.record(z.string(), z.json()).parse(JSON.parse(current.details))
+                  : null,
+                fit,
+              }
+            : null,
+        };
 
         return {
           structuredContent: output,
           content: [{ type: "text" as const, text: JSON.stringify(output) }],
         };
       } catch {
-        // Never return parser errors: malformed files may carry private or attacker-controlled data.
         return {
           isError: true,
           content: [
             {
               type: "text" as const,
-              text: "Unable to decode the activity file. Supply canonical base64 of one valid FIT activity file up to 1 MiB, with at most 25,000 messages including definitions, 2,000 sets, and 4,000 exercise entries. ZIP files, planned workouts, and FIT compressed-timestamp records are not supported. No partial results were returned.",
+              text: "Garmin activity is unavailable or permission was withdrawn. Reconnect Garmin in Auth and try again.",
             },
           ],
         };

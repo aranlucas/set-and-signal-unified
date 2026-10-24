@@ -66,7 +66,13 @@ export const notification = z.object({
 });
 
 export const pushPayload = z.partialRecord(
-  z.enum([...healthTypes, ...activityTypes, "deregistrations", "userPermissionsChange"]),
+  z.enum([
+    ...healthTypes,
+    ...activityTypes,
+    "activityFiles",
+    "deregistrations",
+    "userPermissionsChange",
+  ]),
   z.array(z.unknown()).max(1000),
 );
 

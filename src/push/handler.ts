@@ -11,6 +11,7 @@ import {
   userId,
 } from "./schemas";
 import { userStore, type StoredSummary } from "./store";
+import { activityFileNotification, type ActivityFileNotification } from "../activity/files";
 
 interface PermissionChange {
   userId: string;
@@ -45,11 +46,25 @@ export async function receivePush(
   }
 
   const groups = new Map<string, StoredSummary[]>();
+  const files = new Map<string, ActivityFileNotification[]>();
   const revoke = new Set<string>();
   const permissionChanges: PermissionChange[] = [];
 
   for (const [type, values] of Object.entries(body.data)) {
     for (const value of values ?? []) {
+      if (type === "activityFiles") {
+        const parsed = activityFileNotification.safeParse(value);
+
+        if (!parsed.success) {
+          return new Response(null, { status: 400 });
+        }
+
+        const rows = files.get(parsed.data.userId) ?? [];
+        rows.push(parsed.data);
+        files.set(parsed.data.userId, rows);
+        continue;
+      }
+
       if (type === "deregistrations" || type === "userPermissionsChange") {
         const parsed = notification.safeParse(value);
 
@@ -120,6 +135,11 @@ export async function receivePush(
     }),
   );
   await Promise.all([...revoke].map((id) => userStore(env, id).revoke()));
+  await Promise.all(
+    [...files].flatMap(([id, rows]) =>
+      revoke.has(id) ? [] : [userStore(env, id).ingestActivityFiles(rows)],
+    ),
+  );
 
   return new Response(null, { status: 200 });
 }

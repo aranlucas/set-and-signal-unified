@@ -5,18 +5,15 @@ import {
   type RecordMesg,
   type SetMesg,
 } from "@garmin/fitsdk";
-import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { env } from "cloudflare:workers";
-import { expect, it, onTestFinished, vi } from "vitest";
-import { createServer } from "../src/mcp";
-import { userStore } from "../src/push/store";
+import { expect, it } from "vitest";
+import { recordedFitFixture } from "./support";
 import {
-  decodeStrengthActivityFile,
+  decodeActivityFile,
   MAX_FIT_BYTES,
   MAX_FIT_MESSAGES,
   MAX_STRENGTH_SETS,
   MAX_EXERCISE_ENTRIES,
-} from "../src/activity/strength";
+} from "../src/activity/fit";
 
 // Synthetic fixtures encoded by Garmin's SDK, not exports from a real user's watch.
 function fixture(sets: SetMesg[], type: FileIdMesg["type"] = "activity") {
@@ -28,11 +25,11 @@ function fixture(sets: SetMesg[], type: FileIdMesg["type"] = "activity") {
     encoder.onMesg(225, set);
   }
 
-  return Buffer.from(encoder.close()).toString("base64");
+  return Buffer.from(encoder.close()).subarray();
 }
 
 it("decodes observed reps, fractional kg, exercise arrays and explicit rest records", () => {
-  const result = decodeStrengthActivityFile(
+  const result = decodeActivityFile(
     fixture([
       {
         messageIndex: 0,
@@ -51,7 +48,7 @@ it("decodes observed reps, fractional kg, exercise arrays and explicit rest reco
     ]),
   );
 
-  expect(result.availability).toBe("recorded_sets");
+  expect(result.strengthAvailability).toBe("recorded_sets");
   expect(result.sets).toHaveLength(2);
   expect(result.sets[0]).toMatchObject({
     index: 0,
@@ -78,8 +75,36 @@ it("decodes observed reps, fractional kg, exercise arrays and explicit rest reco
   });
 });
 
+it("includes every SDK message group and field for non-strength activities, including developer metadata and 64-bit values", () => {
+  const result = decodeActivityFile(recordedFitFixture());
+  expect(result.availability).toBe("available");
+  expect(result.strengthAvailability).toBe("no_recorded_sets");
+  expect(result.messages).toMatchObject({
+    fileIdMesgs: [{ type: 4, manufacturer: 255 }],
+    sessionMesgs: [{ sport: 1, totalDistance: 1234.5, totalTimerTime: 600 }],
+    lapMesgs: [{ totalDistance: 1000, totalTimerTime: 300 }],
+    eventMesgs: [{ timestamp: 1_000_000_001 }],
+    deviceInfoMesgs: [{ serialNumber: 123456, productName: "Synthetic GPS device 🏃" }],
+    developerDataIdMesgs: [{ developerDataIndex: 0, applicationId: [1, 2, 3, 4] }],
+    fieldDescriptionMesgs: [{ fieldName: "exactCounter", units: "count" }],
+    recordMesgs: [
+      {
+        timestamp: 1_000_000_000,
+        positionLat: 123456789,
+        positionLong: -987654321,
+        heartRate: 140,
+        cadence: 82,
+        power: 250,
+        speed: 3.125,
+        developerFields: { "0": "9007199254740993" },
+      },
+    ],
+  });
+  expect(() => JSON.stringify(result)).not.toThrow();
+});
+
 it("preserves zero, missing, unknown, and unmatched exercise identifiers without inventing values", () => {
-  const result = decodeStrengthActivityFile(
+  const result = decodeActivityFile(
     fixture([
       { setType: "active", repetitions: 0, weight: 0, duration: 0 },
       { setType: 7, category: [60000, "benchPress"], categorySubtype: [123, 60000, 2] },
@@ -103,44 +128,32 @@ it("preserves zero, missing, unknown, and unmatched exercise identifiers without
 });
 
 it("reports absence as unavailable and rejects planned workout files", () => {
-  const result = decodeStrengthActivityFile(fixture([]));
-  expect(result.availability).toBe("no_recorded_sets");
+  const result = decodeActivityFile(fixture([]));
+  expect(result.strengthAvailability).toBe("no_recorded_sets");
   expect(result.sets).toEqual([]);
-  expect(() => decodeStrengthActivityFile(fixture([], "workout"))).toThrow("recorded FIT activity");
-});
-
-it.each([
-  "",
-  "https://garmin.example/file",
-  "data:application/fit;base64,AAAA",
-  "A===",
-  "Zh==",
-  "AAAA\n",
-  "AA",
-])("rejects non-canonical base64 input %s", (input) => {
-  expect(() => decodeStrengthActivityFile(input)).toThrow("canonical base64");
+  expect(() => decodeActivityFile(fixture([], "workout"))).toThrow("recorded FIT activity");
 });
 
 it("rejects ZIP, corrupt CRC, truncated files, trailing data and oversize input", () => {
-  const valid = Buffer.from(fixture([{ setType: "active", repetitions: 10 }]), "base64");
+  const valid = Buffer.from(fixture([{ setType: "active", repetitions: 10 }]));
   const corrupt = Buffer.from(valid);
   corrupt[corrupt.length - 1] = (corrupt.at(-1) ?? 0) ^ 1;
 
   for (const bytes of [Buffer.from("PK\u0003\u0004not-a-fit"), corrupt, valid.subarray(0, -1)]) {
-    expect(() => decodeStrengthActivityFile(bytes.toString("base64"))).toThrow("valid FIT");
+    expect(() => decodeActivityFile(bytes.subarray())).toThrow("valid FIT");
   }
 
-  expect(() =>
-    decodeStrengthActivityFile(Buffer.concat([valid, valid]).toString("base64")),
-  ).toThrow("exactly one FIT");
-  expect(() =>
-    decodeStrengthActivityFile(Buffer.alloc(MAX_FIT_BYTES + 1).toString("base64")),
-  ).toThrow("up to 1 MiB");
+  expect(() => decodeActivityFile(Buffer.concat([valid, valid]).subarray())).toThrow(
+    "exactly one FIT",
+  );
+  expect(() => decodeActivityFile(Buffer.alloc(MAX_FIT_BYTES + 1).subarray())).toThrow(
+    "up to 1 MiB",
+  );
 });
 
 it("bounds set and total message counts before returning any partial results", () => {
   expect(() =>
-    decodeStrengthActivityFile(
+    decodeActivityFile(
       fixture(
         Array.from({ length: MAX_STRENGTH_SETS + 1 }, () => ({
           setType: "active",
@@ -158,13 +171,13 @@ it("bounds set and total message counts before returning any partial results", (
     encoder.onMesg(20, sample);
   }
 
-  expect(() => decodeStrengthActivityFile(Buffer.from(encoder.close()).toString("base64"))).toThrow(
+  expect(() => decodeActivityFile(Buffer.from(encoder.close()).subarray())).toThrow(
     "25,000 messages",
   );
 });
 
-function appendFixtureData(base64: string, extraData: Uint8Array) {
-  const base = Buffer.from(base64, "base64");
+function appendFixtureData(input: Uint8Array, extraData: Uint8Array) {
+  const base = Buffer.from(input);
 
   // The SDK encoder cannot emit unknown messages. Add a valid zero-field definition and use
   // its CRC implementation, rather than maintaining another binary FIT encoder for tests.
@@ -175,17 +188,30 @@ function appendFixtureData(base64: string, extraData: Uint8Array) {
   bytes.writeUInt16LE(CrcCalculator.calculateCRC(bytes, 0, 12), 12);
   bytes.writeUInt16LE(CrcCalculator.calculateCRC(bytes, 0, bytes.length - 2), bytes.length - 2);
 
-  return bytes.toString("base64");
+  return bytes.subarray();
 }
+
+it("preserves unknown message types, unknown numeric field IDs, and their values", () => {
+  // One uint16 field in an unknown message, followed by a record using the same unknown field.
+  const extra = Buffer.from([
+    0x41, 0, 0, 0xe8, 0xfd, 1, 249, 2, 0x84, 1, 0x39, 0x30, 0x42, 0, 0, 20, 0, 1, 249, 2, 0x84, 2,
+    0x2a, 0,
+  ]);
+
+  expect(decodeActivityFile(appendFixtureData(fixture([]), extra)).messages).toMatchObject({
+    "65000": [{ "249": 12345 }],
+    recordMesgs: [{ "249": 42 }],
+  });
+});
 
 it("counts unknown FIT messages and definitions toward the decoding limit", () => {
   const definition = Buffer.from([0x41, 0, 0, 0xe8, 0xfd, 0]);
   const unknownMessages = Buffer.concat([definition, Buffer.alloc(MAX_FIT_MESSAGES, 1)]);
-  expect(() => decodeStrengthActivityFile(appendFixtureData(fixture([]), unknownMessages))).toThrow(
+  expect(() => decodeActivityFile(appendFixtureData(fixture([]), unknownMessages))).toThrow(
     "25,000 messages",
   );
   const definitions = Buffer.concat(Array.from({ length: MAX_FIT_MESSAGES }, () => definition));
-  expect(() => decodeStrengthActivityFile(appendFixtureData(fixture([]), definitions))).toThrow(
+  expect(() => decodeActivityFile(appendFixtureData(fixture([]), definitions))).toThrow(
     "25,000 messages",
   );
 });
@@ -197,19 +223,19 @@ it("bounds aggregate exercise entries before expanding the output", () => {
     categorySubtype: Array.from({ length: 127 }, () => 30),
   }));
 
-  expect(() => decodeStrengthActivityFile(fixture(sets))).toThrow("4,000 exercise entries");
+  expect(() => decodeActivityFile(fixture(sets))).toThrow("4,000 exercise entries");
 });
 
 it("rejects unsupported compressed timestamps without returning earlier decoded sets", () => {
   const base = fixture([{ setType: "active", repetitions: 8 }]);
   // CRC-valid FIT compressed-timestamp header, unsupported by the pinned official decoder.
-  expect(() => decodeStrengthActivityFile(appendFixtureData(base, Buffer.from([0x80])))).toThrow(
-    "no partial sets",
+  expect(() => decodeActivityFile(appendFixtureData(base, Buffer.from([0x80])))).toThrow(
+    "no partial messages",
   );
 });
 
 it("preserves single-element arrays and interior invalid-value positions", () => {
-  const result = decodeStrengthActivityFile(
+  const result = decodeActivityFile(
     fixture([
       { category: ["squat"], categorySubtype: [0] },
       {
@@ -233,46 +259,4 @@ it("preserves single-element arrays and interior invalid-value positions", () =>
       { category: "squat", subtypeId: 0 },
     ],
   });
-});
-
-it("exposes file decoding through the main MCP server without network calls or storage", async () => {
-  const store = userStore(env, crypto.randomUUID());
-  const fetcher = vi.fn<typeof fetch>();
-  const server = createServer("never-return-this-token", store, fetcher);
-  const client = new Client({ name: "strength-file-test", version: "1.0.0" });
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  onTestFinished(async () => {
-    await client.close();
-    await server.close();
-  });
-  await server.connect(serverTransport);
-  await client.connect(clientTransport);
-  const tools = await client.listTools();
-  expect(
-    tools.tools.find((tool) => tool.name === "decode_strength_activity_file")?.annotations,
-  ).toMatchObject({ readOnlyHint: true, openWorldHint: false, destructiveHint: false });
-
-  const result = await client.callTool({
-    name: "decode_strength_activity_file",
-    arguments: { fitBase64: fixture([{ setType: "active", repetitions: 5, weight: 20 }]) },
-  });
-
-  expect(result.isError).not.toBe(true);
-  expect(result.structuredContent).toMatchObject({
-    source: "User-supplied FIT activity file",
-    sets: [{ repetitions: 5, weightKg: 20 }],
-  });
-  expect(fetcher).not.toHaveBeenCalled();
-  expect(
-    (await store.list("activityDetails", "2026-10-24", "2026-10-24", 50, 0)).records,
-  ).toHaveLength(0);
-
-  const bad = await client.callTool({
-    name: "decode_strength_activity_file",
-    arguments: { fitBase64: Buffer.from("private-malformed-payload").toString("base64") },
-  });
-
-  expect(bad.isError).toBe(true);
-  expect(JSON.stringify(bad)).not.toContain("private-malformed-payload");
-  expect(JSON.stringify(result)).not.toContain("never-return-this-token");
 });

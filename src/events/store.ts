@@ -86,6 +86,7 @@ export class GarminEvents {
     private readonly ctx: DurableObjectState,
     private readonly env: Env,
     private readonly blocked: (name: EventName) => boolean,
+    private readonly nextFileExpiry: () => number | null = () => null,
   ) {
     this.sql = ctx.storage.sql;
     this.sql.exec(
@@ -549,11 +550,14 @@ export class GarminEvents {
   }
 
   async schedule() {
-    const next = this.sql
+    const nextEvent = this.sql
       .exec<NextRow>(
         "SELECT min(at) AS next FROM (SELECT min(next_at) AS at FROM event_deliveries UNION ALL SELECT min(deadline) FROM event_deliveries UNION ALL SELECT min(expires_at) FROM event_subscriptions UNION ALL SELECT min(expires_at) FROM event_verifications UNION ALL SELECT min(previous_until) FROM event_subscriptions WHERE previous_secret IS NOT NULL)",
       )
       .one().next;
+
+    const candidates = [nextEvent, this.nextFileExpiry()].filter((time) => time !== null);
+    const next = candidates.length ? Math.min(...candidates) : null;
 
     if (next === null) {
       await this.ctx.storage.deleteAlarm();

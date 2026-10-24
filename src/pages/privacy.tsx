@@ -41,6 +41,14 @@ export function PrivacyPage() {
                 expiration.
               </p>
               <p>
+                For delivered activity files, Garmin MCP temporarily stores a private download
+                callback and automatically retrieves the FIT file using your linked account.
+                Download callbacks are removed when claimed or after 24 hours. The original file is
+                not retained; all decoded activity data, including GPS locations, device
+                identifiers, sensor samples, laps, sessions, developer fields, and strength sets,
+                follows the same retention and deletion controls as activity summaries.
+              </p>
+              <p>
                 If you subscribe to events, Garmin MCP stores the subscription, your callback
                 address, an encrypted signing secret, and pending event deliveries. Subscriptions
                 expire unless refreshed. Pending event copies are removed after delivery or retry
@@ -87,9 +95,9 @@ export function PrivacyPage() {
                 Use list_garmin_summaries and get_garmin_summary to access or export received data.
                 Correct the original data in Garmin Connect; later Garmin deliveries replace
                 matching summaries. Use delete_stored_garmin_data to remove retained Health/Activity
-                records, pending event deliveries, and event subscriptions. Subscribe again to
-                resume monitoring. Future syncs can deliver new records while Garmin remains
-                connected.
+                records, activity file callbacks and all decoded FIT data, pending event deliveries,
+                and event subscriptions. Subscribe again to resume monitoring. Future syncs can
+                deliver new records while Garmin remains connected.
               </p>
               <p>
                 To stop collection and withdraw consent, disconnect Garmin in{" "}

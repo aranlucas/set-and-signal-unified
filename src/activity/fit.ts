@@ -1,4 +1,4 @@
-import { Decoder, Profile, Stream, Utils } from "@garmin/fitsdk";
+import { Decoder, Profile, Stream, Utils, type Mesg, type FitMessages } from "@garmin/fitsdk";
 import { z } from "zod";
 
 export const MAX_FIT_BYTES = 1024 * 1024;
@@ -9,17 +9,21 @@ export const MAX_STRENGTH_SETS = 2_000;
 
 export const MAX_EXERCISE_ENTRIES = 4_000;
 
-const MAX_BASE64_LENGTH = 4 * Math.ceil(MAX_FIT_BYTES / 3);
+export const MAX_DECODED_FIT_BYTES = 8 * 1024 * 1024;
 
-export const strengthFileInput = z.strictObject({
-  fitBase64: z
-    .string()
-    .min(1)
-    .max(MAX_BASE64_LENGTH)
-    .describe(
-      "Canonical base64 of one uncompressed FIT activity file, at most 1 MiB. Not a URL, data URL, ZIP, or planned workout file.",
+// SDK messages contain 64-bit integers. JSON has no lossless numeric representation
+// for them, so use native JSON serialization with decimal strings at that boundary.
+function fitJson(value: Mesg | FitMessages) {
+  return z.record(z.string(), z.json()).parse(
+    JSON.parse(
+      JSON.stringify(
+        value,
+        // oxlint-disable-next-line anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof -- Native JSON replacers visit arbitrary SDK field values, including bigint; decimal strings avoid precision loss.
+        (_key, item: unknown) => (typeof item === "bigint" ? item.toString() : item),
+      ),
     ),
-});
+  );
+}
 
 const optionalNumber = z.number().finite().nonnegative().nullish();
 
@@ -84,23 +88,13 @@ function normalizeSet(set: z.infer<typeof setMessage>, index: number) {
   };
 }
 
-/** Decode only recorded set messages. No URLs, network access, persistence, or guessed metrics. */
-export function decodeStrengthActivityFile(fitBase64: string) {
-  if (
-    fitBase64.length === 0 ||
-    fitBase64.length > MAX_BASE64_LENGTH ||
-    fitBase64.length % 4 !== 0 ||
-    !/^[A-Za-z0-9+/]*={0,2}$/.test(fitBase64)
-  ) {
-    throw new Error("Provide canonical base64 of an uncompressed FIT activity file up to 1 MiB.");
+/** Decode every SDK message and field; normalize recorded strength sets as a convenience. */
+export function decodeActivityFile(input: Uint8Array) {
+  if (input.length === 0 || input.length > MAX_FIT_BYTES) {
+    throw new Error("Provide one FIT activity file up to 1 MiB.");
   }
 
-  const bytes = Buffer.from(fitBase64, "base64");
-
-  if (bytes.length > MAX_FIT_BYTES || bytes.toString("base64") !== fitBase64) {
-    throw new Error("Provide canonical base64 of an uncompressed FIT activity file up to 1 MiB.");
-  }
-
+  const bytes = Buffer.from(input);
   const decoder = new Decoder(Stream.fromBuffer(bytes));
 
   if (!decoder.isFIT() || !decoder.checkIntegrity()) {
@@ -120,6 +114,7 @@ export function decodeStrengthActivityFile(fitBase64: string) {
   const recordedSets: z.infer<typeof setMessage>[] = [];
 
   let limitExceeded = false;
+  let decodedBytes = 0;
 
   function countRecord() {
     messageCount += 1;
@@ -134,14 +129,20 @@ export function decodeStrengthActivityFile(fitBase64: string) {
     applyScaleAndOffset: true,
     convertTypesToStrings: false,
     convertDateTimesToDates: false,
-    expandSubFields: false,
-    expandComponents: false,
+    expandSubFields: true,
+    expandComponents: true,
     mergeHeartRates: false,
-    // Count unknown messages too; only the validated set-field whitelist reaches the result.
+    // Preserve unknown messages/fields and developer fields alongside standard FIT data.
     includeUnknownData: true,
     mesgDefinitionListener: countRecord,
     mesgListener: (number, message) => {
       countRecord();
+      decodedBytes += Buffer.byteLength(JSON.stringify(fitJson(message)), "utf8");
+
+      if (decodedBytes > MAX_DECODED_FIT_BYTES) {
+        limitExceeded = true;
+        throw new Error("Decoded FIT output limit exceeded.");
+      }
 
       if (number === Profile.MesgNum.SET) {
         setCount += 1;
@@ -160,12 +161,14 @@ export function decodeStrengthActivityFile(fitBase64: string) {
 
   if (limitExceeded) {
     throw new Error(
-      "The FIT file exceeds 25,000 messages including definitions, 2,000 set records, or 4,000 exercise entries.",
+      "The FIT file exceeds 25,000 messages including definitions, 2,000 set records, 4,000 exercise entries, or 8 MiB of decoded data.",
     );
   }
 
   if (decoded.errors.length > 0) {
-    throw new Error("The FIT file could not be decoded completely; no partial sets were returned.");
+    throw new Error(
+      "The FIT file could not be decoded completely; no partial messages were returned.",
+    );
   }
 
   const fileIds = decoded.messages.fileIdMesgs;
@@ -178,13 +181,27 @@ export function decodeStrengthActivityFile(fitBase64: string) {
 
   const sets = recordedSets.map(normalizeSet);
 
-  return {
-    source: "User-supplied FIT activity file",
-    availability: sets.length > 0 ? "recorded_sets" : "no_recorded_sets",
-    provenance:
-      "Recorded FIT set messages only, not planned Training API targets. No Garmin activity ID association has been verified.",
-    notes:
-      "Null means missing or unknown, not zero. Rest is represented only by recorded rest sets, never inferred from gaps. Exercise names are FIT profile identifiers, not guaranteed Garmin Connect display labels. The file is not stored.",
+  const output = {
+    source: "Garmin Activity API FIT file",
+    availability: "available",
+    profileVersion: decoded.profileVersion,
+    messages: fitJson(decoded.messages),
+    strengthAvailability: sets.length > 0 ? "recorded_sets" : "no_recorded_sets",
     sets,
+    encoding: {
+      numericValues: "FIT profile scale and offset applied; coordinates remain semicircles.",
+      timestamps:
+        "FIT epoch seconds since 1989-12-31T00:00:00Z; relative timestamps remain relative.",
+      enumerations: "Numeric FIT profile IDs; unknown fields retain their numeric keys.",
+      integers64Bit: "Decimal strings, preserving precision.",
+    },
+    notes:
+      "All SDK-decoded message types and fields are included, including developer fields. Recorded order is preserved within each message type. Null or omitted values are unavailable, not zero. The sets view normalizes recorded strength sets; rest is never inferred. Workout steps describe plans, not proof of performance. Original files may omit later Garmin Connect edits.",
   };
+
+  if (Buffer.byteLength(JSON.stringify(output), "utf8") > MAX_DECODED_FIT_BYTES) {
+    throw new Error("Decoded FIT data exceeds 8 MiB; no partial messages were returned.");
+  }
+
+  return output;
 }

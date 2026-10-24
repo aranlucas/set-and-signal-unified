@@ -6,7 +6,8 @@ import { listSummariesInput, summaryType, isActivityType } from "./push/schemas"
 import type { GarminUserData } from "./push/store";
 import { registerEvents } from "./events/mcp";
 import type { EventOwner } from "./events/protocol";
-import { registerActivityFileTools } from "./activity/mcp";
+import { registerActivityTools, activityFit } from "./activity/mcp";
+import { garminActivityId } from "./activity/files";
 
 const result = (data: z.infer<ReturnType<typeof z.json>>) => {
   const output = {
@@ -38,7 +39,6 @@ export function createServer(
   );
 
   registerTrainingTools(server, accessToken, fetcher);
-  registerActivityFileTools(server);
   const client = new TrainingClient(accessToken, fetcher);
 
   if (eventOwner) {
@@ -54,6 +54,15 @@ export function createServer(
       throw new Error(`Garmin ${needed} permission is missing. Reconnect Garmin in Auth.`);
     }
   }
+
+  const activityAccess = {
+    store,
+    accessToken,
+    fetcher,
+    permitted: (signal: AbortSignal) => permitted("activities", signal),
+  };
+
+  registerActivityTools(server, activityAccess);
 
   server.registerTool(
     "list_garmin_summaries",
@@ -104,7 +113,7 @@ export function createServer(
     "get_garmin_summary",
     {
       description:
-        "Read a received Garmin summary by its type and summaryId from list_garmin_summaries. Does not fetch historical data from Garmin. Source: Garmin Connect.",
+        "Read a received Garmin summary by its type and summaryId from list_garmin_summaries. Activity records with an activityId include fit with all SDK-decoded FIT message types and fields when delivered: samples, GPS, sessions, laps, events, device metadata, developer fields, and strength sets. Decoded messages are grouped by FIT message type. Scale and offset are applied; enum IDs and FIT timestamps remain numeric, coordinates use semicircles, and 64-bit integers use decimal strings. Does not fetch historical data from Garmin. Source: Garmin Connect.",
       inputSchema: z.strictObject({ type: summaryType, summaryId: z.string().min(1).max(255) }),
       annotations: {
         readOnlyHint: true,
@@ -117,8 +126,19 @@ export function createServer(
       try {
         await permitted(input.type, ctx.mcpReq.signal);
         const row = await store.get(input.type, input.summaryId);
+        const data = row ? z.record(z.string(), z.json()).parse(JSON.parse(row)) : null;
+        const id = garminActivityId.safeParse(data?.activityId);
 
-        return result(row ? z.record(z.string(), z.json()).parse(JSON.parse(row)) : null);
+        if (data && isActivityType(input.type) && id.success) {
+          const fit = await activityFit(activityAccess, id.data, ctx.mcpReq.signal);
+          const current = await store.get(input.type, input.summaryId);
+
+          return result(
+            current ? { ...z.record(z.string(), z.json()).parse(JSON.parse(current)), fit } : null,
+          );
+        }
+
+        return result(data);
       } catch {
         return {
           isError: true,
@@ -136,7 +156,7 @@ export function createServer(
     "delete_stored_garmin_data",
     {
       description:
-        "Delete all Health/Activity summaries, pending event payloads, and event subscriptions stored by this connector. Confirm deletion first. Does not delete Garmin Connect records. Future syncs can deliver new data; disconnect Garmin in Auth to stop collection. Subscribe again to resume event monitoring.",
+        "Delete all Health/Activity summaries, activity file callbacks and all decoded FIT data, pending event payloads, and event subscriptions stored by this connector. Confirm deletion first. Does not delete Garmin Connect records. Future syncs can deliver new data; disconnect Garmin in Auth to stop collection. Subscribe again to resume event monitoring.",
       inputSchema: z.strictObject({ confirm: z.literal(true) }),
       annotations: {
         readOnlyHint: false,

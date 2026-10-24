@@ -34,7 +34,7 @@ it("authenticates delivery, rejects invalid payloads and does not accept ping/fi
 
   for (const body of [
     { dailies: [{ userId: "a", callbackURL: "https://evil.example/token" }] },
-    { activityFiles: [] },
+    { activityFiles: [{ userId: "a", callbackURL: "https://evil.example/file" }] },
     { dailies: [{ ...record("a"), calendarDate: "invalid" }] },
     { unknown: [] },
   ]) {

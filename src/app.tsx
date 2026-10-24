@@ -109,6 +109,7 @@ app.all("/mcp", async (c) => {
 
   const { accessToken, garminUserId } = credential.data;
   const store = userStore(c.env, garminUserId);
+  await store.bindActivityOwner(userId, garminUserId);
 
   const handler = createMcpHandler(
     () => createServer(accessToken, store, fetch, { subject: userId, garminUserId }),
