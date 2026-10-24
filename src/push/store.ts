@@ -1,5 +1,13 @@
 import { DurableObject } from "cloudflare:workers";
 import { isActivityType, type SummaryType } from "./schemas";
+import { GarminEvents } from "../events/store";
+import {
+  eventPermission,
+  eventReply,
+  type EventOwner,
+  type SubscribeParams,
+  type UnsubscribeParams,
+} from "../events/protocol";
 
 type DataRow = { data: string };
 
@@ -21,6 +29,8 @@ export interface StoredSummary {
 
 /** One SQLite object per immutable Garmin account ID, never per client-supplied tool input. */
 export class GarminUserData extends DurableObject<Env> {
+  private readonly events: GarminEvents;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.storage.sql.exec(
@@ -32,8 +42,22 @@ export class GarminUserData extends DurableObject<Env> {
     this.ctx.storage.sql.exec(
       "CREATE INDEX IF NOT EXISTS summaries_date ON summaries(type,date,id)",
     );
+    this.ctx.storage.sql.exec(
+      "CREATE INDEX IF NOT EXISTS summaries_start ON summaries(type,start_time)",
+    );
+    this.events = new GarminEvents(
+      ctx,
+      env,
+      (name) =>
+        this.isRevoked() ||
+        this.ctx.storage.sql
+          .exec<ValueRow>("SELECT value FROM settings WHERE key=?", eventPermission(name))
+          .toArray()[0]?.value === 0,
+    );
   }
-  ingest(records: StoredSummary[]) {
+  async ingest(records: StoredSummary[]) {
+    await this.events.prepareIngest();
+
     if (this.isRevoked()) {
       return;
     }
@@ -49,6 +73,17 @@ export class GarminUserData extends DurableObject<Env> {
         ) {
           continue;
         }
+
+        const known =
+          this.ctx.storage.sql
+            .exec(
+              "SELECT id FROM summaries WHERE type=? AND (id=? OR (? IS NOT NULL AND start_time=?)) LIMIT 1",
+              row.type,
+              row.summaryId,
+              row.startTime ?? null,
+              row.startTime ?? null,
+            )
+            .toArray().length > 0;
 
         if (row.startTime !== undefined) {
           const newer = this.ctx.storage.sql
@@ -82,8 +117,10 @@ export class GarminUserData extends DurableObject<Env> {
           row.startTime ?? null,
           row.duration ?? null,
         );
+        this.events.enqueue(row, known);
       }
     });
+    await this.events.schedule();
   }
   list(type: SummaryType, startDate: string, endDate: string, limit: number, offset: number) {
     const rows = this.ctx.storage.sql
@@ -113,12 +150,18 @@ export class GarminUserData extends DurableObject<Env> {
     return row?.data ?? null;
   }
   clear() {
-    this.ctx.storage.sql.exec("DELETE FROM summaries");
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("DELETE FROM summaries");
+      this.events.clear();
+    });
+
+    return this.events.schedule();
   }
   revoke() {
-    this.clear();
     // Keep a tombstone: late delivery retries cannot restore withdrawn health data.
     this.ctx.storage.sql.exec("INSERT OR REPLACE INTO settings VALUES ('revoked',1)");
+
+    return this.clear();
   }
   activate() {
     this.ctx.storage.sql.exec("DELETE FROM settings");
@@ -148,6 +191,8 @@ export class GarminUserData extends DurableObject<Env> {
         );
 
         if (!allowed) {
+          this.events.clear(permission);
+
           for (const row of this.ctx.storage.sql
             .exec<TypeRow>("SELECT DISTINCT type FROM summaries")
             .toArray()) {
@@ -158,6 +203,8 @@ export class GarminUserData extends DurableObject<Env> {
         }
       }
     });
+
+    return this.events.schedule();
   }
   isRevoked() {
     return (
@@ -165,9 +212,14 @@ export class GarminUserData extends DurableObject<Env> {
       0
     );
   }
+  subscribeEvent(owner: EventOwner, params: SubscribeParams) {
+    return eventReply(() => this.events.subscribe(owner, params));
+  }
+  unsubscribeEvent(owner: EventOwner, params: UnsubscribeParams) {
+    return eventReply(() => this.events.unsubscribe(owner, params));
+  }
   override async alarm() {
-    // A previous deployment may have scheduled cleanup. Cancel it without deleting history.
-    await this.ctx.storage.deleteAlarm();
+    await this.events.alarm();
   }
 }
 

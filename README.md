@@ -23,6 +23,10 @@ Health categories include dailies (steps and daily heart rate), epochs, sleeps, 
 
 Workout mutations require user approval of details and dates. Do not repeat an ambiguous write automatically. A successful schedule operation does not confirm watch delivery.
 
+### Events
+
+Event-capable MCP clients can subscribe to `garmin.activity.completed` (Workout finished), `garmin.sleep.available`, and `garmin.body_composition.recorded`. Every matching authorized subscription receives an independent signed webhook. Workout completion supports sport and minimum-duration filters and fires after Garmin sync. Repeated deliveries, existing records, and historical imports do not create new completion events. Subscriptions, pending deliveries, retries, and expiry persist in the account's Durable Object. [Event setup, delivery semantics, and verification limits](docs/mcp-events.md).
+
 ### One-time personal activity import
 
 An operator can fetch their own activities with a Personal API key or access token and deliver normalized summaries through the existing private push endpoint. This is an explicit local import, not Garmin Starter backfill. It adds no public credential-entry endpoint and does not save the Personal credential in the connector. Imported summaries carry `importSource: "garmin-personal-api"` and use Garmin's activity ID as the summary ID, so repeats update the same record. Native Garmin deliveries take precedence over imports. The existing account permission, disconnect, and deletion rules apply; imported records have no automatic expiration.
@@ -48,7 +52,7 @@ Retention was checked against the [current Garmin Connect Developer License Agre
 
 Garmin's endpoint configuration supports URLs, without a custom authentication-header field. Configure the private delivery URL as `https://garmin-mcp.aranlucas.workers.dev/webhook/garmin/<GARMIN_PUSH_TOKEN>`. The configuration tool discards query parameters when saving endpoint URLs, so a `?token=...` credential cannot be used. The token is an HMAC credential derived from the Garmin app secret with the fixed context `garmin-mcp/push/v1`; it is a static delivery credential, not a signature over the request body. Keep the entire configured URL private. The server validates the token with constant-time comparison. The previous `/garmin/push/<GARMIN_PUSH_TOKEN>` route remains supported for existing configurations and queued deliveries. Do not use the public client ID as authentication. Delivery credentials and callback URLs are stripped from returned data. The service disables automatic invocation logs and URL tracing, and logs only fixed operational event names.
 
-Other webhook providers can have separate `/webhook/<source>` routes with their own authentication and payload validation. This Garmin receiver accepts only Garmin payloads. MCP messages and notifications use the authenticated `/mcp` transport; forwarding received Garmin data as MCP events would require separate event delivery and client subscription support.
+Other webhook providers can have separate `/webhook/<source>` routes with their own authentication and payload validation. This Garmin receiver accepts only Garmin payloads. MCP messages and event subscription methods use the authenticated `/mcp` transport. Outgoing MCP Events use each subscribed client's verified HTTPS callback.
 
 Auth's Disconnect action calls Garmin's required `DELETE /partner-gateway/rest/user/registration`, purges retained summaries via an authenticated server request, and removes the linked account. Removing only an MCP client stops that client's access; disconnect Garmin to stop collection. Review [privacy and AI processing](https://garmin-mcp.aranlucas.workers.dev/privacy) before connecting an assistant.
 

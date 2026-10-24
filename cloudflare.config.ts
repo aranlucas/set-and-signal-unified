@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => ({
     entrypoint,
     exports: { GarminUserData: exports.durableObject({ storage: "sqlite" }) },
     compatibilityDate: "2026-10-21",
+    // Outgoing event callbacks rely on native public Internet routing, never private origins.
     compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
     workersDev: true,
     previewUrls: false,

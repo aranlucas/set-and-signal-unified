@@ -13,7 +13,29 @@ export default defineConfig({
                 GARMIN_PUSH_TOKEN: "test-only-delivery-credential-with-at-least-32-characters",
               },
               durableObjects: { USER_DATA: { className: "GarminUserData", useSQLite: true } },
-              serviceBindings: { AUTH: () => Promise.resolve(new Response(null, { status: 404 })) },
+              serviceBindings: {
+                AUTH: { name: "auth-events-fixture", entrypoint: "GarminTokens" },
+              },
+              workers: [
+                {
+                  name: "auth-events-fixture",
+                  modules: true,
+                  compatibilityDate: "2026-10-21",
+                  script: `
+                  import { WorkerEntrypoint } from "cloudflare:workers";
+                  export class GarminTokens extends WorkerEntrypoint {
+                    accessToken(subject) {
+                      return subject.startsWith("unlinked-") ? null : {
+                        accessToken: "fixture-" + subject,
+                        expiresAt: Date.now() + 60000,
+                        garminUserId: subject,
+                      };
+                    }
+                  }
+                  export default { fetch() { return new Response(null, { status: 404 }); } };
+                `,
+                },
+              ],
             },
           }),
         ],

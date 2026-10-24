@@ -41,6 +41,12 @@ export function PrivacyPage() {
                 expiration.
               </p>
               <p>
+                If you subscribe to events, Garmin MCP stores the subscription, your callback
+                address, an encrypted signing secret, and pending event deliveries. Subscriptions
+                expire unless refreshed. Pending event copies are removed after delivery or retry
+                exhaustion; source summaries keep the retention described above.
+              </p>
+              <p>
                 Health and activity collection begins after linking and syncing with Garmin. Garmin
                 Starter provides no historical backfill. Workouts and calendar changes are sent to
                 Garmin when you request them; Garmin controls device synchronization.
@@ -65,10 +71,11 @@ export function PrivacyPage() {
               </p>
               <p>
                 We do not sell Garmin data or use it to train, evaluate, or improve AI models. The
-                connector calls no AI provider itself. Your chosen MCP client and AI provider
-                receive the tool results you request and handle them under their own policies.
-                Approving the connector grants that processing; you can withdraw by disconnecting
-                the client or Garmin.
+                connector does not run AI inference. Your chosen MCP client and AI provider receive
+                the tool results and event payloads you request and handle them under their own
+                policies. Subscribed events are sent automatically to the verified client callback
+                when matching Garmin data arrives. Approving the connector grants that processing;
+                you can withdraw by disconnecting the client or Garmin.
               </p>
             </div>
           </section>
@@ -80,7 +87,9 @@ export function PrivacyPage() {
                 Use list_garmin_summaries and get_garmin_summary to access or export received data.
                 Correct the original data in Garmin Connect; later Garmin deliveries replace
                 matching summaries. Use delete_stored_garmin_data to remove retained Health/Activity
-                records. Future syncs can deliver new records while Garmin remains connected.
+                records, pending event deliveries, and event subscriptions. Subscribe again to
+                resume monitoring. Future syncs can deliver new records while Garmin remains
+                connected.
               </p>
               <p>
                 To stop collection and withdraw consent, disconnect Garmin in{" "}
@@ -90,10 +99,12 @@ export function PrivacyPage() {
                 retained summaries and block late delivery retries.
               </p>
               <p>
-                Remove the connector in your assistant to stop that client’s access. Auth access
-                tokens expire within 15 minutes; the private Garmin broker also checks the current
-                link on every request. Copies already returned to your assistant must be deleted
-                with that provider.
+                Unsubscribe in your assistant to stop its event deliveries. Removing the connector
+                stops interactive access; the client should also unsubscribe its events, which
+                otherwise remain until expiration. Auth access tokens expire within 15 minutes; the
+                private Garmin broker checks the current link on each request and event delivery
+                attempt. Disconnecting Garmin stops all subscriptions. Copies already returned to
+                your assistant must be deleted with that provider.
               </p>
             </div>
           </section>

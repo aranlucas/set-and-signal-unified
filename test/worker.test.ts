@@ -80,6 +80,12 @@ it("verifies signed Auth tokens and serves the merged catalog over actual MCP HT
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
+      if (requestUrl(input) === "https://apis.garmin.com/partner-gateway/rest/user/permissions") {
+        return Promise.resolve(
+          Response.json({ permissions: ["ACTIVITY_EXPORT", "HEALTH_EXPORT"] }),
+        );
+      }
+
       expect(requestUrl(input)).toBe(`${env.AUTH_ISSUER}/jwks`);
 
       return Promise.resolve(
@@ -114,6 +120,70 @@ it("verifies signed Auth tokens and serves the merged catalog over actual MCP HT
   expect(text).toContain('"list_garmin_summaries"');
   expect(text).not.toContain("private-garmin-token");
   expect(text).not.toContain('"get_profile"');
+
+  const discovered = await send(
+    "/mcp",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${await jwt()}`,
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        "MCP-Protocol-Version": "2026-07-28",
+        "Mcp-Method": "server/discover",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "server/discover",
+        params: {
+          _meta: {
+            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientInfo": { name: "event-client", version: "1.0.0" },
+            "io.modelcontextprotocol/clientCapabilities": {},
+          },
+        },
+      }),
+    },
+    config,
+  );
+
+  const discoveredText = await discovered.text();
+  expect(discovered.status, discoveredText).toBe(200);
+  expect(discoveredText).toContain('"events":{}');
+
+  const catalog = await send(
+    "/mcp",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${await jwt()}`,
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        "MCP-Protocol-Version": "2026-07-28",
+        "Mcp-Method": "events/list",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "events/list",
+        params: {
+          _meta: {
+            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientInfo": { name: "event-client", version: "1.0.0" },
+            "io.modelcontextprotocol/clientCapabilities": {},
+          },
+        },
+      }),
+    },
+    config,
+  );
+
+  expect(catalog.status).toBe(200);
+  const catalogText = await catalog.text();
+  expect(catalogText).toContain("garmin.activity.completed");
+  expect(catalogText).toContain("garmin.sleep.available");
+  expect(catalogText).not.toContain("private-garmin-token");
 });
 
 it.each([

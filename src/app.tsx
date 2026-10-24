@@ -110,9 +110,12 @@ app.all("/mcp", async (c) => {
   const { accessToken, garminUserId } = credential.data;
   const store = userStore(c.env, garminUserId);
 
-  const handler = createMcpHandler(() => createServer(accessToken, store), {
-    maxRequestBodySize: 64 * 1024,
-  });
+  const handler = createMcpHandler(
+    () => createServer(accessToken, store, fetch, { subject: userId, garminUserId }),
+    {
+      maxRequestBodySize: 64 * 1024,
+    },
+  );
 
   return handler.fetch(c.req.raw, { parsedBody: c.get("parsedBody") });
 });
