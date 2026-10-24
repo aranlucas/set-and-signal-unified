@@ -7,6 +7,16 @@ import { z } from "zod";
 import { readBounded } from "../garmin";
 import { eventCodes } from "./protocol";
 
+export const MAX_EVENT_BYTES = 256 * 1024;
+
+type CallbackFailure =
+  | "connection_refused"
+  | "timeout"
+  | "tls_error"
+  | "http_4xx"
+  | "http_5xx"
+  | "challenge_failed";
+
 export function callbackUrl(value: string): string {
   const url = URL.parse(value);
   const host = url?.hostname.replaceAll(/^\[|\]$/g, "").replace(/\.$/, "") ?? "";
@@ -72,6 +82,10 @@ export function postWebhook(
   secrets: string[],
   body: string,
 ): Promise<Response> {
+  if (Buffer.byteLength(body, "utf8") > MAX_EVENT_BYTES) {
+    throw new Error("Event payload exceeds 256 KiB.");
+  }
+
   const signedAt = new Date();
 
   return fetch(callbackUrl(url), {
@@ -101,21 +115,24 @@ export async function verifyCallback(
   secret: string,
 ): Promise<void> {
   const challenge = crypto.randomUUID();
+  let reason: CallbackFailure = "connection_refused";
 
   try {
     const response = await postWebhook(
       url,
-      `verify_${crypto.randomUUID()}`,
+      `msg_verification_${crypto.randomUUID()}`,
       subscription,
       [secret],
       JSON.stringify({ type: "verification", challenge }),
     );
 
     if (!response.ok) {
+      reason = response.status >= 500 ? "http_5xx" : "http_4xx";
       await response.body?.cancel();
       throw new Error("Rejected callback");
     }
 
+    reason = "challenge_failed";
     const bytes = await readBounded(response, 4096);
 
     const echoed = z
@@ -125,9 +142,19 @@ export async function verifyCallback(
     if (!timingSafeEqual(digest(echoed), digest(challenge))) {
       throw new Error("Invalid challenge");
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      reason = "timeout";
+    } else if (
+      reason === "connection_refused" &&
+      error instanceof Error &&
+      /TLS|SSL|CERT_|certificate/i.test(error.message)
+    ) {
+      reason = "tls_error";
+    }
+
     throw new ProtocolError(eventCodes.callback, "Callback endpoint verification failed.", {
-      reason: "challenge_failed",
+      reason,
     });
   }
 }

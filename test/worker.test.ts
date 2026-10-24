@@ -1,13 +1,20 @@
 /* oxlint-disable no-await-in-loop -- Each invalid token is verified separately to identify the failing policy. */
-import type { z } from "zod";
+import { z } from "zod";
 import type { garminCredential } from "../src/auth";
 import { env } from "cloudflare:workers";
-import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import {
+  createExecutionContext,
+  waitOnExecutionContext,
+  runInDurableObject,
+  runDurableObjectAlarm,
+} from "cloudflare:test";
 import { generateKeyPair, exportJWK, SignJWT } from "jose";
-import { beforeAll, afterEach, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, expect, it, onTestFinished, vi } from "vitest";
+import { Webhook } from "standardwebhooks";
 import { userStore } from "../src/push/store";
 import worker from "../src/index";
 import { requestUrl } from "./support";
+import { receivePush } from "../src/push/handler";
 
 const base = env.PUBLIC_URL;
 
@@ -151,6 +158,13 @@ it("verifies signed Auth tokens and serves the merged catalog over actual MCP HT
   const discoveredText = await discovered.text();
   expect(discovered.status, discoveredText).toBe(200);
   expect(discoveredText).toContain('"events":{}');
+  expect(JSON.parse(discoveredText)).toMatchObject({
+    result: {
+      resultType: "complete",
+      supportedVersions: ["2026-07-28"],
+      capabilities: { events: {} },
+    },
+  });
 
   const catalog = await send(
     "/mcp",
@@ -329,3 +343,183 @@ it.each([`/webhook/garmin/${env.GARMIN_PUSH_TOKEN}`, `/garmin/push/${env.GARMIN_
     expect(await userStore(env, id).get("dailies", "http-push")).toContain('"steps":321');
   },
 );
+
+it("verifies the OpenAI Events HTTP subscribe, signed delivery, refresh, and unsubscribe lifecycle", async () => {
+  const signingSecret = `whsec_${Buffer.alloc(32, 7).toString("base64")}`;
+  const callback = "https://callback.example.com/http-events";
+  const accountId = "auth-alice";
+  const store = userStore(env, accountId);
+  const delivered: object[] = [];
+  let verifications = 0;
+
+  const config = bindings({
+    accessToken: "private-http-token",
+    expiresAt: Date.now() + 60000,
+    garminUserId: accountId,
+  });
+
+  const token = await jwt();
+  onTestFinished(() => store.clear());
+
+  vi.stubGlobal(
+    "fetch",
+    vi.fn<typeof fetch>().mockImplementation((input, init) => {
+      const url = requestUrl(input);
+
+      if (url === `${env.AUTH_ISSUER}/jwks`) {
+        return Promise.resolve(Response.json({ keys: [{ ...jwk, kid: "fixture", alg: "RS256" }] }));
+      }
+
+      if (url === "https://apis.garmin.com/partner-gateway/rest/user/permissions") {
+        return Promise.resolve(
+          Response.json({ permissions: ["ACTIVITY_EXPORT", "HEALTH_EXPORT"] }),
+        );
+      }
+
+      if (url !== callback) {
+        throw new Error("Unexpected HTTP destination");
+      }
+
+      const headers = Object.fromEntries(new Headers(init?.headers));
+      const body = z.string().parse(init?.body);
+      const data = new Webhook(signingSecret).verify(body, headers);
+
+      const verification = z
+        .object({ type: z.literal("verification"), challenge: z.string() })
+        .safeParse(data);
+
+      if (verification.success) {
+        verifications++;
+
+        return Promise.resolve(Response.json({ challenge: verification.data.challenge }));
+      }
+
+      const event = z
+        .object({
+          eventId: z.string(),
+          name: z.literal("garmin.activity.completed"),
+          timestamp: z.iso.datetime(),
+          data: z.object({ summaryId: z.string(), activityType: z.literal("RUNNING") }),
+          cursor: z.null(),
+        })
+        .parse(data);
+
+      delivered.push(event);
+
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }),
+  );
+
+  function eventRequest(
+    method: string,
+    params: Record<string, z.infer<ReturnType<typeof z.json>>>,
+  ) {
+    return send(
+      "/mcp",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          "MCP-Protocol-Version": "2026-07-28",
+          "Mcp-Method": method,
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method,
+          params: {
+            ...params,
+            _meta: {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientInfo": {
+                name: "openai-profile-fixture",
+                version: "1.0.0",
+              },
+              "io.modelcontextprotocol/clientCapabilities": {},
+            },
+          },
+        }),
+      },
+      config,
+    );
+  }
+
+  const params = {
+    name: "garmin.activity.completed",
+    arguments: { activityTypes: ["RUNNING"], minDurationSeconds: 600 },
+    delivery: { mode: "webhook", url: callback, secret: signingSecret },
+    cursor: null,
+  };
+
+  const subscription = await eventRequest("events/subscribe", params);
+
+  const parsed = z
+    .object({
+      result: z.object({
+        id: z.string(),
+        refreshBefore: z.iso.datetime(),
+        cursor: z.null(),
+        truncated: z.literal(false),
+      }),
+    })
+    .parse(await subscription.json());
+
+  expect(subscription.status).toBe(200);
+  expect(verifications).toBe(1);
+  const refresh = await eventRequest("events/subscribe", params);
+  expect(await refresh.json()).toMatchObject({
+    result: { id: parsed.result.id, cursor: null, truncated: false },
+  });
+  expect(verifications).toBe(1);
+
+  const push = (summaryId: string, activityType: string) =>
+    receivePush(
+      new Request("https://receiver.example.com", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          activities: [
+            {
+              userId: accountId,
+              summaryId,
+              calendarDate: "2026-10-24",
+              activityType,
+              durationInSeconds: 1800,
+            },
+          ],
+        }),
+      }),
+      env,
+      env.GARMIN_PUSH_TOKEN,
+    );
+
+  await push("http-run", "RUNNING");
+  await push("http-ride", "CYCLING");
+  await runInDurableObject(store, (_instance, context) =>
+    context.storage.sql.exec("UPDATE event_deliveries SET next_at=0").toArray(),
+  );
+  await runDurableObjectAlarm(store);
+  expect(delivered).toHaveLength(1);
+  expect(delivered[0]).toMatchObject({ data: { summaryId: "http-run" } });
+
+  const stopped = await eventRequest("events/unsubscribe", {
+    name: params.name,
+    arguments: params.arguments,
+    delivery: { mode: "webhook", url: callback },
+  });
+
+  expect(await stopped.json()).toMatchObject({ result: {} });
+
+  const repeated = await eventRequest("events/unsubscribe", {
+    name: params.name,
+    arguments: params.arguments,
+    delivery: { url: callback },
+  });
+
+  expect(await repeated.json()).toMatchObject({ result: {} });
+  await push("after-unsubscribe", "RUNNING");
+  expect(await runDurableObjectAlarm(store)).toBe(false);
+  expect(delivered).toHaveLength(1);
+});

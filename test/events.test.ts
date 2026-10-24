@@ -40,6 +40,7 @@ type FixtureState = {
   unavailable: boolean;
   callbackStatus: number;
   invalidChallenge: boolean;
+  verifications: number;
   beforeVerification?: () => Promise<void>;
   beforePermission?: () => Promise<void>;
 };
@@ -80,6 +81,7 @@ async function fixture() {
     unavailable: false,
     callbackStatus: 200,
     invalidChallenge: false,
+    verifications: 0,
   };
 
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
@@ -105,6 +107,7 @@ async function fixture() {
       .safeParse(JSON.parse(body));
 
     if (verification.success) {
+      state.verifications++;
       await state.beforeVerification?.();
 
       return Response.json({
@@ -151,7 +154,9 @@ async function fixture() {
     await runDurableObjectAlarm(store);
   }
 
-  function count(table: "event_subscriptions" | "event_occurrences" | "event_deliveries") {
+  function count(
+    table: "event_subscriptions" | "event_occurrences" | "event_deliveries" | "event_verifications",
+  ) {
     return runInDurableObject(
       store,
       (_instance, context) =>
@@ -238,6 +243,9 @@ it("delivers one logical workout to each matching subscription, with verified si
   expect(await f.count("event_deliveries")).toBe(2);
   await evictDurableObject(f.store);
   await f.flush();
+  const verifications = f.state.verifications;
+  await f.subscribe();
+  expect(f.state.verifications).toBe(verifications);
   expect(f.deliveries).toHaveLength(2);
 
   const events = f.deliveries.map((delivery) =>
@@ -326,6 +334,11 @@ it("normalizes subscription identity, clamps TTL, encrypts secrets, and rotates 
   };
 
   expect((await f.subscribe(secondParams)).id).toBe(first.id);
+  expect(await f.subscribe({ ...secondParams, cursor: null, maxAgeMs: 0 })).toMatchObject({
+    id: first.id,
+    cursor: null,
+    truncated: false,
+  });
   expect(Date.parse(first.refreshBefore) - Date.now()).toBeGreaterThan(299000);
   await f.push({ activities: [f.activity()] });
 
@@ -369,10 +382,15 @@ it("retains a stable event id over transient retries and clears permanent or exh
     f.deliveries.map((delivery) => occurrence.parse(JSON.parse(delivery.body)).eventId)[0],
   ).toBe(occurrence.parse(JSON.parse(required(f.deliveries[1], "retry").body)).eventId);
   expect(await f.count("event_occurrences")).toBe(0);
-  await f.push({ activities: [f.activity("permanent")] });
-  f.state.callbackStatus = 410;
-  await f.flush();
-  expect(await f.count("event_deliveries")).toBe(0);
+
+  for (const status of [410, 413]) {
+    await f.push({ activities: [f.activity(`permanent-${status}`)] });
+    f.state.callbackStatus = status;
+    await f.flush();
+    expect(await f.count("event_deliveries")).toBe(0);
+    expect(await f.count("event_subscriptions")).toBe(1);
+  }
+
   await f.push({ activities: [f.activity("exhausted")] });
   f.state.callbackStatus = 503;
 
@@ -565,9 +583,48 @@ it("bounds callback verification work per Garmin account", async () => {
   vi.spyOn(Date, "now").mockReturnValue(Date.now());
 
   for (let attempt = 0; attempt < 10; attempt++) {
-    await f.subscribe();
+    await f.subscribe(f.params(`https://callback.example.com/verify-${attempt}`));
   }
 
-  await expect(f.subscribe()).rejects.toMatchObject({ code: -32013 });
-  expect(await f.count("event_subscriptions")).toBe(1);
+  await expect(
+    f.subscribe(f.params("https://callback.example.com/over-quota")),
+  ).rejects.toMatchObject({ code: -32013 });
+  await expect(
+    f.subscribe(f.params("https://callback.example.com/verify-0")),
+  ).resolves.toMatchObject({ cursor: null });
+  expect(await f.count("event_subscriptions")).toBe(10);
+});
+
+it("caches verified callbacks with fixed expiry and rechecks changed keys, URLs, and expired proofs", async () => {
+  const f = await fixture();
+  await f.subscribe();
+  expect(f.state.verifications).toBe(1);
+
+  const expiry = Date.now() + 10000;
+  await runInDurableObject(f.store, (_instance, context) =>
+    context.storage.sql.exec("UPDATE event_verifications SET expires_at=?", expiry).toArray(),
+  );
+  await f.subscribe();
+  await f.subscribe({ ...f.params(), name: "garmin.sleep.available" });
+  expect(f.state.verifications).toBe(1);
+  expect(
+    await runInDurableObject(
+      f.store,
+      (_instance, context) =>
+        context.storage.sql.exec("SELECT expires_at FROM event_verifications").one().expires_at,
+    ),
+  ).toBe(expiry);
+
+  await runInDurableObject(f.store, (_instance, context) =>
+    context.storage.sql.exec("UPDATE event_verifications SET expires_at=0").toArray(),
+  );
+  await f.subscribe();
+  expect(f.state.verifications).toBe(2);
+  const original = f.params();
+  await f.subscribe({ ...original, delivery: { ...original.delivery, secret: rotatedSecret } });
+  expect(f.state.verifications).toBe(3);
+  await f.subscribe(f.params("https://callback.example.com/new-callback"));
+  expect(f.state.verifications).toBe(4);
+  await f.store.clear();
+  expect(await f.count("event_verifications")).toBe(0);
 });

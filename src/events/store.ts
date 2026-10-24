@@ -69,6 +69,8 @@ type NextRow = { next: number | null };
 
 type BodyRow = { body: string };
 
+type VerificationExpiryRow = { expires_at: number };
+
 function hash(parts: string[]): string {
   return createHash("sha256").update(JSON.stringify(parts)).digest("hex");
 }
@@ -87,6 +89,9 @@ export class GarminEvents {
       "CREATE TABLE IF NOT EXISTS event_control (id INTEGER PRIMARY KEY CHECK(id=1), epoch INTEGER NOT NULL, window INTEGER NOT NULL, verifications INTEGER NOT NULL)",
     );
     this.sql.exec("INSERT OR IGNORE INTO event_control VALUES (1,0,0,0)");
+    this.sql.exec(
+      "CREATE TABLE IF NOT EXISTS event_verifications (id TEXT PRIMARY KEY, expires_at INTEGER NOT NULL)",
+    );
     this.sql.exec(
       "CREATE TABLE IF NOT EXISTS event_subscriptions (id TEXT PRIMARY KEY, owner TEXT NOT NULL, garmin_id TEXT NOT NULL, name TEXT NOT NULL, args TEXT NOT NULL, callback TEXT NOT NULL, secret TEXT NOT NULL, previous_secret TEXT, previous_until INTEGER NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, version TEXT NOT NULL)",
     );
@@ -108,6 +113,7 @@ export class GarminEvents {
 
   private invalidate() {
     this.sql.exec("UPDATE event_control SET epoch=epoch+1 WHERE id=1");
+    this.sql.exec("DELETE FROM event_verifications");
   }
 
   private subscription(id: string): SubscriptionRow | undefined {
@@ -204,24 +210,47 @@ export class GarminEvents {
     this.cleanup();
     const id = `sub_${hash([owner.subject, owner.garminUserId, name, url, args])}`;
     this.checkCapacity(id);
-    const window = Math.floor(Date.now() / MINUTE);
-    this.sql.exec(
-      "UPDATE event_control SET verifications=CASE WHEN window=? THEN verifications+1 ELSE 1 END,window=? WHERE id=1",
-      window,
-      window,
-    );
 
-    if (
-      this.sql.exec<VerificationRow>("SELECT verifications FROM event_control WHERE id=1").one()
-        .verifications > 10
-    ) {
-      throw new ProtocolError(
-        eventCodes.exhausted,
-        "Too many callback verifications. Try again in a minute.",
+    // Include the signing key: a rotation must prove the callback accepts its new key.
+    const verificationId = hash([
+      owner.subject,
+      owner.garminUserId,
+      url,
+      hash([params.delivery.secret]),
+    ]);
+
+    const verified = this.sql
+      .exec<VerificationExpiryRow>(
+        "SELECT expires_at FROM event_verifications WHERE id=? AND expires_at>?",
+        verificationId,
+        Date.now(),
+      )
+      .toArray()[0];
+
+    let verifiedUntil = verified?.expires_at;
+
+    if (verifiedUntil === undefined) {
+      const window = Math.floor(Date.now() / MINUTE);
+      this.sql.exec(
+        "UPDATE event_control SET verifications=CASE WHEN window=? THEN verifications+1 ELSE 1 END,window=? WHERE id=1",
+        window,
+        window,
       );
+
+      if (
+        this.sql.exec<VerificationRow>("SELECT verifications FROM event_control WHERE id=1").one()
+          .verifications > 10
+      ) {
+        throw new ProtocolError(
+          eventCodes.exhausted,
+          "Too many callback verifications. Try again in a minute.",
+        );
+      }
+
+      await verifyCallback(url, id, params.delivery.secret);
+      verifiedUntil = Date.now() + 5 * MINUTE;
     }
 
-    await verifyCallback(url, id, params.delivery.secret);
     const sealed = await sealSecret(params.delivery.secret, this.env.GARMIN_PUSH_TOKEN);
     await this.requireAccess(owner, name);
     // Persist a wake-up before activating state. If execution stops after the SQL
@@ -239,6 +268,11 @@ export class GarminEvents {
     this.checkCapacity(id);
     const now = Date.now();
     const previous = this.subscription(id);
+    this.sql.exec(
+      "INSERT OR REPLACE INTO event_verifications VALUES (?,?)",
+      verificationId,
+      verifiedUntil,
+    );
 
     const expires =
       now +
@@ -402,6 +436,10 @@ export class GarminEvents {
     const now = Date.now();
     this.sql.exec("DELETE FROM event_subscriptions WHERE expires_at<=?", now);
     this.sql.exec(
+      "DELETE FROM event_verifications WHERE expires_at<=? OR NOT EXISTS (SELECT 1 FROM event_subscriptions)",
+      now,
+    );
+    this.sql.exec(
       "UPDATE event_subscriptions SET previous_secret=NULL,previous_until=0 WHERE previous_secret IS NOT NULL AND previous_until<=?",
       now,
     );
@@ -417,7 +455,7 @@ export class GarminEvents {
   async schedule() {
     const next = this.sql
       .exec<NextRow>(
-        "SELECT min(at) AS next FROM (SELECT min(next_at) AS at FROM event_deliveries UNION ALL SELECT min(deadline) FROM event_deliveries UNION ALL SELECT min(expires_at) FROM event_subscriptions UNION ALL SELECT min(previous_until) FROM event_subscriptions WHERE previous_secret IS NOT NULL)",
+        "SELECT min(at) AS next FROM (SELECT min(next_at) AS at FROM event_deliveries UNION ALL SELECT min(deadline) FROM event_deliveries UNION ALL SELECT min(expires_at) FROM event_subscriptions UNION ALL SELECT min(expires_at) FROM event_verifications UNION ALL SELECT min(previous_until) FROM event_subscriptions WHERE previous_secret IS NOT NULL)",
       )
       .one().next;
 
