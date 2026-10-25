@@ -57,6 +57,8 @@ export type SetFields = Partial<Omit<RepsSet & TimeSet & CardioSet, "rir" | "rpe
 // Structural view of a workout for the pure helpers: older histories lack `topW`/`target`,
 // and tests drive these helpers with minimal literals.
 export interface WorkoutLike {
+  id?: string;
+  progressionApplied?: string[];
   d: IsoDate;
   entries: Array<{
     id: Id;

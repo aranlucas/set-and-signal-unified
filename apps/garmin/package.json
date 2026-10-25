@@ -1,0 +1,60 @@
+{
+  "name": "garmin-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Garmin Health, Activity, and Training MCP with shared Auth sign-in",
+  "keywords": [],
+  "type": "module",
+  "scripts": {
+    "dev": "portless run vite",
+    "typegen": "cf workers types",
+    "generate:api": "pnpm --filter garmin-api-codegen generate",
+    "typecheck": "cf workers types && tsc --noEmit",
+    "test": "vitest run --project worker",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm test",
+    "build": "vite build",
+    "deploy": "pnpm run build && cf deploy --prebuilt",
+    "deploy:preview": "CLOUDFLARE_PREVIEW_BUILD=true vite build && cf previews deploy --prebuilt",
+    "smoke": "vitest run --project smoke",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "@garmin/fitsdk": "21.218.0",
+    "@modelcontextprotocol/hono": "2.0.2",
+    "@modelcontextprotocol/server": "2.4.0",
+    "@set-and-signal/training": "workspace:*",
+    "hono": "4.13.13",
+    "jose": "^6.2.13",
+    "standardwebhooks": "^1.1.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@aranlucas/oxforge": "0.2.4",
+    "@cloudflare/vite-plugin": "2.0.0-beta.v.3",
+    "@cloudflare/vitest-plugin": "1.4.7",
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/node": "26.6.5",
+    "cf": "1.0.0-beta.21",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "oxfmt": "0.74.0",
+    "oxlint": "1.89.0",
+    "oxlint-tsgolint": "7.0.2005",
+    "portless": "0.15.11",
+    "typescript": "7.1.0-dev.20261020.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
+      "oxlint --fix",
+      "oxfmt --no-error-on-unmatched-pattern"
+    ],
+    "*.{json,jsonc,json5,css,scss,md,mdx,yml,yaml,html,toml,vue,svelte,astro,graphql}": [
+      "oxfmt --no-error-on-unmatched-pattern"
+    ]
+  }
+}

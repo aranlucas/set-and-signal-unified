@@ -1,0 +1,76 @@
+{
+  "status": "passed",
+  "events": [
+    {
+      "time": "2026-10-22T07:17:39.264Z",
+      "message": "Tapped Start workout A"
+    },
+    {
+      "time": "2026-10-22T07:17:41.294Z",
+      "message": "Tapped Squat, set 1 of 5, not logged. Tap to log 5 reps"
+    },
+    {
+      "time": "2026-10-22T07:17:41.793Z",
+      "message": "Verified 1 of 15 sets logged"
+    },
+    {
+      "time": "2026-10-22T07:17:48.979Z",
+      "message": "Verified 1 of 15 sets logged"
+    },
+    {
+      "time": "2026-10-22T07:17:48.979Z",
+      "message": "Restart preserved the first set"
+    },
+    {
+      "time": "2026-10-22T07:18:13.653Z",
+      "message": "Tapped Save workout"
+    },
+    {
+      "time": "2026-10-22T07:18:14.461Z",
+      "message": "Tapped Start workout B"
+    },
+    {
+      "time": "2026-10-22T07:18:34.829Z",
+      "message": "Tapped Save workout"
+    },
+    {
+      "time": "2026-10-22T07:18:35.600Z",
+      "message": "Tapped History"
+    },
+    {
+      "time": "2026-10-22T07:18:36.444Z",
+      "message": "Tapped Details"
+    },
+    {
+      "time": "2026-10-22T07:18:36.730Z",
+      "message": "Verified Workout B"
+    },
+    {
+      "time": "2026-10-22T07:18:39.402Z",
+      "message": "Tapped Progress"
+    },
+    {
+      "time": "2026-10-22T07:18:39.860Z",
+      "message": "Verified 2 total workouts"
+    },
+    {
+      "time": "2026-10-22T07:18:42.195Z",
+      "message": "Tapped Train"
+    },
+    {
+      "time": "2026-10-22T07:18:43.109Z",
+      "message": "Tapped Start workout A"
+    },
+    {
+      "time": "2026-10-22T07:18:43.416Z",
+      "message": "Verified Last time:"
+    },
+    {
+      "time": "2026-10-22T07:18:43.416Z",
+      "message": "A \u2192 B \u2192 A, deadlift 1\u00d75, history, progress and restart passed"
+    }
+  ],
+  "apkSha256": "75848862310f1e9116998b3ca896c651fbe39997c043f9a10e903dca8944c004",
+  "device": "Pixel_API_35, Android 15/API 35",
+  "metroRunning": false
+}

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/training"
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // post is a thin JSON POST helper for granular routes.

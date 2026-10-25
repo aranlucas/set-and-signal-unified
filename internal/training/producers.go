@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/exercises"
+	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
 )
 
 // trainingDay resolves a calendar date from the closed MCP state graph.

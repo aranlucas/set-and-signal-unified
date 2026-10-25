@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 	"github.com/golang-jwt/jwt/v5"
 )
 

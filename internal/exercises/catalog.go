@@ -4,7 +4,7 @@ package exercises
 
 import (
 	"cmp"
-	_ "embed"
+	catalogdata "github.com/aranlucas/set-and-signal-unified/packages/exercises"
 	"encoding/json/v2"
 	"slices"
 	"strings"
@@ -12,8 +12,7 @@ import (
 	"unicode"
 )
 
-//go:embed catalog.json
-var catalogJSON []byte
+var catalogJSON = catalogdata.Catalog
 
 // Exercise is one catalog row (id, name, body part, equipment, target, synergists).
 type Exercise struct {

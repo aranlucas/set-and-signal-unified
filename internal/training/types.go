@@ -19,22 +19,32 @@ type MCPExerciseSearchResult struct {
 // MCPExConfig is a planned exercise. Numeric fields are pointers
 // because the web product distinguishes an omitted field from zero (for
 // example, a timed exercise has sec while a reps exercise has reps).
+type FivefoldPolicyState struct {
+	Unit          string  `json:"unit,omitempty"`
+	Failures      int     `json:"failures"`
+	Bar           float64 `json:"bar"`
+	AutoProgress  bool    `json:"autoProgress"`
+	AutoDeload    bool    `json:"autoDeload"`
+	LastWorkoutID string  `json:"lastWorkoutId,omitempty"`
+}
+
 type MCPExConfig struct {
-	ID         string   `json:"id" jsonschema:"exercise catalog id" validate:"required,max=40"`
-	Sets       *float64 `json:"sets,omitzero" jsonschema:"number of working sets" validate:"omitempty,gte=1,lte=12"`
-	Mode       *string  `json:"mode,omitempty" jsonschema:"exercise mode: reps or time" validate:"omitempty,oneof=reps time"`
-	Reps       *float64 `json:"reps,omitzero" jsonschema:"target repetitions per set" validate:"omitempty,gte=1,lte=500"`
-	Weight     *float64 `json:"weight,omitzero" jsonschema:"target weight in the profile unit" validate:"omitempty,gte=0,lte=1000"`
-	Sec        *float64 `json:"sec,omitzero" jsonschema:"target seconds for a timed set" validate:"omitempty,gte=1,lte=7200"`
-	Min        *float64 `json:"min,omitzero" jsonschema:"target minutes for a timed set" validate:"omitempty,gte=1,lte=600"`
-	Speed      *float64 `json:"speed,omitzero" jsonschema:"target speed" validate:"omitempty,gte=0,lte=80"`
-	Bodyweight *bool    `json:"bodyweight,omitzero" jsonschema:"whether the movement uses bodyweight"`
-	Side       *bool    `json:"side,omitzero" jsonschema:"whether the target is performed per side"`
-	Prog       *string  `json:"prog,omitempty" jsonschema:"progression policy" validate:"omitempty,oneof=off linear greyskull double time"`
-	Inc        *float64 `json:"inc,omitzero" jsonschema:"weight or target increment after success" validate:"omitempty,gte=0,lte=200"`
-	RepsMin    *float64 `json:"repsMin,omitzero" jsonschema:"minimum repetitions for double progression" validate:"omitempty,gte=1,lte=500"`
-	RepsMax    *float64 `json:"repsMax,omitzero" jsonschema:"maximum repetitions for double progression" validate:"omitempty,gte=1,lte=500"`
-	Sg         *string  `json:"sg,omitempty" jsonschema:"superset group id" validate:"omitempty,max=40"`
+	Fivefold   *FivefoldPolicyState `json:"fivefold,omitempty"`
+	ID         string               `json:"id" jsonschema:"exercise catalog id" validate:"required,max=200"`
+	Sets       *float64             `json:"sets,omitzero" jsonschema:"number of working sets" validate:"omitempty,gte=1,lte=12"`
+	Mode       *string              `json:"mode,omitempty" jsonschema:"exercise mode: reps or time" validate:"omitempty,oneof=reps time"`
+	Reps       *float64             `json:"reps,omitzero" jsonschema:"target repetitions per set" validate:"omitempty,gte=1,lte=500"`
+	Weight     *float64             `json:"weight,omitzero" jsonschema:"target weight in the profile unit" validate:"omitempty,gte=0,lte=1000"`
+	Sec        *float64             `json:"sec,omitzero" jsonschema:"target seconds for a timed set" validate:"omitempty,gte=1,lte=7200"`
+	Min        *float64             `json:"min,omitzero" jsonschema:"target minutes for a timed set" validate:"omitempty,gte=1,lte=600"`
+	Speed      *float64             `json:"speed,omitzero" jsonschema:"target speed" validate:"omitempty,gte=0,lte=80"`
+	Bodyweight *bool                `json:"bodyweight,omitzero" jsonschema:"whether the movement uses bodyweight"`
+	Side       *bool                `json:"side,omitzero" jsonschema:"whether the target is performed per side"`
+	Prog       *string              `json:"prog,omitempty" jsonschema:"progression policy" validate:"omitempty,oneof=off linear greyskull double time fivefold"`
+	Inc        *float64             `json:"inc,omitzero" jsonschema:"weight or target increment after success" validate:"omitempty,gte=0,lte=200"`
+	RepsMin    *float64             `json:"repsMin,omitzero" jsonschema:"minimum repetitions for double progression" validate:"omitempty,gte=1,lte=500"`
+	RepsMax    *float64             `json:"repsMax,omitzero" jsonschema:"maximum repetitions for double progression" validate:"omitempty,gte=1,lte=500"`
+	Sg         *string              `json:"sg,omitempty" jsonschema:"superset group id" validate:"omitempty,max=40"`
 }
 
 // MCPExConfigInput shares the planned exercise fields and validation rules.
@@ -69,7 +79,7 @@ type MCPRoutineInput struct {
 	ID    *string            `json:"id,omitempty" jsonschema:"stable routine id; generated from name when omitted" validate:"omitempty,min=1,max=40"`
 	Name  string             `json:"name" jsonschema:"human-readable routine name" validate:"required,max=60"`
 	Emoji *string            `json:"emoji,omitempty" jsonschema:"optional routine icon key" validate:"omitempty,max=24"`
-	Prog  *string            `json:"prog,omitempty" jsonschema:"default progression policy for the routine" validate:"omitempty,oneof=off linear greyskull double time"`
+	Prog  *string            `json:"prog,omitempty" jsonschema:"default progression policy for the routine" validate:"omitempty,oneof=off linear greyskull double time fivefold"`
 	Ex    []MCPExConfigInput `json:"ex,omitempty" jsonschema:"ordered planned exercises" validate:"max=30,dive"`
 }
 
@@ -77,15 +87,16 @@ type MCPRoutineInput struct {
 // JSON has no explicit mode discriminator, so a typed wire object represents
 // the possible fields and uses pointers for fields absent in another mode.
 type MCPLoggedSet struct {
-	Done  bool     `json:"done" jsonschema:"whether the set was completed"`
-	W     *float64 `json:"w,omitzero" jsonschema:"performed weight in the profile unit"`
-	R     *float64 `json:"r,omitzero" jsonschema:"performed repetitions"`
-	Sec   *float64 `json:"sec,omitzero" jsonschema:"performed seconds"`
-	Min   *float64 `json:"min,omitzero" jsonschema:"performed minutes"`
-	Speed *float64 `json:"speed,omitzero" jsonschema:"performed speed"`
-	RIR   *float64 `json:"rir,omitzero" jsonschema:"repetitions in reserve"`
-	RPE   *float64 `json:"rpe,omitzero" jsonschema:"rating of perceived exertion"`
-	WU    *bool    `json:"wu,omitzero" jsonschema:"whether this was a warm-up set"`
+	RecordedWeight *float64 `json:"recordedWeight,omitzero"`
+	Done           bool     `json:"done" jsonschema:"whether the set was completed"`
+	W              *float64 `json:"w,omitzero" jsonschema:"performed weight in the profile unit"`
+	R              *float64 `json:"r,omitzero" jsonschema:"performed repetitions"`
+	Sec            *float64 `json:"sec,omitzero" jsonschema:"performed seconds"`
+	Min            *float64 `json:"min,omitzero" jsonschema:"performed minutes"`
+	Speed          *float64 `json:"speed,omitzero" jsonschema:"performed speed"`
+	RIR            *float64 `json:"rir,omitzero" jsonschema:"repetitions in reserve"`
+	RPE            *float64 `json:"rpe,omitzero" jsonschema:"rating of perceived exertion"`
+	WU             *bool    `json:"wu,omitzero" jsonschema:"whether this was a warm-up set"`
 }
 
 // MCPMuscleSnapshot retains custom-exercise metadata after the exercise is deleted.
@@ -103,19 +114,28 @@ type MCPWorkoutEntry struct {
 	MuscleSnapshot *MCPMuscleSnapshot `json:"muscleSnapshot,omitempty" jsonschema:"exercise name and muscle weights retained for history"`
 }
 
+type MCPWorkoutSource struct {
+	Provider     string `json:"provider" validate:"oneof=fivefold garmin set-and-signal"`
+	ID           string `json:"id" validate:"required,max=255"`
+	RecordedUnit string `json:"recordedUnit" validate:"oneof=kg lb"`
+}
+
 type MCPWorkout struct {
-	ID          string            `json:"id" jsonschema:"stable workout id; an existing id is replaced" validate:"required,max=40"`
-	D           string            `json:"d" jsonschema:"workout date in YYYY-MM-DD" validate:"required,datetime=2006-01-02"`
-	Start       int64             `json:"start" jsonschema:"start time as unix milliseconds"`
-	End         int64             `json:"end" jsonschema:"end time as unix milliseconds"`
-	RoutineID   *string           `json:"routineId,omitempty" jsonschema:"source routine id"`
-	Name        string            `json:"name" jsonschema:"workout name" validate:"max=80"`
-	BW          *float64          `json:"bw,omitzero" jsonschema:"bodyweight at workout time"`
-	Entries     []MCPWorkoutEntry `json:"entries" jsonschema:"exercise results"`
-	PRs         []string          `json:"prs" jsonschema:"exercise ids with personal records"`
-	Vol         float64           `json:"vol" jsonschema:"total workout volume"`
-	Note        *string           `json:"note,omitempty" jsonschema:"optional workout note"`
-	SessionPlan *MCPSessionPlan   `json:"sessionPlan,omitempty"`
+	ProgressionApplied []string          `json:"progressionApplied,omitempty"`
+	GarminActivityIDs  []string          `json:"garminActivityIds,omitempty"`
+	Source             *MCPWorkoutSource `json:"source,omitempty"`
+	ID                 string            `json:"id" jsonschema:"stable workout id; an existing id is replaced" validate:"required,max=200"`
+	D                  string            `json:"d" jsonschema:"workout date in YYYY-MM-DD" validate:"required,datetime=2006-01-02"`
+	Start              int64             `json:"start" jsonschema:"start time as unix milliseconds"`
+	End                int64             `json:"end" jsonschema:"end time as unix milliseconds"`
+	RoutineID          *string           `json:"routineId,omitempty" jsonschema:"source routine id"`
+	Name               string            `json:"name" jsonschema:"workout name" validate:"max=80"`
+	BW                 *float64          `json:"bw,omitzero" jsonschema:"bodyweight at workout time"`
+	Entries            []MCPWorkoutEntry `json:"entries" jsonschema:"exercise results"`
+	PRs                []string          `json:"prs" jsonschema:"exercise ids with personal records"`
+	Vol                float64           `json:"vol" jsonschema:"total workout volume"`
+	Note               *string           `json:"note,omitempty" jsonschema:"optional workout note"`
+	SessionPlan        *MCPSessionPlan   `json:"sessionPlan,omitempty"`
 }
 
 type MCPBodyweightEntry struct {
@@ -284,7 +304,7 @@ type MCPHistoryRow struct {
 }
 
 type MCPSuggestionEntry struct {
-	ID     string   `json:"id" validate:"required,max=40"`
+	ID     string   `json:"id" validate:"required,max=200"`
 	Sets   *float64 `json:"sets,omitzero" validate:"omitempty,gte=1,lte=12"`
 	Reps   *float64 `json:"reps,omitzero" validate:"omitempty,gte=1,lte=500"`
 	Weight *float64 `json:"weight,omitzero" validate:"omitempty,gte=0,lte=1000"`

@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 // GET /oauth/authorize — Authorization Code + PKCE entry point.
@@ -132,10 +132,6 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "login session expired — restart from the MCP client", http.StatusBadRequest)
 		return
 	}
-	if len(s.providers) == 0 {
-		http.Error(w, "no OIDC providers configured (set GOOGLE_CLIENT_ID / GITHUB_CLIENT_ID / …)", http.StatusServiceUnavailable)
-		return
-	}
 
 	var b strings.Builder
 	b.WriteString(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`)
@@ -149,7 +145,8 @@ a.btn{display:block;padding:.75rem 1rem;margin:.5rem 0;border-radius:.5rem;backg
 a.btn:hover{background:#1d4ed8}
 </style></head><body><main>`)
 	b.WriteString(`<h1>Sign in to ` + html.EscapeString(s.Cfg.RPName) + `</h1>`)
-	b.WriteString(`<p>Authorize the MCP client to access your training data.</p>`)
+	b.WriteString(`<p>Sign in to access your training data on this device.</p>`)
+	b.WriteString(`<a class="btn" href="/?oauth_state=` + url.QueryEscape(state) + `">Continue with a passkey</a>`)
 	for id, p := range s.providers {
 		href := fmt.Sprintf("/oauth/callback/%s?start=1&state=%s", url.PathEscape(id), url.QueryEscape(state))
 		b.WriteString(`<a class="btn" href="` + html.EscapeString(href) + `">Continue with ` + html.EscapeString(p.Label()) + `</a>`)
@@ -271,4 +268,26 @@ func (s *Server) callbackURL(provider string) string {
 func pkceS256(verifier string) string {
 	sum := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
+}
+
+// resumeSession completes an already-pending PKCE authorization after the SPA
+// signs the user in with an existing or newly registered passkey.
+func (s *Server) resumeSession(w http.ResponseWriter, r *http.Request) {
+	user := s.sessionUser(r)
+	if user == nil {
+		http.Error(w, "Sign in first", http.StatusUnauthorized)
+		return
+	}
+	state := r.URL.Query().Get("state")
+	s.mu.Lock()
+	pending, ok := s.logins[state]
+	if ok {
+		delete(s.logins, state)
+	}
+	s.mu.Unlock()
+	if !ok || time.Now().After(pending.Exp) || pending.ClientID == "__web__" {
+		http.Error(w, "Authorization expired; start again", http.StatusBadRequest)
+		return
+	}
+	s.issueCodeRedirect(w, r, user, pending.ClientID, pending.RedirectURI, pending.State, pending.CodeChallenge, pending.CodeChallengeMethod, pending.Scope, pending.Resource)
 }

@@ -1,0 +1,33 @@
+✓ Lockfile passes supply-chain policies (verified 1h ago)
+Lockfile is up to date, resolution step is skipped
+Packages: -96
+--------------------------------------------------------------------------------
+Progress: resolved 604, reused 604, downloaded 0, added 0, done
+Agent skills awaiting approval: e2e, expo-sqlite.
+Run "pnpm approve" to review them.
+Done in 1s using pnpm v12.15.0
+$ pnpm run lint && pnpm run typecheck && pnpm test && pnpm run perf
+$ eslint . --max-warnings=0
+$ tsc --noEmit
+$ vitest run
+
+ RUN  v5.0.5 /private/tmp/fivefold-back-check.ctavfQ
+
+
+ Test Files  8 passed (8)
+      Tests  130 passed (130)
+   Start at  11:43:06
+   Duration  624ms (tests 55%, transform 32%, import 10%, worker 2%)
+
+$ tsx check-performance.ts
+{
+  "fixtureSessions": 10000,
+  "environment": "darwin/arm64, Node 26.12.0",
+  "coldSummaryCpuP95Ms": 0.942,
+  "coldSummaryWallP95Ms": 0.954,
+  "cached1000CallsCpuMs": 0.156,
+  "budgets": {
+    "coldSummaryCpuP95Ms": 16,
+    "cached1000CallsCpuMs": 8
+  }
+}

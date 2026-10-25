@@ -3,9 +3,9 @@ package httpapi
 import (
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/exercises"
-	"github.com/aranlucas/set-and-signal/internal/store"
-	"github.com/aranlucas/set-and-signal/internal/training"
+	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // MCP DTO aliases keep the transport schema stable while the implementation

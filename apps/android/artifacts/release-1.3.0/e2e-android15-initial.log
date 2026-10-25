@@ -1,0 +1,99 @@
+$ E2E_TELEMETRY_DISABLED=1 e2e run --target android
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-0d87ff8c
+      run 01a16785-65f1-7207-82a1-d86da8f0cec5 · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5554 (1 of 1)
+ ✓ mobile engine for target "android" prepared 5.89s
+ ✓ |android| tests/e2e/insights.e2e.ts (6 tests) 123.34s
+ ✓ |android| tests/e2e/navigation.e2e.ts (1 test) 15.96s
+ ❯ |android| tests/e2e/plates.e2e.ts (1 test | 1 failed) 31.11s
+   × my plates > counts available pairs and explains an impossible work load 31.11s
+     → expect.toBeDisabled failed
+ ✓ |android| tests/e2e/recovery.e2e.ts (6 tests) 50.50s
+ ❯ |android| tests/e2e/settings.e2e.ts (8 tests | 1 failed | 6 skipped) 23.50s
+   ✓ settings > lists the groups and their current values 13.80s
+   × settings > converts planned weights between units 9.71s
+     → expect.toBeVisible failed
+   ↓ settings > edits a planned weight with the numeric field [member 1 failed in this group attempt]
+   ↓ settings > shows warm-ups and plates for the planned weight [member 1 failed in this group attempt]
+   ↓ settings > toggles automatic progression and deloads [member 1 failed in this group attempt]
+   ↓ settings > switches the appearance and back to system [member 1 failed in this group attempt]
+   ↓ settings > changes rest lengths and workout toggles [member 1 failed in this group attempt]
+   ↓ settings > offers the backup and export actions [member 1 failed in this group attempt]
+ ✓ |android| tests/e2e/workout-b.e2e.ts (5 tests) 86.91s
+ ❯ |android| tests/e2e/workout.e2e.ts (8 tests | 1 failed | 2 skipped) 84.18s
+   ✓ workout A > starts from a clean install 12.63s
+   ✓ workout A > runs the rest timer and undoes a set 5.72s
+   ✓ workout A > keeps a logged set across a restart 5.12s
+   ✓ workout A > corrects reps, records zero and clears a set 8.26s
+   ✓ workout A > records a note, logs every set and saves 42.73s
+   × workout A > shows the workout and its note in history 9.72s
+     → expect.toBeVisible failed
+   ↓ workout A > shows the completed lift on progress [member 5 failed in this group attempt]
+   ↓ workout A > advances to workout B with the next weights [member 5 failed in this group attempt]
+ ✓ |android| tests/example.e2e.ts (1 test) 8.51s
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |android| tests/e2e/plates.e2e.ts > my plates > counts available pairs and explains an impossible work load
+ASSERTION_FAILED: expect.toBeDisabled failed
+locator: getByLabel("Remove a pair of 1.25 kg plates")
+expected: disabled
+observed: default states (match count 1)
+ ❯ tests/e2e/plates.e2e.ts:28:5
+     26|     for (let i = 0; i < 4; i++) await tap(screen, remove);
+     27|     await expect(screen.getByText("0 pairs")).toBeVisible();
+     28|     await expect(remove).toBeDisabled();
+       |     ^
+     29|     await screen.scrollUntilVisible(screen.getByText("Done"));
+     30|     await tap(screen, screen.getByText("Done"));
+ ❯ at app.fivefold.lifts
+ ❯ trace .e2e/results/plates-my-plates-counts-available-pairs-9ff8b7e86725e5bb/trace.md
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |android| tests/e2e/settings.e2e.ts > settings > converts planned weights between units
+ASSERTION_FAILED: expect.toBeVisible failed
+locator: getByText("90 lb")
+expected: visible
+observed: no node (match count 0)
+ ❯ tests/e2e/settings.e2e.ts:48:5
+     46|     await expect(screen.getByText("45 lb").first()).toBeVisible();
+     47|     await expect(screen.getByText("65 lb")).toBeVisible();
+     48|     await expect(screen.getByText("90 lb")).toBeVisible();
+       |     ^
+     49|     await expect(screen.getByText("Increase 5 lb").first()).toBeVisib…
+     50|     await screen.scrollUntilVisible(screen.getByText("Done"));
+ ❯ at app.fivefold.lifts
+ ❯ trace .e2e/results/settings-converts-planned-weights-between-a48ca9870b185b6e/trace.md
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |android| tests/e2e/workout.e2e.ts > workout A > shows the workout and its note in history
+ASSERTION_FAILED: expect.toBeVisible failed
+locator: getByText("1 saved workouts")
+expected: visible
+observed: no node (match count 0)
+ ❯ tests/e2e/workout.e2e.ts:110:5
+    108|   test("shows the workout and its note in history", async ({ app, scr…
+    109|     await tap(screen, screen.getByText("History"));
+    110|     await expect(screen.getByText("1 saved workouts")).toBeVisible();
+       |     ^
+    111|     await expect(screen.getByText("Workout A")).toBeVisible();
+    112|
+ ❯ at app.fivefold.lifts
+ ❯ trace .e2e/results/workout-a-shows-the-workout-and-its-note-a16c56732b00534d/trace.md
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed | 5 passed (8)
+      Tests  3 failed | 25 passed | 8 skipped (36)
+   Start at  23:49:24
+   Duration  428.95s (7m 9s)
+     Traces  .e2e/results/ (17 pages, trace.md in each test's directory)
+
+[ELIFECYCLE] Command failed with exit code 1.
+exit 1

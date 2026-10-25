@@ -12,14 +12,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/aranlucas/set-and-signal/internal/ai"
-	"github.com/aranlucas/set-and-signal/internal/auth"
-	"github.com/aranlucas/set-and-signal/internal/config"
-	"github.com/aranlucas/set-and-signal/internal/convex"
-	"github.com/aranlucas/set-and-signal/internal/oauth"
-	"github.com/aranlucas/set-and-signal/internal/presence"
-	"github.com/aranlucas/set-and-signal/internal/push"
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/ai"
+	"github.com/aranlucas/set-and-signal-unified/internal/auth"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/convex"
+	"github.com/aranlucas/set-and-signal-unified/internal/garmin"
+	"github.com/aranlucas/set-and-signal-unified/internal/oauth"
+	"github.com/aranlucas/set-and-signal-unified/internal/presence"
+	"github.com/aranlucas/set-and-signal-unified/internal/push"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 // Server carries every dependency the handlers need.
@@ -33,6 +34,7 @@ type Server struct {
 	Presence *presence.Presence
 	AI       *ai.Client
 	OAuth    *oauth.Server
+	Garmin   *garmin.Service
 
 	mcpOnce sync.Once
 	mcpSrv  *mcp.Server
@@ -58,6 +60,16 @@ func Router(s *Server) http.Handler {
 	r.Post("/api/logout/all", s.logoutAll)
 
 	r.Get("/api/data", s.getData)
+	r.Get("/api/native/me", s.nativeIdentity)
+	r.Post("/api/workout/import", s.importWorkout)
+	r.Post("/api/workout/finalize", s.finalizeWorkout)
+	r.Get("/api/garmin/status", s.garminStatus)
+	r.Post("/api/garmin/connect", s.garminConnect)
+	r.Get("/api/garmin/callback", s.garminCallback)
+	r.Post("/api/garmin/disconnect", s.garminDisconnect)
+	r.Get("/api/garmin/day", s.garminDay)
+	r.Get("/api/garmin/activity", s.garminActivity)
+	r.Post("/api/garmin/workout", s.garminPublish)
 
 	r.Post("/api/routine", s.postRoutine)
 	r.Post("/api/routines", s.postRoutines)

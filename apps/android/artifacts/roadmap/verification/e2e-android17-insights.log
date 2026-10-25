@@ -1,0 +1,19 @@
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-3e4418a6
+      run 01a164e0-d568-7810-ba7d-390f35fbb853 · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5554 (1 of 1)
+ ✓ mobile engine for target "android" prepared 1.84s
+ ✓ |android| tests/e2e/insights.e2e.ts (6 tests) 65.62s
+   ✓ training insights > filters empty history with All, A and B 9.52s
+   ✓ training insights > explains successful increases before saving a complete A 30.43s
+   ✓ training insights > keeps the total while filtering A, empty B and All 4.83s
+   ✓ training insights > counts a saved workout once and retains records and weight history 4.01s
+   ✓ training insights > explains unlogged sets and repeats unfinished B loads 5.75s
+   ✓ training insights > persists both saved workouts and progress across a restart 11.07s
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  11:30:20
+   Duration  66.43s (1m 6s)

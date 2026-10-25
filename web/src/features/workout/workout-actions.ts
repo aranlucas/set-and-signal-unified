@@ -6,7 +6,7 @@ import { is1RMRecord } from "@/domain/training/onerm";
 import {
   nextPrescription,
   applyPrescription,
-  syncSourceRoutineWeights,
+  applyWorkoutProgression,
 } from "@/domain/training/progression";
 import { EXIDX } from "@/domain/exercises/exercises";
 import { exerciseMuscleSnapshot } from "@/domain/exercises/muscles";
@@ -181,19 +181,7 @@ export function completeWorkout(): FinishSummaryPayload | null {
 
     draft.workouts.push(workout);
 
-    if (workout.routineId && !workout.sessionPlan) {
-      const routineIndex = draft.routines.findIndex(
-        (candidate) => candidate.id === workout.routineId,
-      );
-
-      if (routineIndex >= 0) {
-        draft.routines[routineIndex] = syncSourceRoutineWeights(
-          draft,
-          draft.routines[routineIndex],
-          workout.entries.map((entry) => entry.id),
-        );
-      }
-    }
+    applyWorkoutProgression(draft, workout);
 
     draft.active = null;
   });

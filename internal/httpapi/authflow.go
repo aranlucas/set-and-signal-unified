@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/aranlucas/set-and-signal/internal/auth"
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/auth"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 	"github.com/go-webauthn/webauthn/protocol"
 )
 

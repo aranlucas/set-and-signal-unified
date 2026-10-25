@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/training"
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // POST /api/routine — upsert one sanitized routine by id. Cookie or bearer.

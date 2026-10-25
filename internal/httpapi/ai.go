@@ -7,8 +7,8 @@ import (
 	"encoding/json/v2"
 	"net/http"
 
-	"github.com/aranlucas/set-and-signal/internal/ai"
-	"github.com/aranlucas/set-and-signal/internal/validation"
+	"github.com/aranlucas/set-and-signal-unified/internal/ai"
+	"github.com/aranlucas/set-and-signal-unified/internal/validation"
 )
 
 // AI workout planning (server.js lines 664–705). GET status is public;

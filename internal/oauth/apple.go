@@ -11,7 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
 
-	"github.com/aranlucas/set-and-signal/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
 )
 
 type appleProvider struct {

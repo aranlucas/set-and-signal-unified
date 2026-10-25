@@ -80,6 +80,16 @@ export const createExerciseConfigFormSchema = (t: Translate) => {
   const message = t("weight.enterValidWeight", "Enter a valid weight");
 
   return v.object({
+    fivefold: v.optional(
+      v.object({
+        unit: v.optional(v.picklist(["kg", "lb"])),
+        failures: nonNegativeNumber(message),
+        bar: positiveNumber(message),
+        autoProgress: v.boolean(),
+        autoDeload: v.boolean(),
+        lastWorkoutId: v.optional(v.string()),
+      }),
+    ),
     id: nonEmptyString(message),
     sets: nonNegativeNumber(message),
     mode: v.optional(v.picklist(["reps", "time", "cardio"])),
@@ -90,7 +100,7 @@ export const createExerciseConfigFormSchema = (t: Translate) => {
     speed: v.optional(nonNegativeNumber(message)),
     bodyweight: v.optional(v.boolean()),
     side: v.optional(v.boolean()),
-    prog: v.optional(v.picklist(["off", "linear", "greyskull", "double", "time"])),
+    prog: v.optional(v.picklist(["off", "linear", "greyskull", "double", "time", "fivefold"])),
     inc: v.optional(nonNegativeNumber(message)),
     repsMin: v.optional(nonNegativeNumber(message)),
     repsMax: v.optional(nonNegativeNumber(message)),

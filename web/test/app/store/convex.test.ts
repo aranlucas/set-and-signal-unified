@@ -60,6 +60,59 @@ describe("Convex training authority", () => {
     expect(value).toMatchObject({ unit: "kg", restSec: 90 });
     expect(value).not.toHaveProperty("sound");
   });
+  it("remembers owner-scoped operation receipts after a later deletion", async () => {
+    const { alice, bob, browser } = setup();
+
+    const value = JSON.stringify({
+      d: "2026-10-25",
+      end: 2,
+      entries: [],
+      id: "native-1",
+      name: "A",
+      prs: [],
+      start: 1,
+      vol: 0,
+    });
+
+    const changes = [
+      { key: "workouts/native-1", expected: null, value },
+      { key: "order/workouts", expected: null, value: '["native-1"]' },
+    ];
+
+    await browser.mutation(api.training.commit, { operationId: "device/alice/1", changes });
+    await browser.mutation(api.training.commit, {
+      operationId: "delete-1",
+      changes: [
+        { key: "workouts/native-1", expected: value, value: null },
+        { key: "order/workouts", expected: '["native-1"]', value: "[]" },
+      ],
+    });
+    await browser.mutation(api.training.commit, { operationId: "device/alice/1", changes });
+    expect(await alice.query(api.training.snapshot, {})).toMatchObject({ workouts: [] });
+    await bob.mutation(api.training.commit, { operationId: "device/alice/1", changes });
+    expect(await bob.query(api.training.snapshot, {})).toMatchObject({
+      workouts: [{ id: "native-1" }],
+    });
+  });
+
+  it("rejects an offline workout expressed in an earlier profile unit", async () => {
+    const { alice, browser } = setup();
+    await alice.mutation(api.training.replace, {
+      state: '{"unit":"kg","workouts":[]}',
+      expected: null,
+    });
+    await expect(
+      browser.mutation(api.training.commit, {
+        operationId: "offline-pound-session",
+        changes: [
+          { key: "field/unit", expected: '"lb"', value: '"lb"' },
+          { key: "field/restSec", expected: null, value: "60" },
+        ],
+      }),
+    ).rejects.toThrow(/CONFLICT/u);
+    expect(await alice.query(api.training.snapshot, {})).not.toHaveProperty("restSec");
+  });
+
   it("round trips record order and rejects duplicate record identities", () => {
     const state = {
       workouts: [

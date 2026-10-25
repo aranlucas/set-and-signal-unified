@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/web"
+	"github.com/aranlucas/set-and-signal-unified/web"
 )
 
 // placeholderIndex is served when neither the embedded tree nor WEB_DIST has

@@ -6,6 +6,8 @@ import { api as convexApi } from "../../../convex/_generated/api";
 
 import { ConvexClient } from "convex/browser";
 
+const receiptMatcher: unknown = expect.any(String);
+
 const fake = {
   mutation: vi.fn<ConvexClient["mutation"]>(),
   query: vi.fn<ConvexClient["query"]>(),
@@ -98,6 +100,7 @@ describe("durable Convex edits", () => {
       sync.enqueue({ restSec: 90 }, { restSec: 150 });
       await sync.start();
       expect(fake.mutation).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+        operationId: receiptMatcher,
         changes: [{ key: "field/restSec", expected: "90", value: "150" }],
       });
       await sync.close();
@@ -125,15 +128,20 @@ describe("durable Convex edits", () => {
     await sync.start();
     expect(fake.mutation).toHaveBeenCalledTimes(2);
     expect(fake.mutation).toHaveBeenNthCalledWith(1, expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: "90", value: "120" }],
     });
     expect(fake.mutation).toHaveBeenNthCalledWith(2, expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: "120", value: "180" }],
     });
     await sync.close();
   });
   it("retains an acknowledged batch until its removal is durable", async () => {
-    const pending = JSON.stringify([[{ key: "field/unit", expected: '"lb"', value: '"kg"' }]]);
+    const pending = JSON.stringify([
+      [{ operationId: "persisted-operation", key: "field/unit", expected: '"lb"', value: '"kg"' }],
+    ]);
+
     saved.set("gym_pending_convex:alice", pending);
     const status = vi.fn<() => void>();
 
@@ -154,6 +162,7 @@ describe("durable Convex edits", () => {
     await sync.flush();
     expect(fake.mutation).toHaveBeenCalledTimes(2);
     expect(fake.mutation).toHaveBeenLastCalledWith(expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/unit", expected: '"lb"', value: '"kg"' }],
     });
     expect(saved.get("gym_pending_convex:alice")).toBe("[]");
@@ -193,9 +202,11 @@ describe("durable Convex edits", () => {
     await sync.flush();
     expect(fake.mutation).toHaveBeenCalledTimes(3);
     expect(fake.mutation).toHaveBeenNthCalledWith(2, expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: "90", value: "120" }],
     });
     expect(fake.mutation).toHaveBeenNthCalledWith(3, expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: "120", value: "150" }],
     });
     expect(saved.get("gym_pending_convex:alice")).toBe("[]");
@@ -212,6 +223,7 @@ describe("durable Convex edits", () => {
     fake.mutation.mockImplementation(async (_reference, args) => {
       const parsedArgs = validation.parse(
         validation.object({
+          operationId: validation.optional(validation.string()),
           changes: validation.array(
             validation.object({
               key: validation.string(),
@@ -296,19 +308,90 @@ describe("durable Convex edits", () => {
 
     await reopened.start();
     expect(fake.mutation).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: null, value: "120" }],
     });
     expect(saved.get("gym_pending_convex:bob")).toBe(bobPending);
     expect(saved.get("gym_pending_convex:alice")).toBe("[]");
     await reopened.close();
   });
+  it("migrates a legacy queue before sending and keeps its receipt across reopening", async () => {
+    saved.set(
+      "gym_pending_convex:alice",
+      JSON.stringify([[{ key: "field/restSec", expected: null, value: "120" }]]),
+    );
+    fake.mutation.mockRejectedValue(new Error("offline"));
+
+    const first = new TrainingSync(
+      "alice",
+      vi.fn<() => void>(),
+      vi.fn<() => void>(),
+      undefined,
+      dependencies,
+    );
+
+    await expect(first.start()).rejects.toThrow("offline");
+    const original: unknown = fake.mutation.mock.calls[0]?.[1];
+    expect(original).toMatchObject({ operationId: receiptMatcher });
+    await first.close();
+
+    const next = new TrainingSync(
+      "alice",
+      vi.fn<() => void>(),
+      vi.fn<() => void>(),
+      undefined,
+      dependencies,
+    );
+
+    await expect(next.start()).rejects.toThrow("offline");
+    expect(fake.mutation.mock.lastCall?.[1]).toEqual(original);
+    await next.close();
+  });
+
+  it("keeps stale-unit numerical edits for recovery instead of applying a label-only resolution", async () => {
+    saved.set("gym_cache:alice", JSON.stringify({ unit: "lb" }));
+    saved.set(
+      "gym_pending_convex:alice",
+      JSON.stringify([
+        [{ key: "field/unit", expected: '"lb"', value: '"lb"', operationId: "guarded-session" }],
+      ]),
+    );
+    fake.query.mockResolvedValue({ unit: "kg" });
+    fake.mutation.mockRejectedValue(new Error("CONFLICT"));
+
+    const sync = new TrainingSync(
+      "alice",
+      vi.fn<() => void>(),
+      vi.fn<() => void>(),
+      undefined,
+      dependencies,
+    );
+
+    await expect(sync.start()).rejects.toThrow("CONFLICT");
+    const pending = saved.get("gym_pending_convex:alice");
+    await expect(sync.resolve(await sync.conflicts(), "remote")).rejects.toThrow(
+      "Weight units changed",
+    );
+    expect(saved.get("gym_pending_convex:alice")).toBe(pending);
+    await sync.close();
+  });
+
   it("never sends active workouts or client timestamps", () => {
     expect(changesBetween({ _ts: 1, active: null }, { _ts: 2, active: null })).toEqual([]);
   });
   it("replays persisted edits after reopening and clears only acknowledged batches", async () => {
     saved.set(
       "gym_pending_convex:alice",
-      JSON.stringify([[{ key: "field/unit", expected: '"lb"', value: '"kg"' }]]),
+      JSON.stringify([
+        [
+          {
+            operationId: "persisted-operation",
+            key: "field/unit",
+            expected: '"lb"',
+            value: '"kg"',
+          },
+        ],
+      ]),
     );
     const receive = vi.fn<() => void>();
     const sync = new TrainingSync("alice", receive, vi.fn<() => void>(), undefined, dependencies);
@@ -333,6 +416,7 @@ describe("durable Convex edits", () => {
     sync.enqueue({ restSec: 90 }, { restSec: 120 });
     await sync.flush();
     expect(fake.mutation).toHaveBeenCalledWith(expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: null, value: "120" }],
     });
     await sync.close();
@@ -351,12 +435,16 @@ describe("durable Convex edits", () => {
     sync.enqueue({ restSec: 90 }, { restSec: 120 });
     await sync.start();
     expect(fake.mutation).toHaveBeenCalledWith(expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: "90", value: "120" }],
     });
     await sync.close();
   });
   it("retains conflicting edits and offers recovery without overwriting them", async () => {
-    const pending = JSON.stringify([[{ key: "field/unit", expected: '"lb"', value: '"kg"' }]]);
+    const pending = JSON.stringify([
+      [{ operationId: "persisted-operation", key: "field/unit", expected: '"lb"', value: '"kg"' }],
+    ]);
+
     saved.set("gym_pending_convex:alice", pending);
     fake.mutation.mockRejectedValue(new Error("CONFLICT"));
     const receive = vi.fn<() => void>();
@@ -370,7 +458,10 @@ describe("durable Convex edits", () => {
 
 describe("reviewing competing edits", () => {
   it("keeps the original queue when saving a conflict resolution fails", async () => {
-    const pending = JSON.stringify([[{ key: "field/restSec", expected: "90", value: "120" }]]);
+    const pending = JSON.stringify([
+      [{ operationId: "persisted-operation", key: "field/restSec", expected: "90", value: "120" }],
+    ]);
+
     saved.set("gym_pending_convex:alice", pending);
     fake.query.mockResolvedValue({ restSec: 100 });
     fake.mutation.mockRejectedValue(new Error("CONFLICT"));
@@ -426,6 +517,7 @@ describe("reviewing competing edits", () => {
     await expect(sync.start()).rejects.toThrow("CONFLICT");
     await sync.resolve([{ key: "field/unit", local: '"lb"', remote: '"kg"' }], "remote");
     expect(fake.mutation).toHaveBeenLastCalledWith(expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: "90", value: "120" }],
     });
     expect(status).toHaveBeenLastCalledWith({ phase: "saved", pending: 0 });
@@ -435,7 +527,16 @@ describe("reviewing competing edits", () => {
   it("checks the reviewed version when keeping local edits", async () => {
     saved.set(
       "gym_pending_convex:alice",
-      JSON.stringify([[{ key: "field/restSec", expected: "90", value: "120" }]]),
+      JSON.stringify([
+        [
+          {
+            operationId: "persisted-operation",
+            key: "field/restSec",
+            expected: "90",
+            value: "120",
+          },
+        ],
+      ]),
     );
     fake.query.mockResolvedValue({ restSec: 100 });
     fake.mutation.mockRejectedValueOnce(new Error("CONFLICT"));
@@ -453,6 +554,7 @@ describe("reviewing competing edits", () => {
     expect(conflicts).toEqual([{ key: "field/restSec", local: "120", remote: "100" }]);
     await sync.resolve(conflicts, "local");
     expect(fake.mutation).toHaveBeenLastCalledWith(expect.anything(), {
+      operationId: receiptMatcher,
       changes: [{ key: "field/restSec", expected: "100", value: "120" }],
     });
     await sync.close();

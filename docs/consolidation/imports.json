@@ -1,0 +1,24 @@
+{
+  "base": {
+    "repository": "https://github.com/aranlucas/set-and-signal",
+    "commit": "18bf58097836fd27f7ff855e2dcafbd764fa9607"
+  },
+  "imports": [
+    {
+      "repository": "https://github.com/sidequest-labs/stronglifts",
+      "commit": "77449215428276153d3a63f410224d2794d185c5",
+      "path": "apps/android",
+      "product": "Fivefold",
+      "license": "0BSD"
+    },
+    {
+      "repository": "https://github.com/aranlucas/garmin-mcp",
+      "commit": "6f02d05a0056e10f8c3028e5c0e6fddcc0241a30",
+      "path": "apps/garmin",
+      "product": "Garmin integration",
+      "license": null
+    }
+  ],
+  "method": "Tracked source snapshots were imported with git archive under the listed application paths and then integrated. The complete histories reachable from all three audited source commits are preserved as merge parents in the unified repository. Generated APKs remain excluded from the current tree by the Android ignore rules.",
+  "unifiedRepository": "https://github.com/aranlucas/set-and-signal-unified"
+}

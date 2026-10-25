@@ -1,0 +1,36 @@
+{
+  "fixtureSessions": 10000,
+  "environment": "darwin/arm64, Node 24.22.1",
+  "coldSummaryCpuP95Ms": 0.937,
+  "coldSummaryWallP95Ms": 0.938,
+  "cached1000CallsCpuMs": 0.066,
+  "budgets": {
+    "coldSummaryCpuP95Ms": 16,
+    "cached1000CallsCpuMs": 8
+  },
+  "reportOnly": {
+    "setTapPipeline": {
+      "iterations": 200,
+      "p50CpuMs": 0.007,
+      "p95CpuMs": 0.013
+    },
+    "startupHydrate": {
+      "iterations": 200,
+      "p50CpuMs": 7.271,
+      "p95CpuMs": 7.633
+    },
+    "formatting": {
+      "note": "Node only; indicative for Hermes. Each iteration formats 1,000 weights and 1,000 dates.",
+      "current": {
+        "iterations": 200,
+        "p50CpuMs": 0.564,
+        "p95CpuMs": 0.619
+      },
+      "cachedIntl": {
+        "iterations": 200,
+        "p50CpuMs": 0.626,
+        "p95CpuMs": 0.643
+      }
+    }
+  }
+}

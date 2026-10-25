@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json/v2"
 	"fmt"
-	"github.com/aranlucas/set-and-signal/internal/config"
-	"github.com/aranlucas/set-and-signal/internal/convex"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/convex"
 	"log"
 	"os"
 )

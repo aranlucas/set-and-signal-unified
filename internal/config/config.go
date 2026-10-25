@@ -23,6 +23,7 @@ type Config struct {
 	OpenRouterKey, OpenRouterModel string
 	DBPath                         string
 	ConvexURL                      string
+	GarminIssuer, GarminResource   string
 
 	// OIDC federation for the MCP authorization server + web login.
 	GoogleClientID, GoogleClientSecret                      string
@@ -60,6 +61,8 @@ func Load() Config {
 	origin := env("ORIGIN", "http://localhost:8080")
 	return Config{
 		ConvexURL:       os.Getenv("CONVEX_URL"),
+		GarminIssuer:    env("GARMIN_AUTH_ISSUER", "https://auth.aranlucas.workers.dev/api/auth"),
+		GarminResource:  env("GARMIN_MCP_RESOURCE", "https://garmin-mcp.aranlucas.workers.dev/mcp"),
 		Port:            env("PORT", "3000"),
 		DataDir:         dataDir,
 		DBPath:          env("DB_PATH", filepath.Join(dataDir, "opengym.db")),

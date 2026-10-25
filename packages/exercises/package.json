@@ -1,0 +1,9 @@
+{
+  "name": "@set-and-signal/exercises",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./catalog": "./catalog.json"
+  }
+}

@@ -18,13 +18,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/aranlucas/set-and-signal/internal/ai"
-	"github.com/aranlucas/set-and-signal/internal/auth"
-	"github.com/aranlucas/set-and-signal/internal/config"
-	"github.com/aranlucas/set-and-signal/internal/oauth"
-	"github.com/aranlucas/set-and-signal/internal/presence"
-	"github.com/aranlucas/set-and-signal/internal/push"
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/ai"
+	"github.com/aranlucas/set-and-signal-unified/internal/auth"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/oauth"
+	"github.com/aranlucas/set-and-signal-unified/internal/presence"
+	"github.com/aranlucas/set-and-signal-unified/internal/push"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 const (

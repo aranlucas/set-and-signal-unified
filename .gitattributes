@@ -1,0 +1,2 @@
+# Preserve upstream-generated QA evidence, including CSV CRLF line endings.
+apps/android/artifacts/** -whitespace

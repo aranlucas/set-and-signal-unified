@@ -1,0 +1,27 @@
+{
+  "name": "@set-and-signal/training",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./fivefold": "./src/fivefold.ts",
+    "./records": "./src/records.ts",
+    "./garmin": "./src/garmin.ts",
+    "./state": "./src/state.ts",
+    "./garmin-recording": "./src/garmin-recording.ts",
+    "./reconcile": "./src/reconcile.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "valibot": "^1.5.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,5 +1,9 @@
 packages:
   - web
+  - packages/*
+  - apps/android
+  - apps/garmin
+  - apps/garmin/codegen
 
 minimumReleaseAge: 0
 trustPolicyExclude:
@@ -8,3 +12,4 @@ trustPolicyExclude:
 allowBuilds:
   "@swc/core": true
   esbuild: true
+  workerd: false

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 func openTrainingRepositoryTest(t *testing.T) (*store.Store, *TrainingDataRepository) {

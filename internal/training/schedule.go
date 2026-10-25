@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/aranlucas/set-and-signal/internal/validation"
+	"github.com/aranlucas/set-and-signal-unified/internal/validation"
 )
 
 // WeekSchedule is the persisted weekday → ordered sessions map.

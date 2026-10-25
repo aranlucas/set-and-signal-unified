@@ -36,16 +36,17 @@ type MCPExWeightHint struct {
 // interface-valued fields here: this type is intentionally safe to pass
 // through typed MCP producers and to use as the source for output DTOs.
 type TrainingData struct {
-	Unit       string                     `json:"unit"`
-	TargetW    *float64                   `json:"targetW,omitzero"`
-	Bodyweight []MCPBodyweightEntry       `json:"bodyweight"`
-	Routines   []MCPRoutine               `json:"routines"`
-	Week       WeekSchedule               `json:"week"`
-	DayPlan    DayPlanMap                 `json:"dayPlan"`
-	ExWeights  map[string]MCPExWeightHint `json:"exWeights"`
-	Workouts   []MCPWorkout               `json:"workouts"`
-	CustomEx   []MCPCustomExercise        `json:"customEx"`
-	Revision   int64                      `json:"_ts,omitzero"`
+	FivefoldNext string                     `json:"fivefoldNext,omitempty"`
+	Unit         string                     `json:"unit"`
+	TargetW      *float64                   `json:"targetW,omitzero"`
+	Bodyweight   []MCPBodyweightEntry       `json:"bodyweight"`
+	Routines     []MCPRoutine               `json:"routines"`
+	Week         WeekSchedule               `json:"week"`
+	DayPlan      DayPlanMap                 `json:"dayPlan"`
+	ExWeights    map[string]MCPExWeightHint `json:"exWeights"`
+	Workouts     []MCPWorkout               `json:"workouts"`
+	CustomEx     []MCPCustomExercise        `json:"customEx"`
+	Revision     int64                      `json:"_ts,omitzero"`
 }
 
 // Errors returned by the deterministic state lookups below. Callers can use

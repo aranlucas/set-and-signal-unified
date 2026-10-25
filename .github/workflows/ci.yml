@@ -41,6 +41,9 @@ jobs:
           cache: true
           require-lockfile: true
 
+      - name: Shared training contracts and policies
+        run: pnpm check:shared
+
       - parallel:
           - name: Go test (race)
             run: go test -race ./...
@@ -56,6 +59,9 @@ jobs:
 
           - name: Web test
             run: pnpm --dir web test
+
+      - name: Check generated shared exercise catalogue
+        run: git diff --exit-code -- packages/exercises/catalog.json
 
       # Vite clears web/dist, which the Go checks read through go:embed.
       # Wait for those checks to finish before replacing the embedded tree.

@@ -15,8 +15,8 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 
-	"github.com/aranlucas/set-and-signal/internal/config"
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 // ---------- software authenticator ----------

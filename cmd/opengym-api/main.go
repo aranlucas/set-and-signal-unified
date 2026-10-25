@@ -20,15 +20,16 @@ import (
 	// zoneinfo is present.
 	_ "time/tzdata"
 
-	"github.com/aranlucas/set-and-signal/internal/ai"
-	"github.com/aranlucas/set-and-signal/internal/auth"
-	"github.com/aranlucas/set-and-signal/internal/config"
-	"github.com/aranlucas/set-and-signal/internal/convex"
-	"github.com/aranlucas/set-and-signal/internal/httpapi"
-	"github.com/aranlucas/set-and-signal/internal/oauth"
-	"github.com/aranlucas/set-and-signal/internal/presence"
-	"github.com/aranlucas/set-and-signal/internal/push"
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/ai"
+	"github.com/aranlucas/set-and-signal-unified/internal/auth"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/convex"
+	"github.com/aranlucas/set-and-signal-unified/internal/garmin"
+	"github.com/aranlucas/set-and-signal-unified/internal/httpapi"
+	"github.com/aranlucas/set-and-signal-unified/internal/oauth"
+	"github.com/aranlucas/set-and-signal-unified/internal/presence"
+	"github.com/aranlucas/set-and-signal-unified/internal/push"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 // challengesSweep is how often expired WebAuthn challenge rows are pruned;
@@ -127,6 +128,13 @@ func wire(cfg config.Config) (*app, error) {
 		return nil, err
 	}
 
+	var garminService *garmin.Service
+	if cfg.GarminIssuer != "" {
+		garminService, err = garmin.New(st, sess.Secret, cfg.GarminIssuer, cfg.GarminResource, cfg.PublicURL)
+		if err != nil {
+			return nil, err
+		}
+	}
 	server := &httpapi.Server{
 		Cfg:      cfg,
 		Convex:   convexClient,
@@ -137,6 +145,7 @@ func wire(cfg config.Config) (*app, error) {
 		Presence: presence.New(),
 		AI:       ai.New(cfg.OpenRouterKey, cfg.OpenRouterModel, cfg.Origin),
 		OAuth:    oauth.New(cfg, st, sess),
+		Garmin:   garminService,
 	}
 	return &app{
 		handler:  httpapi.Static(server),

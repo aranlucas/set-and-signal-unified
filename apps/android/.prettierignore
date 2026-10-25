@@ -1,0 +1,9 @@
+android/
+ios/
+artifacts/
+node_modules/
+pnpm-lock.yaml
+docs/
+.expo/
+# Byte-for-byte backup exported by Fivefold 1.2.1.
+tests/e2e/fixtures/backup-*.json

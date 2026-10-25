@@ -66,6 +66,13 @@ export default function AppShell() {
   }, [language, resolvedLanguage]);
   useWakeLock(!!activeWorkout && keepAwake !== false);
 
+  useEffect(() => {
+    const pending = new URLSearchParams(window.location.search).get("oauth_state");
+
+    if (user && pending) {
+      window.location.replace(`/oauth/resume?state=${encodeURIComponent(pending)}`);
+    }
+  }, [user]);
   const authed = user || isGuest;
 
   if (!isReady && !authed) {

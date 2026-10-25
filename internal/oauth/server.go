@@ -17,9 +17,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aranlucas/set-and-signal/internal/auth"
-	"github.com/aranlucas/set-and-signal/internal/config"
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/auth"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 const (
@@ -105,6 +105,7 @@ func (s *Server) Mount(r chi.Router) {
 	r.Post("/oauth/register", s.register)
 	r.Get("/oauth/authorize", s.authorize)
 	r.Get("/oauth/login", s.loginPage)
+	r.Get("/oauth/resume", s.resumeSession)
 	r.Get("/oauth/web/{provider}", s.webLoginStart)
 	r.Get("/oauth/callback/{provider}", s.oidcCallback)
 	r.Post("/oauth/token", s.token)

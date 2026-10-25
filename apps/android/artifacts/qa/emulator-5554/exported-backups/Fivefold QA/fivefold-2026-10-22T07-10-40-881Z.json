@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "onboarded": true,
+  "next": "A",
+  "plans": {
+    "squat": {
+      "weight": 60,
+      "increment": 2.5,
+      "failures": 0
+    },
+    "bench": {
+      "weight": 20,
+      "increment": 2.5,
+      "failures": 0
+    },
+    "row": {
+      "weight": 30,
+      "increment": 2.5,
+      "failures": 0
+    },
+    "press": {
+      "weight": 20,
+      "increment": 2.5,
+      "failures": 0
+    },
+    "deadlift": {
+      "weight": 40,
+      "increment": 5,
+      "failures": 0
+    }
+  },
+  "settings": {
+    "unit": "kg",
+    "bar": 20,
+    "restSeconds": 90,
+    "failedRestSeconds": 180,
+    "autoProgress": true,
+    "autoDeload": true,
+    "haptics": true,
+    "keepAwake": true,
+    "restAlerts": true,
+    "theme": "system"
+  },
+  "active": {
+    "id": "workout-1792652074180",
+    "kind": "A",
+    "startedAt": 1792652074180,
+    "finishedAt": null,
+    "unit": "kg",
+    "notes": "",
+    "exercises": [
+      {
+        "lift": "squat",
+        "weight": 60,
+        "sets": [
+          5,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "lift": "bench",
+        "weight": 20,
+        "sets": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "lift": "row",
+        "weight": 30,
+        "sets": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    ]
+  },
+  "history": [],
+  "rest": {
+    "lift": "squat",
+    "setIndex": 0,
+    "duration": 90,
+    "endsAt": 1792653025897
+  }
+}

@@ -11,7 +11,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 
-	"github.com/aranlucas/set-and-signal/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
 )
 
 // Provider is an upstream OIDC / OAuth IdP used only for human login.

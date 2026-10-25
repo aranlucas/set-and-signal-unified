@@ -1,3 +1,5 @@
+import type { FivefoldPolicyState } from "@set-and-signal/training/fivefold";
+import type { WorkoutSource } from "@set-and-signal/training/records";
 import type { TOptions } from "i18next";
 // Set & Signal domain contracts for persisted state and runtime data.
 import type { TranslationKey } from "@/i18n/i18n-types.js";
@@ -21,7 +23,7 @@ export type EffortKind = "rir" | "rpe";
 
 export type Mode = "reps" | "time" | "cardio";
 
-export type PolicyId = "off" | "linear" | "greyskull" | "double" | "time";
+export type PolicyId = "off" | "linear" | "greyskull" | "double" | "time" | "fivefold";
 
 export type FormulaId = "epley" | "brzycki" | "lombardi";
 
@@ -81,6 +83,7 @@ export interface MeasuresEntry {
 }
 
 export interface AppState {
+  fivefoldNext?: "A" | "B";
   // settings
   unit: Unit;
   restSec: number;
@@ -133,6 +136,7 @@ export interface SessionPlan {
 
 // One planned exercise. Fields beyond id/sets depend on mode; absent fields are absent.
 export interface ExConfig {
+  fivefold?: FivefoldPolicyState;
   id: Id; // EXDB id or customEx id
   sets: number;
   mode?: Mode; // written only for 'time'; cardio derives from bp==='cardio'
@@ -158,6 +162,7 @@ export interface ExConfig {
 /* ============================ sets ============================ */
 
 interface SetBase {
+  recordedWeight?: number;
   done: boolean;
 }
 
@@ -209,6 +214,9 @@ export interface WorkoutEntry {
 }
 
 export interface Workout {
+  progressionApplied?: string[];
+  garminActivityIds?: string[];
+  source?: WorkoutSource;
   id: Id;
   d: IsoDate;
   start: number; // epoch ms

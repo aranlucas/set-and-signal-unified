@@ -52,7 +52,7 @@ const unit = v.picklist(["kg", "lb"]);
 
 const mode = v.picklist(["reps", "time", "cardio"]);
 
-const policy = v.picklist(["off", "linear", "greyskull", "double", "time"]);
+const policy = v.picklist(["off", "linear", "greyskull", "double", "time", "fivefold"]);
 
 const weekday = v.picklist(["0", "1", "2", "3", "4", "5", "6"]);
 
@@ -63,6 +63,16 @@ const reminder = v.object({
 });
 
 export const exerciseConfig = v.object({
+  fivefold: v.optional(
+    v.object({
+      unit: v.optional(unit),
+      failures: nonNegativeNumber,
+      bar: positiveNumber,
+      autoProgress: v.boolean(),
+      autoDeload: v.boolean(),
+      lastWorkoutId: v.optional(v.string()),
+    }),
+  ),
   id,
   sets: positiveNumber,
   mode: v.optional(mode),
@@ -99,6 +109,7 @@ export const routine = v.object({
 });
 
 const repsSet = v.object({
+  recordedWeight: v.optional(nonNegativeNumber),
   done: v.boolean(),
   w: finiteNumber,
   r: finiteNumber,
@@ -108,6 +119,7 @@ const repsSet = v.object({
 });
 
 const timeSet = v.object({
+  recordedWeight: v.optional(nonNegativeNumber),
   done: v.boolean(),
   sec: finiteNumber,
   w: finiteNumber,
@@ -176,6 +188,15 @@ const workoutEntry = v.object({
 });
 
 const workout = v.object({
+  progressionApplied: v.optional(v.array(v.string())),
+  garminActivityIds: v.optional(v.array(v.string())),
+  source: v.optional(
+    v.object({
+      provider: v.picklist(["fivefold", "garmin", "set-and-signal"]),
+      id,
+      recordedUnit: unit,
+    }),
+  ),
   id,
   d: isoDate,
   start: finiteNumber,
@@ -227,6 +248,7 @@ const dayPlanEntry = v.union([
 ]);
 
 const appState = v.object({
+  fivefoldNext: v.optional(v.picklist(["A", "B"])),
   unit,
   restSec: finiteNumber,
   sound: v.boolean(),

@@ -1,4 +1,4 @@
-module github.com/aranlucas/set-and-signal/railway
+module github.com/aranlucas/set-and-signal-unified/railway
 
 go 1.27.3
 

@@ -44,9 +44,20 @@ const change = v.object({
 });
 
 export const commit = mutation({
-  args: { changes: v.array(change) },
+  args: { changes: v.array(change), operationId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const uid = await owner(ctx);
+
+    if (args.operationId) {
+      if (args.operationId.length > 200) throw new ConvexError("Invalid operation identity");
+
+      const applied = await ctx.db
+        .query("operations")
+        .withIndex("by_owner_id", (q) => q.eq("owner", uid).eq("id", args.operationId!))
+        .unique();
+
+      if (applied) return null;
+    }
 
     if (args.changes.length > 2000) throw new ConvexError("Too many changes");
     const seen = new Set<string>();
@@ -109,6 +120,8 @@ export const commit = mutation({
       } else if (row) await ctx.db.patch(row._id, { value: change.value });
       else await ctx.db.insert("records", { owner: uid, key: change.key, value: change.value });
     }
+
+    if (args.operationId) await ctx.db.insert("operations", { owner: uid, id: args.operationId });
 
     if (pending.length) {
       const profile = await ctx.db

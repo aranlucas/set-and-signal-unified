@@ -4,9 +4,9 @@
 
 # Set & Signal 🏋️ · Make the next set obvious
 
-[![TypeScript checks](https://github.com/aranlucas/set-and-signal/actions/workflows/typecheck.yml/badge.svg)](https://github.com/aranlucas/set-and-signal/actions/workflows/typecheck.yml)
-[![Go checks](https://github.com/aranlucas/set-and-signal/actions/workflows/go.yml/badge.svg)](https://github.com/aranlucas/set-and-signal/actions/workflows/go.yml)
-[![License](https://img.shields.io/github/license/aranlucas/set-and-signal)](LICENSE)
+[![CI](https://github.com/aranlucas/set-and-signal-unified/actions/workflows/ci.yml/badge.svg)](https://github.com/aranlucas/set-and-signal-unified/actions/workflows/ci.yml)
+[![Android and Garmin](https://github.com/aranlucas/set-and-signal-unified/actions/workflows/consolidated-apps.yml/badge.svg)](https://github.com/aranlucas/set-and-signal-unified/actions/workflows/consolidated-apps.yml)
+[![License](https://img.shields.io/github/license/aranlucas/set-and-signal-unified)](LICENSE)
 
 Set & Signal is a self-hostable workout planner and training log for planning
 sessions, recording sets, reviewing history, and asking an AI assistant about
@@ -23,9 +23,49 @@ exercise catalogue, progression and prescription helpers, workout history,
 bodyweight tracking, reminders, push notifications, localization, and a
 read/write MCP surface protected by the same account boundary as the web app.
 
+## Android-first consolidation
+
+The unified repository places the native Android app in [`apps/android`](apps/android)
+and Garmin Health, Activity, FIT, and Training into [`apps/garmin`](apps/garmin).
+They share the root pnpm workspace and lockfile with the existing web application.
+
+The product now supports web planning, native Android strength sessions, and
+built-in Garmin connection, workout preview/scheduling, FIT-result review, and
+phone/watch reconciliation. Android saves completed workouts and sync operations
+atomically in SQLite. Shared training packages preserve Fivefold progression,
+original units and source identities across Android, web and the Go/MCP adapter.
+Account history and progress include phone, web and imported watch records.
+
+The [unified repository](https://github.com/aranlucas/set-and-signal-unified) combines
+all three audited source histories and the integrated implementation on `main`.
+Deployment and real-account/watch validation remain; no workout was sent to a live Garmin account. See the
+[implementation and rollout guide](docs/consolidation/implementation.md),
+[verification evidence](docs/consolidation/verification.md),
+[product architecture](docs/consolidation/product.md), and
+[source provenance](docs/consolidation/imports.json).
+
+From the repository root:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev:android
+pnpm dev:garmin
+pnpm check:shared
+pnpm check:android
+pnpm check:garmin
+pnpm build:android
+pnpm build:garmin
+```
+
+`dev:android` starts Metro; device installation still uses the Android app's documented
+Expo workflow. `build:android` exports the Android JavaScript/Hermes bundle, rather than
+building a signed APK. Web/API development continues with `pnpm dev` below. The two
+additional dev servers are opt-in, so web/API startup needs no Garmin credentials.
+The imported apps retain their runtime and deployment identifiers during migration.
+
 ## Run locally
 
-Requires Go 1.27+, Node.js 24+, pnpm 12+, PostgreSQL-compatible Convex
+Requires Go 1.27+, Node.js 24+, pnpm 12+, a Convex
 deployment, and an OAuth or passkey configuration. The API refuses to start
 without `CONVEX_URL`; the full training setup and storage rules are in
 [docs/convex.md](docs/convex.md).

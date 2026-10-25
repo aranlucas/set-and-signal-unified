@@ -3,7 +3,7 @@ package httpapi
 import "net/http"
 
 func (s *Server) convexToken(w http.ResponseWriter, r *http.Request) {
-	user := s.requireSession(w, r)
+	user := s.requireAnyAuth(w, r)
 	if user == nil {
 		return
 	}

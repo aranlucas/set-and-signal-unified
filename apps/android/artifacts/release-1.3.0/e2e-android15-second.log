@@ -1,0 +1,42 @@
+$ E2E_TELEMETRY_DISABLED=1 e2e run --target android
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-0d87ff8c
+      run 01a1678d-62ae-7910-ba18-96a18df9aa0f · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5554 (1 of 1)
+ ✓ mobile engine for target "android" prepared 1.89s
+ ✓ |android| tests/e2e/insights.e2e.ts (6 tests) 98.98s
+ ✓ |android| tests/e2e/navigation.e2e.ts (1 test) 17.85s
+ ❯ |android| tests/e2e/plates.e2e.ts (1 test | 1 failed) 87.79s
+   × my plates > counts available pairs and explains an impossible work load 87.79s
+     → target did not become visible while scrolling: getByText("Assumes standa…
+ ✓ |android| tests/e2e/recovery.e2e.ts (6 tests) 48.92s
+ ✓ |android| tests/e2e/settings.e2e.ts (8 tests) 71.66s
+ ✓ |android| tests/e2e/workout-b.e2e.ts (5 tests) 110.00s
+ ✓ |android| tests/e2e/workout.e2e.ts (8 tests) 85.17s
+ ✓ |android| tests/example.e2e.ts (1 test) 3.54s
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |android| tests/e2e/plates.e2e.ts > my plates > counts available pairs and explains an impossible work load
+LOCATOR_NOT_FOUND: target did not become visible while scrolling: getByText("Assumes standard plates with enough pairs available: 25, 20, 15, 10, 5, 2.5, 1.25 kg. Check the plates available in your gym.")
+ ❯ at app.fivefold.lifts
+ ❯ on screen #n22785 text "Warm-ups are guidance and do not count toward your work sets. Tap a weight to see the plates."
+ ❯ on screen #n22802 text "Bar: 20 kg · Plates on each side"
+ ❯ on screen #n22803 text "1 × 25 kg"
+ ❯ on screen #n22805 text "1 × 1.25 kg"
+ ❯ on screen #n22784 text "2 × 5 at 20 kg\n1 × 5 at 50 kg\n1 × 3 at 70 kg\n1 × 1 at 90 kg" text="2 × 5 at 20 kg 1 × 5 at 50 kg 1 × 3 at 70 kg 1 × 1 at 90 kg"
+ ❯ trace .e2e/results/plates-my-plates-counts-available-pairs-9ff8b7e86725e5bb/trace.md
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 7 passed (8)
+      Tests  1 failed | 35 passed (36)
+   Start at  23:58:03
+   Duration  526.14s (8m 46s)
+     Traces  .e2e/results/ (1 page, trace.md in each test's directory)
+
+[ELIFECYCLE] Command failed with exit code 1.
+exit 1

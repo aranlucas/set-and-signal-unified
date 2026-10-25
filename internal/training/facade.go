@@ -2,10 +2,10 @@ package training
 
 import (
 	"encoding/json/jsontext"
-	"github.com/aranlucas/set-and-signal/internal/validation"
+	"github.com/aranlucas/set-and-signal-unified/internal/validation"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/exercises"
+	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
 )
 
 // HistoryQuery is the transport-neutral filter for completed workouts.

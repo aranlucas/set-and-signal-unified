@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/exercises"
+	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
 )
 
 const analyticsRepCap = 12
@@ -378,6 +378,11 @@ func workoutInWindow(workout MCPWorkout, asOf string, days int) bool {
 // NextProgression ports the policy decision in web/src/domain/training/progression.ts.
 // It is intentionally a pure read: no counters or prescriptions are persisted.
 func NextProgression(st TrainingData, cfg MCPExConfig, routine MCPRoutine) MCPProgression {
+	if stringPointerValue(cfg.Prog) == "fivefold" || stringPointerValue(routine.Prog) == "fivefold" {
+		out := progressionResult("fivefold", "hold", "Saved 5×5 target; skipped sets do not add misses.")
+		out.Weight = cloneFloat(cfg.Weight)
+		return out
+	}
 	return nextProgressionTyped(st, progressionConfigFromMCP(cfg), stringPointerValue(routine.Prog))
 }
 
@@ -662,7 +667,7 @@ func validPolicy(mode, policy string) bool {
 	if mode == "time" {
 		return policy == "off" || policy == "time"
 	}
-	return policy == "off" || policy == "linear" || policy == "greyskull" || policy == "double"
+	return policy == "off" || policy == "linear" || policy == "greyskull" || policy == "double" || policy == "fivefold"
 }
 
 func defaultAnalyticsIncrement(id, unit string) float64 {

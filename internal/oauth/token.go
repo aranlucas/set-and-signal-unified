@@ -9,7 +9,7 @@ import (
 
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 // POST /oauth/token — authorization_code + refresh_token grants.

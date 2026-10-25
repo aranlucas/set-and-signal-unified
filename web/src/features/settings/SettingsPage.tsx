@@ -1,3 +1,4 @@
+import { GarminPanel } from "@/features/garmin/GarminPanel";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
@@ -190,6 +191,7 @@ function SettingsContent() {
         </p>
       )}
 
+      <GarminPanel key={user?.id ?? "guest"} />
       <SettingsPreferences onEffortHelp={() => setEffortHelpOpen(true)} />
 
       <SettingsData

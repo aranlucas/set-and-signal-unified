@@ -1,0 +1,23 @@
+$ E2E_TELEMETRY_DISABLED=1 e2e run --target android
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-0d87ff8c
+      run 01a16831-a0cc-7810-91af-ee5178d86fa1 · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5554 (1 of 1)
+ ✓ mobile engine for target "android" prepared 5.87s
+ ✓ |android| tests/e2e/insights.e2e.ts (6 tests) 105.59s
+ ✓ |android| tests/e2e/navigation.e2e.ts (1 test) 17.69s
+ ✓ |android| tests/e2e/plates.e2e.ts (1 test) 61.30s
+ ✓ |android| tests/e2e/recovery.e2e.ts (6 tests) 56.74s
+ ✓ |android| tests/e2e/settings.e2e.ts (8 tests) 73.57s
+ ✓ |android| tests/e2e/workout-b.e2e.ts (5 tests) 104.06s
+ ✓ |android| tests/e2e/workout.e2e.ts (8 tests) 87.98s
+ ✓ |android| tests/example.e2e.ts (1 test) 3.72s
+
+ Test Files  8 passed (8)
+      Tests  36 passed (36)
+   Start at  02:57:31
+   Duration  511.55s (8m 32s)
+
+exit 0

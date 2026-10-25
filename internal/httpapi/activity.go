@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/presence"
+	"github.com/aranlucas/set-and-signal-unified/internal/presence"
 )
 
 // POST /api/activity — live-workout heartbeat (server.js lines 754–769).

@@ -40,6 +40,8 @@ func TestLoadDefaults(t *testing.T) {
 		SessionDays:     90,
 		OpenRouterKey:   "",
 		OpenRouterModel: "openrouter/free",
+		GarminIssuer:    "https://auth.aranlucas.workers.dev/api/auth",
+		GarminResource:  "https://garmin-mcp.aranlucas.workers.dev/mcp",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Load() = %+v, want %+v", got, want)

@@ -1,0 +1,72 @@
+# Garmin MCP event recommendations
+
+Researched on **2026-10-24**. Requested behavior: a workout-finished event available to **every subscribed MCP client**, with other useful Garmin events considered. This records the original research and design recommendations. The implemented webhook profile and its three initial events are documented in [Garmin MCP Events](mcp-events.md).
+
+## Protocol status and compatibility
+
+Domain Events remains an experimental MCP working-group proposal, not a universally supported core feature. It defines event discovery, per-event subscription arguments and payload schemas, and poll, stream, and webhook delivery modes. OpenAI documents an implementation for ChatGPT Work cloud chats and dots using **webhooks only** on MCP `2026-07-28`. The repo's pinned TypeScript SDK packages do not implement the domain Events methods, although their custom-method APIs provide building blocks. A minimal implementation should therefore use the existing MCP SDK for authenticated discovery and schema-validated custom methods, and begin with signed webhook delivery. Additional modes can share the same journal when needed by other compatible clients. [Working-group proposal](https://github.com/modelcontextprotocol/experimental-ext-triggers-events), [ChatGPT Events guide](https://developers.openai.com/plugins/build/mcp-events), [detailed protocol/package research](mcp-events-protocol-research.md)
+
+“Every subscribed client” means every authorized subscription for the relevant Garmin account, rather than choosing one host or consuming an event once globally. Generic MCP tool support alone does not establish Events support. The OpenAI guide and latest draft also disagree on the callback-verification error code; that discrepancy needs a compatibility test before release. No live client interoperability was verified in this research.
+
+## Existing implementation to reuse: DIGITS
+
+The user identified [aranlucas/digits-call-bridge](https://github.com/aranlucas/digits-call-bridge). Inspected main at [`55a5138`](https://github.com/aranlucas/digits-call-bridge/tree/55a5138076745dc6105b90f07aa2aa290a2572f1). It already implements `text.received` and **`call.completed`** with the same `@modelcontextprotocol/server` 2.3.1 SDK line. This is a concrete implementation precedent even though the SDK has no built-in domain Events module. Inspection covered source, documentation, and relevant tests; those tests were not executed here.
+
+Reusable parts and behaviors:
+
+- [MCP registration](https://github.com/aranlucas/digits-call-bridge/blob/55a5138076745dc6105b90f07aa2aa290a2572f1/packages/core/src/events/mcp.ts): `registerCapabilities({tools: {}, events: {}})` and SDK `setRequestHandler` for `events/list`, `events/subscribe`, and `events/unsubscribe`. Per-request MCP servers delegate to durable shared event state.
+- [Wire schemas and completion definition](https://github.com/aranlucas/digits-call-bridge/blob/55a5138076745dc6105b90f07aa2aa290a2572f1/packages/core/src/events/protocol.ts): Zod subscription inputs, explicit event descriptors and payload schemas, and the documented ChatGPT error-code profile. The code explicitly records why it uses `-32011..-32015` rather than the newer draft's codes.
+- [Subscription and delivery runtime](https://github.com/aranlucas/digits-call-bridge/blob/55a5138076745dc6105b90f07aa2aa290a2572f1/packages/core/src/events/runtime.ts): deterministic subscription identity, signed challenge verification, TTL/refresh/unsubscribe, authorization rechecks, stable event IDs, per-subscription fan-out, bounded retries, and secret rotation. Call completion ingestion and delivery are particularly relevant to workout completion.
+- [Durable schema](https://github.com/aranlucas/digits-call-bridge/blob/55a5138076745dc6105b90f07aa2aa290a2572f1/packages/core/src/events/store/schema.ts): separate subscription, event, and outbox records; the outbox key is `(eventId, subscriptionId)`, so successful delivery to one subscriber does not consume another's delivery.
+- [Signing](https://github.com/aranlucas/digits-call-bridge/blob/55a5138076745dc6105b90f07aa2aa290a2572f1/packages/core/src/events/secrets.ts) uses `standardwebhooks`; [completion tests](https://github.com/aranlucas/digits-call-bridge/blob/55a5138076745dc6105b90f07aa2aa290a2572f1/packages/core/test/events-call-completed.test.ts) cover signed payloads, deduplication, normalized filters, no pre-subscription replay, event discovery, and unsubscribe. Preserve the relevant behavior when adapting it.
+
+**Refined v1 recommendation:** follow DIGITS' webhook-only profile with `cursor: null`, durable pending-delivery retries, and history available through `list_garmin_summaries` / `get_garmin_summary`. Protocol replay is optional and need not block workout-finished delivery. A replay journal and client cursors can be added later if a client needs them. Avoid re-emitting historical activities to new subscribers. [DIGITS delivery semantics](https://github.com/aranlucas/digits-call-bridge/blob/55a5138076745dc6105b90f07aa2aa290a2572f1/apps/server/docs/events.md)
+
+The existing DIGITS runtime couples generic delivery with phone/session/text-recovery logic, so importing the whole private `digits-core` package would bring unrelated dependencies. Reuse its focused protocol patterns and behavior, and isolate portable delivery code if making a shared library. Garmin-specific code must derive the immutable Garmin account through Auth and recheck its current Health/Activity permissions. DIGITS' `better-sqlite3` file store and `setTimeout(...).unref()` maintenance loop need Durable Object SQL and durable alarms here. Its [HTTPS transport](https://github.com/aranlucas/digits-call-bridge/blob/55a5138076745dc6105b90f07aa2aa290a2572f1/packages/core/src/events/webhook-transport.ts) uses Node DNS/HTTPS address pinning; adapt its destination restrictions to verified Workers capabilities rather than copying Node-specific transport code. Keep callback-secret encryption and deletion/revocation behavior appropriate to this service.
+
+## Recommended first event
+
+Expose `garmin.activity.completed`, with the display label **Workout finished**. Define it as a newly received, saved Garmin activity after synchronization to Garmin Connect. Garmin documents notification delivery within seconds of device synchronization; that does not establish a real-time watch-stop notification or a maximum delay between finishing and syncing. [Garmin Connect developer program](https://developerportal.garmin.com/developer-programs/connect-developer-api)
+
+Use “activity” in the machine name because this connector also creates Training API workouts: those are planned instructions, whereas an Activity API record describes a recorded session. The existing Training tools do not establish that a scheduled workout was performed. Do not claim an exact planned-workout match unless Garmin's approved payload supplies a verified association; time/sport matching alone is an inference. [Local Training contract](garmin-training.md), [Training tool schemas](../src/training/schemas.ts)
+
+Proposed behavior:
+
+- Emit one logical completion when a new native `activities` record is durably accepted. Add sport and minimum-duration subscription filters. Validate the applicable Garmin fields before relying on them; the current push boundary validates an envelope and preserves other fields.
+- Keep an immutable event ID for retries and replay. Prefer a verified provider activity ID for cross-category identity; establish how it relates to `summaryId` using approved Garmin documentation and a real delivery before implementing cross-category merging.
+- Carry an activity/summary reference, sport, start time, observed receipt time, and available duration, distance, and heart-rate summary. Compute an end time only if the documented duration represents the desired elapsed time. Keep event occurrence time separate from delivery time.
+- Read detailed samples through the existing tools when needed. Avoid shipping GPS traces and full samples with every event.
+- Treat duplicate delivery, edits, and later `activityDetails` enrichment as updates to the same activity, not new completions. Do not count `manuallyUpdatedActivities` or `moveIQActivities` as new recorded-workout completions by default.
+- Suppress the existing `importSource: "garmin-personal-api"` historical import path. Do not convert all pre-existing records into fresh completion events when introducing the feature. Make reconnect replay bounded and explicit so delayed delivery remains recoverable without flooding clients with stale workouts.
+
+These are proposed domain rules, not claims that Garmin delivers exactly one callback per completed workout. Evidence for the existing categories, imports, and storage behavior: [push schemas](../src/push/schemas.ts), [push receiver](../src/push/handler.ts), [summary store](../src/push/store.ts), [personal import normalization](../src/personal-backfill.ts).
+
+## Other useful events
+
+Prioritize events that enable a specific action over forwarding every raw summary update.
+
+1. **`garmin.sleep.available`** — a new sleep summary is ready for a morning recap. Source: the connector's `sleeps` category. Deduplicate repeated summaries for the same sleep episode; revisions should update the episode rather than wake an agent repeatedly.
+2. **`garmin.recovery.summary.available`** — a derived morning bundle from the available sleep, HRV, and daily/resting-heart-rate data. Useful for reviewing today's training. Define a completeness policy and a bounded wait, and identify missing inputs. It must not claim to be Garmin's Training Readiness score; this connector has no dedicated readiness contract.
+3. **`garmin.activity.updated`** — meaningful corrections or newly available detail for a known activity, enabling an agent to revise its analysis. Suppress byte-identical retries. Consider an optional details-available filter instead of introducing another event immediately.
+4. **`garmin.body_composition.recorded`** — a new `bodyComps` measurement can update a longitudinal progress log. Keep this opt-in and deduplicate by measurement identity.
+5. **`garmin.daily.goal.reached`** — a derived threshold-crossing event for a user-selected steps or intensity-minutes target. Store explicit targets locally; the current connector does not expose Garmin's goals API. Emit at most once per local day and target revision, and define how corrected totals affect a previous crossing.
+6. **`garmin.training.workout.due` / `garmin.training.workout.missed`** — derived schedule reminders, rather than native Garmin callbacks. These require a scheduler, user time zone, and a grace period for delayed syncing. Absence of an activity is not proof a workout was missed; any schedule-to-activity match needs explicit confidence rules.
+
+The first two are the best follow-ons to workout completion. Garmin confirms Health API support for sleep, heart rate, steps, stress, and body composition, with data availability after device sync. Exact fields and device availability still require approved payload validation. [Garmin Health API](https://developer.garmin.com/gc-developer-program/enterprise/health-api/), [connector categories](../src/push/schemas.ts)
+
+Defer personal-best and all-time-record events until history completeness is known. Starter access excludes historical data; this repo's explicit activity import does not establish complete lifetime history. [Garmin program tiers](https://developer.garmin.com/gc-developer-program/overview/), [import behavior](../README.md#one-time-personal-activity-import)
+
+## Fit with this server
+
+The existing receiver authenticates Garmin deliveries and stores them in a SQLite Durable Object per immutable Garmin account. `/mcp` authenticates through Auth and obtains that account's store. No event registration or subscription is currently present. The server and MCP handler are created per HTTP request, so retaining a subscriber array in `createServer` would not provide durable cross-request fan-out. [Receiver](../src/push/handler.ts), [store](../src/push/store.ts), [MCP registration](../src/mcp.ts), [HTTP routing](../src/app.tsx)
+
+Recommended implementation sequence:
+
+1. Confirm the current experimental Events contract and maintained SDK extension support before selecting the wire adapter. Keep transport and registration in the MCP library, as required by this repo's AGENTS.md.
+2. Add durable per-user event/deduplication and outbox records, following the DIGITS model. Commit a newly accepted summary and its logical event together. V1 can return `cursor: null`; if replay is added, use a monotonically increasing journal sequence. Current summaries are mutable upserts whose `received_at` changes on retries; those rows alone are not a reliable replay cursor.
+3. Derive the Garmin account from authenticated identity, never subscription input. Store each client's subscription and delivery state independently: consuming an event in one client must not prevent another client from receiving it.
+4. Expose discovery and supported delivery modes through the experimental contract. Polling should read the local journal, not repeatedly fetch Garmin. Push streams need durable routing to the account's journal. Webhook delivery needs a durable outbox, bounded retries, signed payloads using a maintained library, endpoint validation, and subscription expiry.
+5. Preserve current permission checks and revocation behavior at delivery time. Disconnect, category withdrawal, and explicit deletion must also remove affected event payloads and pending deliveries; do not leave a second copy of deleted health data in the journal or outbox. Define replay-gap behavior after deletion.
+6. Test duplicate callbacks, out-of-order summary/detail arrivals, historical imports, eviction, reconnect replay, multiple independent clients, time-zone boundaries, permission revocation, and deletion. Verify using synthetic deliveries and read-only observations; do not create live Training API fixtures.
+
+This supports all clients that subscribe using a delivery mode they implement. A server cannot cause an arbitrary MCP host to run an agent in the background: that host must implement event subscriptions and choose what to do with each arrival. Resource-change notifications and task-completion notifications have different semantics and should not be presented as portable workout-finished events.

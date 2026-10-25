@@ -3,7 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/aranlucas/set-and-signal/internal/validation"
+	"github.com/aranlucas/set-and-signal-unified/internal/validation"
 )
 
 func readValidatedJSON[T any](w http.ResponseWriter, r *http.Request, dst *T) bool {

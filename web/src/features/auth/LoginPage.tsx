@@ -105,7 +105,9 @@ export default function Login() {
               variant="default"
               className="mb-2.5"
               onClick={() => {
-                window.location.href = `/oauth/web/${encodeURIComponent(id)}?next=/`;
+                const pending = new URLSearchParams(window.location.search).get("oauth_state");
+                const next = pending ? `/?oauth_state=${encodeURIComponent(pending)}` : "/";
+                window.location.href = `/oauth/web/${encodeURIComponent(id)}?next=${encodeURIComponent(next)}`;
               }}
             >
               <Icon name="person" />

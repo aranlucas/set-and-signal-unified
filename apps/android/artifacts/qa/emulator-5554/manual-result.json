@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "apkSha256": "75848862310f1e9116998b3ca896c651fbe39997c043f9a10e903dca8944c004",
+  "device": "Agents_Android_17_API_37_2, Android 17/API 37",
+  "checks": {
+    "releaseInstallAndUpdatePreservedData": true,
+    "weightInputRejectsNegativeAndSaves60kg": true,
+    "warmupsAndPlateCalculator": true,
+    "notificationPermissionDeniedThenGranted": true,
+    "backgroundRestNotificationDelivered": true,
+    "nativeJSONExportParsed": true,
+    "discardThenNativeRestoreRecovered60kgAnd5Reps": true,
+    "notesAndPartialWorkoutSaved": true,
+    "nativeCSVExport15RowsAndNotePreserved": true,
+    "nativeShareSheetOpenedWithoutSending": true,
+    "airplaneModeColdLaunchAndSetLogging": true,
+    "airplaneModeAndWifiRestored": true
+  },
+  "limitations": [
+    "Notification delivered within Android best-effort scheduling window; exact timing is not guaranteed.",
+    "Emulator verification; no physical phone or complete human TalkBack audit."
+  ]
+}

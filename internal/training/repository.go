@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
-	"github.com/aranlucas/set-and-signal/internal/validation"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/validation"
 )
 
 var ErrTrainingDataRevisionConflict = errors.New("training data revision conflict")
@@ -145,6 +145,7 @@ func (r *TrainingDataRepository) PutWorkout(uid string, workout MCPWorkout) (MCP
 	err = r.Mutate(uid, nil, func(data *TrainingData) error {
 		for i := range data.Workouts {
 			if data.Workouts[i].ID == workout.ID {
+				workout.ProgressionApplied = append([]string(nil), data.Workouts[i].ProgressionApplied...)
 				data.Workouts[i] = workout
 				persistRoutineWorkingWeights(data, workout)
 				return nil
@@ -158,6 +159,20 @@ func (r *TrainingDataRepository) PutWorkout(uid string, workout MCPWorkout) (MCP
 		return MCPWorkout{}, err
 	}
 	return workout, nil
+}
+
+// FinalizeWorkout updates the plan after an owner-scoped record commit. A record
+// deleted in the meantime stays deleted. Saved-state policies guard replay by id.
+func (r *TrainingDataRepository) FinalizeWorkout(uid, id string) error {
+	return r.Mutate(uid, nil, func(data *TrainingData) error {
+		for _, workout := range data.Workouts {
+			if workout.ID == id {
+				persistRoutineWorkingWeights(data, workout)
+				return nil
+			}
+		}
+		return nil
+	})
 }
 
 func decodeTrainingData(raw jsontext.Value) (TrainingData, error) {
@@ -215,6 +230,6 @@ func mergeTrainingData(raw jsontext.Value, data TrainingData) (jsontext.Value, e
 }
 
 var trainingDataJSONKeys = []string{
-	"unit", "targetW", "bodyweight", "routines", "week", "dayPlan",
+	"unit", "fivefoldNext", "targetW", "bodyweight", "routines", "week", "dayPlan",
 	"exWeights", "workouts", "customEx", "_ts",
 }

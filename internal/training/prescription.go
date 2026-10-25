@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/validation"
+	"github.com/aranlucas/set-and-signal-unified/internal/validation"
 )
 
 func cloneFloat(v *float64) *float64 {
@@ -34,7 +34,7 @@ func cloneBool(v *bool) *bool {
 
 func cloneExConfig(cfg MCPExConfig) MCPExConfig {
 	return MCPExConfig{
-		ID: cfg.ID, Sets: cloneFloat(cfg.Sets), Mode: cloneString(cfg.Mode),
+		Fivefold: cfg.Fivefold, ID: cfg.ID, Sets: cloneFloat(cfg.Sets), Mode: cloneString(cfg.Mode),
 		Reps: cloneFloat(cfg.Reps), Weight: cloneFloat(cfg.Weight), Sec: cloneFloat(cfg.Sec),
 		Min: cloneFloat(cfg.Min), Speed: cloneFloat(cfg.Speed), Bodyweight: cloneBool(cfg.Bodyweight),
 		Side: cloneBool(cfg.Side), Prog: cloneString(cfg.Prog), Inc: cloneFloat(cfg.Inc),
@@ -184,6 +184,35 @@ func persistRoutineWorkingWeights(data *TrainingData, workout MCPWorkout) {
 			continue
 		}
 		cfg := data.Routines[ri].Ex[ei]
+		if stringPointerValue(cfg.Prog) == "fivefold" || stringPointerValue(data.Routines[ri].Prog) == "fivefold" {
+			if slices.Contains(workout.ProgressionApplied, entry.ID) {
+				continue
+			}
+			updated := advanceFivefoldConfig(cfg, entry, workout.ID, data.Unit)
+			if routineID == "fivefold-A" {
+				data.FivefoldNext = "B"
+			} else if routineID == "fivefold-B" {
+				data.FivefoldNext = "A"
+			}
+			for i := range data.Workouts {
+				if data.Workouts[i].ID == workout.ID {
+					data.Workouts[i].ProgressionApplied = append(data.Workouts[i].ProgressionApplied, entry.ID)
+					break
+				}
+			}
+			for r := range data.Routines {
+				if stringPointerValue(data.Routines[r].Prog) != "fivefold" {
+					continue
+				}
+				for e := range data.Routines[r].Ex {
+					if data.Routines[r].Ex[e].ID == entry.ID {
+						data.Routines[r].Ex[e].Weight = updated.Weight
+						data.Routines[r].Ex[e].Fivefold = updated.Fivefold
+					}
+				}
+			}
+			continue
+		}
 		prescription := NextProgression(*data, cfg, data.Routines[ri])
 		updated := fillConfigWeight(*data, cfg, prescription)
 		if floatPointerValue(updated.Weight) == 0 {

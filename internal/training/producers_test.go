@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aranlucas/set-and-signal/internal/exercises"
+	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
 )
 
 func TestResolveTodayTypedHonorsOverrideAndWeeklyFallback(t *testing.T) {

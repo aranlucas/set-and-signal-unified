@@ -3,7 +3,7 @@ package httpapi
 import (
 	"encoding/json/v2"
 	"errors"
-	"github.com/aranlucas/set-and-signal/internal/training"
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 	"reflect"
 	"strings"
 	"testing"

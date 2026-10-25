@@ -1,0 +1,19 @@
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-3e4418a6
+      run 01a164fd-27a4-717f-8569-53446bb78505 · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5556 (1 of 1)
+ ✓ mobile engine for target "android" prepared 3.19s
+ ✓ |android| tests/e2e/insights.e2e.ts (6 tests) 82.21s
+ ✓ |android| tests/e2e/navigation.e2e.ts (1 test) 11.12s
+ ✓ |android| tests/e2e/recovery.e2e.ts (6 tests) 44.85s
+ ✓ |android| tests/e2e/settings.e2e.ts (8 tests) 59.57s
+ ✓ |android| tests/e2e/workout-b.e2e.ts (5 tests) 65.09s
+ ✓ |android| tests/e2e/workout.e2e.ts (8 tests) 64.56s
+ ✓ |android| tests/example.e2e.ts (1 test) 2.08s
+
+ Test Files  7 passed (7)
+      Tests  35 passed (35)
+   Start at  12:01:18
+   Duration  330.40s (5m 30s)

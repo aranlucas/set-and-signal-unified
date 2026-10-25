@@ -34,6 +34,8 @@
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.3",
     "@hookform/resolvers": "^6.0.0",
+    "@set-and-signal/exercises": "workspace:*",
+    "@set-and-signal/training": "workspace:*",
     "@simplewebauthn/browser": "14.0.0",
     "@tanstack/react-query": "5.104.5",
     "@tanstack/react-router": "1.170.45",

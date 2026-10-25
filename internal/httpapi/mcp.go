@@ -13,8 +13,8 @@ import (
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/aranlucas/set-and-signal/internal/exercises"
-	"github.com/aranlucas/set-and-signal/internal/training"
+	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 type mcpCallerKey struct{}
@@ -512,6 +512,7 @@ func (s *Server) buildMCPServer() *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{Name: "get_muscle_balance", Description: "Summarize recent muscle loading; days accepts 0, 7, 30, or 90 and defaults to 30.", Annotations: &read}, s.getMuscleBalanceTool)
 	mcp.AddTool(srv, &mcp.Tool{Name: "get_next_progression", Description: "Return the next actionable progression for an exercise; provide routineId when an exercise appears in multiple routines.", Annotations: &read}, s.getNextProgressionTool)
 	mcp.AddTool(srv, &mcp.Tool{Name: "get_session_prescription", Description: "Today's coaching prescription for every session: last working-set performance, next sets×reps×weight, and increased/held/deload with a one-line reason. Warm-ups are ignored. Sessions are not flattened.", Annotations: &read}, s.getSessionPrescriptionTool)
+	s.registerGarminMCP(srv)
 	return srv
 }
 

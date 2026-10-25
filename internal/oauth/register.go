@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 // POST /oauth/register — RFC 7591 Dynamic Client Registration (public clients).

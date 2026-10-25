@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aranlucas/set-and-signal/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
 )
 
 // startApp wires a full app against temp dirs and serves it in memory.

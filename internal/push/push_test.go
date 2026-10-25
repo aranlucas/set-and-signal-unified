@@ -18,8 +18,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
-	"github.com/aranlucas/set-and-signal/internal/training"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // ---------- fake push service ----------

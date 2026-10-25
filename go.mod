@@ -1,4 +1,4 @@
-module github.com/aranlucas/set-and-signal
+module github.com/aranlucas/set-and-signal-unified
 
 go 1.27.3
 

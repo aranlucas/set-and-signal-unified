@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/aranlucas/set-and-signal/internal/validation"
+	"github.com/aranlucas/set-and-signal-unified/internal/validation"
 )
 
 type typedPreparedProgram struct {

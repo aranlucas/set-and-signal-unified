@@ -1,0 +1,142 @@
+{
+  "start-workout": {
+    "total": 25,
+    "byComponent": {
+      "ActiveExercises": 1,
+      "AppBar": 1,
+      "Caption": 8,
+      "Divider": 1,
+      "ExerciseCard": 3,
+      "ExternalSync": 1,
+      "Page": 1,
+      "Panel": 3,
+      "RestDock": 1,
+      "SetCounters": 3,
+      "WorkoutNotes": 1,
+      "WorkoutScreen": 1
+    }
+  },
+  "log-set": {
+    "total": 12,
+    "byComponent": {
+      "AppBar": 1,
+      "AppShell": 1,
+      "Caption": 1,
+      "Divider": 1,
+      "ExerciseCard": 1,
+      "ExternalSync": 1,
+      "Page": 1,
+      "Panel": 1,
+      "RestDock": 1,
+      "RestTimer": 1,
+      "SetCounters": 1,
+      "WorkoutScreen": 1
+    }
+  },
+  "log-second-set": {
+    "total": 12,
+    "byComponent": {
+      "AppBar": 1,
+      "AppShell": 1,
+      "Caption": 1,
+      "ExerciseCard": 1,
+      "ExternalSync": 1,
+      "Page": 1,
+      "Panel": 1,
+      "RestDock": 1,
+      "RestTimer": 2,
+      "SetCounters": 1,
+      "WorkoutScreen": 1
+    }
+  },
+  "note-keystroke": {
+    "total": 2,
+    "byComponent": {
+      "Field": 1,
+      "WorkoutNotes": 1
+    }
+  },
+  "rest-tick": {
+    "total": 1,
+    "byComponent": {
+      "RestTimer": 1
+    }
+  },
+  "tab-history": {
+    "total": 40007,
+    "byComponent": {
+      "AppBar": 1,
+      "AppNavigation": 1,
+      "AppShell": 1,
+      "Caption": 10001,
+      "Choices": 1,
+      "Divider": 10000,
+      "HistoryContent": 1,
+      "HistoryScreen": 1,
+      "Panel": 10000,
+      "SectionTitle": 10000
+    }
+  },
+  "tab-progress": {
+    "total": 93,
+    "byComponent": {
+      "AppBar": 1,
+      "AppNavigation": 1,
+      "AppShell": 1,
+      "Caption": 46,
+      "Divider": 10,
+      "Page": 2,
+      "Panel": 6,
+      "ProgressScreen": 2,
+      "SectionTitle": 14,
+      "StatRow": 10
+    }
+  },
+  "tab-settings": {
+    "total": 12,
+    "byComponent": {
+      "AppBar": 1,
+      "AppNavigation": 1,
+      "AppShell": 1,
+      "Caption": 2,
+      "Divider": 4,
+      "ListGroup": 1,
+      "Page": 1,
+      "SettingsScreen": 1
+    }
+  },
+  "tab-train": {
+    "total": 25,
+    "byComponent": {
+      "ActiveExercises": 1,
+      "AppBar": 1,
+      "AppNavigation": 1,
+      "AppShell": 1,
+      "Caption": 8,
+      "Divider": 1,
+      "ExerciseCard": 3,
+      "Page": 1,
+      "Panel": 3,
+      "SetCounters": 3,
+      "WorkoutNotes": 1,
+      "WorkoutScreen": 1
+    }
+  },
+  "open-weight-sheet": {
+    "total": 8,
+    "byComponent": {
+      "Action": 2,
+      "AppShell": 1,
+      "Caption": 1,
+      "Field": 2,
+      "Heading": 1,
+      "WeightSheet": 1
+    }
+  },
+  "close-weight-sheet": {
+    "total": 1,
+    "byComponent": {
+      "AppShell": 1
+    }
+  }
+}

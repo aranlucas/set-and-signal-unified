@@ -11,6 +11,13 @@ export function useProgressionLabels(): PolicyLabels {
       name: t("progression.noAutomaticProgression", "No automatic progression"),
       description: t("progression.targetsStayWhereSetThem", "Targets stay where you set them."),
     },
+    fivefold: {
+      name: t("progression.fivefoldName", "Fivefold 5×5"),
+      description: t(
+        "progression.fivefoldDescription",
+        "Progress after every rep succeeds. Deload after three fully attempted misses; skipped sets preserve the miss count.",
+      ),
+    },
     linear: {
       name: t("progression.linearProgression", "Linear progression"),
       description: t(

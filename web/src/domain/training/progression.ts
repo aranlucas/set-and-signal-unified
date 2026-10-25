@@ -1,3 +1,4 @@
+import { advanceFivefold } from "@set-and-signal/training/fivefold";
 // Automatic progression (issue #17).
 //
 // Everything here is a pure function of the workout history. Nothing writes back into a
@@ -17,6 +18,7 @@
 // So a session that fell apart can never advance the load as though it had succeeded.
 
 import { modeOf, repStep, isWarmup, isBw, sessionLoad } from "@/domain/training/history.js";
+import type { AppState, Workout } from "@/shared/lib/types";
 import type { AnyConfig, SetFields, WorkoutLike } from "@/domain/training/history.js";
 import { EXIDX } from "@/domain/exercises/exercises.js";
 import type {
@@ -61,7 +63,7 @@ const reason = (
 
 // Which policies can sensibly drive which logging mode.
 export const POLICIES_FOR: Record<Mode, PolicyId[]> = {
-  reps: ["off", "linear", "greyskull", "double"],
+  reps: ["off", "linear", "greyskull", "double", "fivefold"],
   time: ["off", "time"],
   cardio: ["off"],
 };
@@ -70,6 +72,7 @@ export const POLICIES_FOR: Record<Mode, PolicyId[]> = {
 // design; linear gives one more crack, then drops 10% so a stall cannot last forever.
 export const DELOAD_AFTER: Record<Exclude<PolicyId, "off">, number> = {
   linear: 2,
+  fivefold: 3,
   greyskull: 1,
   double: 3,
   time: 3,
@@ -261,6 +264,18 @@ export function nextPrescription(
   const mode = modeOf(cfg);
   const policy = policyFor(cfg, routine, mode);
   const unit: Unit = state.unit || "lb";
+
+  if (policy === "fivefold") {
+    return {
+      policy,
+      kind: "hold",
+      weight: cfg.weight ?? 0,
+      why: reason(
+        "progression.fivefoldSavedTarget",
+        "Saved 5×5 target; skipped sets do not add misses.",
+      ),
+    };
+  }
 
   const increment =
     cfg.inc != null && cfg.inc > 0
@@ -639,6 +654,27 @@ export function syncSourceRoutineWeights<T extends SyncSourceRoutineWeightsResul
         return cfg;
       }
 
+      if (policyFor(cfg, routine) === "fivefold") {
+        const latest = state.workouts.at(-1);
+        const entry = latest?.entries.find((candidate) => candidate.id === cfg.id);
+
+        if (!latest?.id || !entry || latest.progressionApplied?.includes(cfg.id)) {
+          return cfg;
+        }
+
+        return advanceFivefold(
+          cfg,
+          {
+            id: latest.id,
+            weight: sessionLoad(entry, cfg),
+            sets: entry.sets
+              .filter((set) => !isWarmup(set))
+              .map((set) => (set.done ? (set.r ?? 0) : null)),
+          },
+          state.unit ?? "lb",
+        );
+      }
+
       const prescription = nextPrescription(state, cfg, routine);
       const updated = applyPrescriptionToConfig(cfg, prescription);
 
@@ -651,4 +687,58 @@ export function syncSourceRoutineWeights<T extends SyncSourceRoutineWeightsResul
       return last > 0 ? { ...updated, weight: last } : updated;
     }),
   };
+}
+
+/** Apply a reviewed completed record once, keeping shared Fivefold lifts aligned. */
+export function applyWorkoutProgression(state: AppState, workout: Workout): void {
+  const routine = state.routines.find((candidate) => candidate.id === workout.routineId);
+
+  if (!routine || workout.sessionPlan) {
+    return;
+  }
+
+  const current = state.workouts.find((candidate) => candidate.id === workout.id);
+
+  if (routine.prog === "fivefold" && current?.progressionApplied?.length) {
+    return;
+  }
+
+  const view = {
+    ...state,
+    workouts: [...state.workouts.filter((candidate) => candidate.id !== workout.id), workout],
+  };
+
+  const source = syncSourceRoutineWeights(
+    view,
+    routine,
+    workout.entries.map((entry) => entry.id),
+  );
+
+  state.routines = state.routines.map((candidate) => {
+    if (candidate.id === source.id) {
+      return source;
+    }
+
+    if (source.prog !== "fivefold" || candidate.prog !== "fivefold") {
+      return candidate;
+    }
+
+    return {
+      ...candidate,
+      ex: candidate.ex.map((cfg) => {
+        const changed = source.ex.find((entry) => entry.id === cfg.id);
+
+        return changed ? { ...cfg, weight: changed.weight, fivefold: changed.fivefold } : cfg;
+      }),
+    };
+  });
+
+  if (source.prog === "fivefold") {
+    state.fivefoldNext = source.id === "fivefold-A" ? "B" : "A";
+    state.workouts = state.workouts.map((record) =>
+      record.id === workout.id
+        ? { ...record, progressionApplied: workout.entries.map((entry) => entry.id) }
+        : record,
+    );
+  }
 }

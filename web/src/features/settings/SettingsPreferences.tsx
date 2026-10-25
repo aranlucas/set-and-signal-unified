@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useStore } from "@/app/store/useStore";
 import { fmtPlate } from "@/shared/lib/format";
 import { ACCENT_NAMES, DEFAULT_ACCENT } from "@/shared/lib/accents";
+import { changeProfileUnit } from "@/domain/training/units";
 import { effortOf } from "@/domain/training/history";
 import {
   barWeightFor,
@@ -38,8 +39,8 @@ export function SettingsPreferences({ onEffortHelp }: SettingsPreferencesProps) 
       <Section
         title={t("settings.general", "General")}
         footer={t(
-          "settings.noteSwitchingUnitsOnlyChanges",
-          "Note: switching units only changes the label — logged numbers are not converted.",
+          "settings.unitsConverted",
+          "Changing units converts recorded loads, body weight and plan targets. Original workout loads are preserved.",
         )}
       >
         <SelectRow
@@ -74,13 +75,7 @@ export function SettingsPreferences({ onEffortHelp }: SettingsPreferencesProps) 
             value={appState.unit}
             onChange={(value) =>
               update((state) => {
-                state.unit = value;
-
-                // A kg inventory means nothing once the profile reads lb: re-seed the
-                // plate calculator with the new unit's defaults.
-                if (state.plates) {
-                  state.plates = defaultPlateSetup(value);
-                }
+                changeProfileUnit(state, value);
               })
             }
           />

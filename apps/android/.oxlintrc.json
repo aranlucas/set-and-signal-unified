@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["./node_modules/@aranlucas/oxforge/configs/recommended.json"],
+  "options": {
+    "typeAware": true
+  },
+  "ignorePatterns": ["android/**", "ios/**", "artifacts/**", ".expo/**", "node_modules/**"]
+}

@@ -17,7 +17,15 @@
     "prepare": "husky",
     "build": "pnpm --dir web build && go build -o build/ ./cmd/...",
     "test": "vitest run --root web",
-    "pretest": "go test ./... && pnpm --dir web catalog:validate"
+    "pretest": "go test ./... && pnpm --dir web catalog:validate",
+    "dev:android": "pnpm --filter fivefold start",
+    "dev:garmin": "pnpm --filter garmin-mcp dev",
+    "check:android": "pnpm --filter fivefold check",
+    "check:garmin": "pnpm --filter garmin-api-codegen build && pnpm --filter garmin-api-codegen test && pnpm --filter garmin-mcp check",
+    "build:android": "pnpm --filter fivefold build",
+    "build:garmin": "pnpm --filter garmin-mcp build",
+    "check:apps": "pnpm check:shared && pnpm check:android && pnpm check:garmin",
+    "check:shared": "pnpm --filter @set-and-signal/training typecheck && pnpm --filter @set-and-signal/training test"
   },
   "devDependencies": {
     "@aranlucas/oxforge": "^0.2.2",
@@ -31,12 +39,12 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
-      "oxlint --fix",
+      "sh -c 'pnpm --dir web lint && pnpm check:shared && pnpm exec oxlint --config web/oxlint.policy.config.ts packages'",
       "oxfmt --config oxfmt.config.ts --no-error-on-unmatched-pattern --write"
     ],
     "*.{json,jsonc,json5,css,scss,md,mdx,yml,yaml,html,toml,vue,svelte,astro,graphql}": [
       "oxfmt --config oxfmt.config.ts --no-error-on-unmatched-pattern --write"
     ]
   },
-  "packageManager": "pnpm@12.14.0"
+  "packageManager": "pnpm@12.15.0"
 }

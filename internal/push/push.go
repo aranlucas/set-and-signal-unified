@@ -21,8 +21,8 @@ import (
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
-	"github.com/aranlucas/set-and-signal/internal/training"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // reminderInterval is the tick cadence of RunReminderLoop. Upstream ticks every

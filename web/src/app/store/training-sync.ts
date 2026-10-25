@@ -6,7 +6,7 @@ import { parseStoredState, type ParsedAppStatePatch } from "@/shared/lib/schemas
 import type { AppState } from "@/shared/lib/types";
 import { joinState, splitState } from "../../../convex/model";
 
-type CommitValue = { changes: Change[] };
+type CommitValue = { changes: Change[]; operationId?: string };
 
 export type SyncPhase = "loading" | "saving" | "saved" | "offline" | "error" | "conflict";
 
@@ -14,7 +14,7 @@ export type SyncStatus = { phase: SyncPhase; pending: number };
 
 export type SyncConflict = { key: string; local: string | null; remote: string | null };
 
-type Change = { key: string; expected: string | null; value: string | null };
+type Change = { key: string; expected: string | null; value: string | null; operationId?: string };
 
 const snapshot = makeFunctionReference<"query", Record<string, never>, unknown>(
   "training:snapshot",
@@ -48,6 +48,7 @@ async function credentials(uid: string) {
 }
 
 const changeSchema = v.object({
+  operationId: v.optional(v.string()),
   key: v.string(),
   expected: v.nullable(v.string()),
   value: v.nullable(v.string()),
@@ -246,8 +247,23 @@ export class TrainingSync {
   }
   private persistQueue(next: Change[][]) {
     // A failed write must leave the live queue intact for retry or recovery.
-    localStorage.setItem(this.key, JSON.stringify(next));
-    this.queue = next;
+    // The first change carries local receipt metadata, preserving old queue files.
+    const identified = next.flatMap((batch) => {
+      if (!batch.length) {
+        return [];
+      }
+
+      const value = batch[0]?.operationId
+        ? batch
+        : batch.map((change, index) =>
+            index === 0 ? { ...change, operationId: crypto.randomUUID() } : change,
+          );
+
+      return [value];
+    });
+
+    localStorage.setItem(this.key, JSON.stringify(identified));
+    this.queue = identified;
   }
   enqueue(before: Partial<AppState>, after: Partial<AppState>) {
     const changes = changesBetween(before, after).map((change) => ({
@@ -258,6 +274,14 @@ export class TrainingSync {
 
     if (!changes.length) {
       return;
+    }
+
+    if (
+      !changes.some((change) => change.key === "field/unit") &&
+      changes.some((change) => change.value !== null && /^(workouts|routines)\//.test(change.key))
+    ) {
+      const unit = this.known.get("field/unit") ?? null;
+      changes.push({ key: "field/unit", expected: unit, value: unit });
     }
 
     // Throw before admitting the edit or advancing its baseline if storage rejects it.
@@ -322,9 +346,17 @@ export class TrainingSync {
         break;
       }
 
+      // Persist receipt metadata for legacy queues before the first network write.
+      if (!changes[0]?.operationId) {
+        this.persistQueue(this.queue);
+        continue;
+      }
+
+      const operationId = changes[0].operationId;
+      const payload = changes.map(({ key, expected, value }) => ({ key, expected, value }));
       // Each batch assumes the preceding batch committed; parallel writes break revisions.
       // eslint-disable-next-line no-await-in-loop
-      await client.mutation(commit, { changes });
+      await client.mutation(commit, { changes: payload, operationId });
 
       if (this.closed) {
         return;
@@ -375,6 +407,17 @@ export class TrainingSync {
       }));
   }
   async resolve(conflicts: SyncConflict[], choice: "local" | "remote") {
+    if (
+      conflicts.some((conflict) => conflict.key === "field/unit") &&
+      this.queue.some((batch) =>
+        batch.some((change) => change.key === "field/unit" && change.expected === change.value),
+      )
+    ) {
+      throw new Error(
+        "Weight units changed on another device. Export pending edits and review their original units before merging.",
+      );
+    }
+
     // Retain both the original pending edits and the reviewed remote versions.
     localStorage.setItem(
       `${this.key}:recovery:${Date.now()}`,

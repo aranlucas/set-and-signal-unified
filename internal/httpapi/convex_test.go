@@ -1,7 +1,7 @@
 package httpapi
 
 import (
-	"github.com/aranlucas/set-and-signal/internal/convex"
+	"github.com/aranlucas/set-and-signal-unified/internal/convex"
 	"github.com/golang-jwt/jwt/v5"
 	"testing"
 )

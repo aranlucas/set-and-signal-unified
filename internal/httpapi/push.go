@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 // Push notification endpoints (server.js lines 707–752). All mutating push

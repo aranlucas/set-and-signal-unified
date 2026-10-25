@@ -1,0 +1,29 @@
+{
+  "valid": true,
+  "unit": "kg",
+  "activeSets": [
+    [
+      5,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "squatWeight": 60,
+  "restAlerts": true
+}

@@ -1,0 +1,61 @@
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-3e4418a6
+      run 01a164e1-e5b4-71a3-a672-9f8d488c9cbb · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5556 (1 of 1)
+ ✓ mobile engine for target "android" prepared 4.35s
+ ✓ |android| tests/e2e/insights.e2e.ts (6 tests) 99.87s
+ ✓ |android| tests/e2e/navigation.e2e.ts (1 test) 11.77s
+ ✓ |android| tests/e2e/recovery.e2e.ts (6 tests) 81.86s
+ ✓ |android| tests/e2e/settings.e2e.ts (8 tests) 153.31s
+ ❯ |android| tests/e2e/workout-b.e2e.ts (4 tests | 1 failed | 3 skipped) 125.03s
+   × workout B > runs a full A and B cycle 125.03s
+     → tap timed out before the device answered; its input may have been dispat…
+   ↓ workout B > shows the deadlift set in workout B history [member 0 failed in this group attempt]
+   ↓ workout B > saves an unfinished workout as skipped [member 0 failed in this group attempt]
+   ↓ workout B > keeps a skipped lift's planned weight [member 0 failed in this group attempt]
+ ❯ |android| tests/e2e/workout.e2e.ts (8 tests | 1 failed | 1 skipped) 125.02s
+   ✓ workout A > starts from a clean install 49.02s
+   ✓ workout A > runs the rest timer and undoes a set 6.37s
+   ✓ workout A > keeps a logged set across a restart 5.76s
+   ✓ workout A > corrects reps, records zero and clears a set 5.35s
+   ✓ workout A > records a note, logs every set and saves 43.21s
+   ✓ workout A > shows the workout and its note in history 3.95s
+   × workout A > shows the completed lift on progress 11.35s
+     → expect.toBeVisible failed
+   ↓ workout A > advances to workout B with the next weights [member 6 failed in this group attempt]
+ ✓ |android| tests/example.e2e.ts (1 test) 3.57s
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |android| tests/e2e/workout-b.e2e.ts > workout B > runs a full A and B cycle
+ACTION_FAILED: tap timed out before the device answered; its input may have been dispatched
+ ❯ at app.fivefold.lifts
+ ❯ trace .e2e/restart-android15/results/workout-b-workout-b-runs-a-full-a-and-b-3be7decc61bf89c6/trace.md
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |android| tests/e2e/workout.e2e.ts > workout A > shows the completed lift on progress
+ASSERTION_FAILED: expect.toBeVisible failed
+locator: getByText("No record yet")
+expected: visible
+observed: no node (match count 0)
+ ❯ tests/e2e/workout.e2e.ts:134:5
+    132|     await screen.scrollUntilVisible(prescription);
+    133|     await expect(prescription).toBeVisible();
+    134|     await expect(screen.getByText("No record yet")).toBeVisible();
+       |     ^
+    135|
+    136|     const squatRecord = screen.getByLabel("View Squat progress");
+ ❯ at app.fivefold.lifts
+ ❯ trace .e2e/restart-android15/results/workout-a-shows-the-completed-lift-on-8813b6907099b7a1/trace.md
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 5 passed (7)
+      Tests  2 failed | 28 passed | 4 skipped (34)
+   Start at  11:31:32
+   Duration  618.41s (10m 18s)
+     Traces  .e2e/restart-android15/results/ (12 pages, trace.md in each test's directory)

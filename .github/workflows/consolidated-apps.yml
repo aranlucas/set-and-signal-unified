@@ -1,0 +1,60 @@
+name: Android and Garmin
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/consolidated-apps.yml"
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/consolidated-apps.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: consolidated-apps-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    if: ${{ github.event.pull_request.draft != true }}
+    name: ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [android, garmin]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up pnpm, Node.js, and dependencies
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          runtime: "node@24"
+          cache: true
+          require-lockfile: true
+      - name: Check application
+        run: pnpm check:${{ matrix.app }}
+      - name: Build application
+        run: pnpm build:${{ matrix.app }}
+      - name: Check generated Garmin API schemas
+        if: matrix.app == 'garmin'
+        run: git diff --exit-code -- apps/garmin/src/garmin-api
+      - name: Check whitespace
+        run: git diff --check

@@ -1,0 +1,139 @@
+{
+  "start-workout": {
+    "total": 19,
+    "byComponent": {
+      "App": 1,
+      "Application": 1,
+      "Caption": 8,
+      "Divider": 1,
+      "Page": 1,
+      "Panel": 3,
+      "SetCounters": 3,
+      "WorkoutScreen": 1
+    }
+  },
+  "log-set": {
+    "total": 20,
+    "byComponent": {
+      "App": 1,
+      "Application": 1,
+      "Caption": 8,
+      "Divider": 1,
+      "Page": 1,
+      "Panel": 3,
+      "RestTimer": 1,
+      "SetCounters": 3,
+      "WorkoutScreen": 1
+    }
+  },
+  "log-second-set": {
+    "total": 21,
+    "byComponent": {
+      "App": 1,
+      "Application": 1,
+      "Caption": 8,
+      "Divider": 1,
+      "Page": 1,
+      "Panel": 3,
+      "RestTimer": 2,
+      "SetCounters": 3,
+      "WorkoutScreen": 1
+    }
+  },
+  "note-keystroke": {
+    "total": 20,
+    "byComponent": {
+      "App": 1,
+      "Application": 1,
+      "Caption": 8,
+      "Divider": 1,
+      "Field": 1,
+      "Page": 1,
+      "Panel": 3,
+      "SetCounters": 3,
+      "WorkoutScreen": 1
+    }
+  },
+  "rest-tick": {
+    "total": 1,
+    "byComponent": {
+      "RestTimer": 1
+    }
+  },
+  "tab-history": {
+    "total": 50004,
+    "byComponent": {
+      "Application": 1,
+      "Caption": 20001,
+      "Choices": 1,
+      "Divider": 10000,
+      "HistoryScreen": 1,
+      "Panel": 10000,
+      "SectionTitle": 10000
+    }
+  },
+  "tab-progress": {
+    "total": 90,
+    "byComponent": {
+      "Application": 1,
+      "Caption": 45,
+      "Divider": 10,
+      "Page": 2,
+      "Panel": 6,
+      "ProgressScreen": 2,
+      "SectionTitle": 14,
+      "StatRow": 10
+    }
+  },
+  "tab-settings": {
+    "total": 10,
+    "byComponent": {
+      "Application": 1,
+      "Caption": 2,
+      "Divider": 4,
+      "ListGroup": 1,
+      "Page": 1,
+      "SettingsScreen": 1
+    }
+  },
+  "tab-train": {
+    "total": 18,
+    "byComponent": {
+      "Application": 1,
+      "Caption": 8,
+      "Divider": 1,
+      "Page": 1,
+      "Panel": 3,
+      "SetCounters": 3,
+      "WorkoutScreen": 1
+    }
+  },
+  "open-weight-sheet": {
+    "total": 23,
+    "byComponent": {
+      "Action": 1,
+      "Application": 1,
+      "Caption": 8,
+      "Divider": 1,
+      "Field": 2,
+      "Heading": 1,
+      "Page": 1,
+      "Panel": 3,
+      "SetCounters": 3,
+      "WeightSheet": 1,
+      "WorkoutScreen": 1
+    }
+  },
+  "close-weight-sheet": {
+    "total": 17,
+    "byComponent": {
+      "Application": 1,
+      "Caption": 7,
+      "Divider": 1,
+      "Page": 1,
+      "Panel": 3,
+      "SetCounters": 3,
+      "WorkoutScreen": 1
+    }
+  }
+}

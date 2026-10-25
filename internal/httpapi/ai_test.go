@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/aranlucas/set-and-signal/internal/ai"
+	"github.com/aranlucas/set-and-signal-unified/internal/ai"
 )
 
 func TestNextWorkoutSuggestionMCPUsesClosedOutput(t *testing.T) {

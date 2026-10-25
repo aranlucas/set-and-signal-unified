@@ -13,4 +13,4 @@ export const DEMO = import.meta.env.VITE_DEMO === "1";
 
 export const DEMO_SEEDED = "gym_demo_seeded_v1";
 
-export const REPO = "https://github.com/aranlucas/set-and-signal";
+export const REPO = "https://github.com/aranlucas/set-and-signal-unified";

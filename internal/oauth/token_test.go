@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aranlucas/set-and-signal/internal/auth"
-	"github.com/aranlucas/set-and-signal/internal/config"
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/auth"
+	"github.com/aranlucas/set-and-signal-unified/internal/config"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 func TestWriteTokenResponseFailsWhenRefreshTokenCannotPersist(t *testing.T) {

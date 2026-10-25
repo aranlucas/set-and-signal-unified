@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aranlucas/set-and-signal/internal/store"
+	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
 // Admin dashboard endpoints (server.js lines 771–855). Every route is gated

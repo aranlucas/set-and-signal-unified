@@ -1,0 +1,49 @@
+
+ RUN  e2e v0.21.2 /Users/lucas/.t3/worktrees/stronglifts/t3-3e4418a6
+      run 01a164f5-7f1f-73f5-9385-8546394a22f7 · targets: android
+      model freellm.chat/auto
+
+ℹ booting emulator-5556 (1 of 1)
+ ✓ mobile engine for target "android" prepared 2.39s
+ ✓ |android| tests/e2e/insights.e2e.ts (6 tests) 82.78s
+ ✓ |android| tests/e2e/navigation.e2e.ts (1 test) 14.03s
+ ✓ |android| tests/e2e/recovery.e2e.ts (6 tests) 48.95s
+ ✓ |android| tests/e2e/settings.e2e.ts (8 tests) 76.46s
+ ✓ |android| tests/e2e/workout-b.e2e.ts (5 tests) 79.29s
+ ❯ |android| tests/e2e/workout.e2e.ts (8 tests | 1 failed) 86.69s
+   ✓ workout A > starts from a clean install 6.89s
+   ✓ workout A > runs the rest timer and undoes a set 4.61s
+   ✓ workout A > keeps a logged set across a restart 2.59s
+   ✓ workout A > corrects reps, records zero and clears a set 5.37s
+   ✓ workout A > records a note, logs every set and saves 49.32s
+   ✓ workout A > shows the workout and its note in history 3.11s
+   ✓ workout A > shows the completed lift on progress 7.67s
+   × workout A > advances to workout B with the next weights 7.13s
+     → expect.toBeVisible failed
+ ✓ |android| tests/example.e2e.ts (1 test) 2.91s
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |android| tests/e2e/workout.e2e.ts > workout A > advances to workout B with the next weights
+ASSERTION_FAILED: expect.toBeVisible failed
+locator: getByText(/· 15 sets$/)
+expected: visible
+observed: no node (match count 0)
+ ❯ tests/e2e/workout.e2e.ts:155:5
+    153|     await expect(screen.getByText("40 kg")).toBeVisible();
+    154|     await expect(screen.getByText("Workout A")).toBeVisible();
+    155|     await expect(screen.getByText(/· 15 sets$/)).toBeVisible();
+       |     ^
+    156|   });
+    157| });
+ ❯ at app.fivefold.lifts
+ ❯ trace .e2e/restart-android15-final/results/workout-a-advances-to-workout-b-with-the-4354b9baa870eb0d/trace.md
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  1 failed | 34 passed (35)
+   Start at  11:52:55
+   Duration  392.58s (6m 33s)
+     Traces  .e2e/restart-android15-final/results/ (8 pages, trace.md in each test's directory)

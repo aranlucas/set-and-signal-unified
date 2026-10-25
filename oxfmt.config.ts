@@ -6,6 +6,8 @@ export default format({
   ignorePatterns: [
     ...(web.ignorePatterns ?? []).map((pattern) => `web/${pattern}`),
     // Preserve the compact catalog embedded verbatim in the Go binary.
-    "internal/exercises/catalog.json",
+    "packages/exercises/catalog.json",
+    // Imported applications own their formatting policy.
+    "apps/**",
   ],
 });

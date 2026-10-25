@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Set &amp; Signal — unified product</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--foreground, #172a24);
+        font-family: var(--font-sans, system-ui, sans-serif);
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        color: var(--muted-foreground, #52625b);
+        font-size: 12px;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--success, #216b53);
+      }
+      .surfaces {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .surface {
+        background: var(--card, #f1f5f2);
+        border: 1px solid var(--border, #d8e1db);
+        border-radius: var(--radius, 12px);
+        padding: 18px;
+      }
+      .surface:first-child {
+        border-top: 3px solid #216b53;
+      }
+      .label {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 10px;
+        letter-spacing: 0.09em;
+        font-weight: 650;
+        color: var(--muted-foreground, #52625b);
+      }
+      h3 {
+        font-size: 21px;
+        margin: 0 0 9px;
+        letter-spacing: -0.03em;
+      }
+      p {
+        font-size: 13px;
+        line-height: 1.6;
+        margin: 0;
+      }
+      .surface p {
+        color: var(--muted-foreground, #52625b);
+      }
+      .flow {
+        display: flex;
+        justify-content: space-around;
+        color: var(--muted-foreground, #52625b);
+        font-size: 20px;
+        padding: 8px 0;
+      }
+      .history {
+        padding: 20px;
+        background: var(--accent-surface, #e7f2eb);
+        border-radius: var(--radius, 12px);
+      }
+      .history h3 {
+        font-size: 19px;
+      }
+      .history p {
+        color: var(--muted-foreground, #52625b);
+      }
+      .details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 14px;
+      }
+      .details span {
+        border: 1px solid var(--border, #d8e1db);
+        border-radius: 20px;
+        padding: 5px 9px;
+        font-size: 11px;
+        background: var(--card, #f1f5f2);
+      }
+      .checks {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-top: 18px;
+        gap: 8px;
+      }
+      .check {
+        padding: 12px 0;
+        border-top: 1px solid var(--border, #d8e1db);
+      }
+      .check strong {
+        font-size: 22px;
+        letter-spacing: -0.04em;
+        display: block;
+      }
+      .check span {
+        color: var(--muted-foreground, #52625b);
+        font-size: 11px;
+      }
+      .note {
+        margin-top: 12px;
+        font-size: 11px;
+        color: var(--muted-foreground, #52625b);
+        line-height: 1.6;
+      }
+      @media (max-width: 540px) {
+        .surfaces {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+        .surface {
+          padding: 16px;
+        }
+        .label {
+          margin-bottom: 6px;
+        }
+        h3 {
+          font-size: 19px;
+          margin-bottom: 5px;
+        }
+        .flow {
+          display: none;
+        }
+        .history {
+          margin-top: 12px;
+          padding: 16px;
+        }
+        .checks {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="status"><span class="dot"></span>Implemented locally · Android first</div>
+    <div class="surfaces">
+      <article class="surface">
+        <span class="label">FIVEFOLD → ANDROID</span>
+        <h3>Train on your phone</h3>
+        <p>
+          Keep offline 5×5 logging. Use cached web strength routines, resume sessions, and sync
+          saved results.
+        </p>
+      </article>
+      <article class="surface">
+        <span class="label">SET &amp; SIGNAL → WEB</span>
+        <h3>Plan and review</h3>
+        <p>
+          Edit routines and schedules. Log on web and review progress across phone and imported
+          watch sessions.
+        </p>
+      </article>
+      <article class="surface">
+        <span class="label">GARMIN → BUILT IN</span>
+        <h3>Train on your watch</h3>
+        <p>
+          Connect in the product, approve a workout preview, schedule it, and review the actual
+          recorded sets.
+        </p>
+      </article>
+    </div>
+    <div class="flow" aria-hidden="true"><span>↕</span><span>↕</span><span>↕</span></div>
+    <div class="history">
+      <h3>One account. One training history.</h3>
+      <p>
+        Shared records and training rules connect all three surfaces. A watch session can advance a
+        routine or link to a phone log and count once.
+      </p>
+      <div class="details">
+        <span>Original kg / lb preserved</span><span>Offline outbox + replay receipts</span
+        ><span>Attempted zero ≠ skipped</span><span>Explicit phone / watch matching</span>
+      </div>
+    </div>
+    <div class="checks">
+      <div class="check"><strong>255</strong><span>Android tests passed</span></div>
+      <div class="check"><strong>424</strong><span>Web tests passed</span></div>
+      <div class="check"><strong>15</strong><span>Shared tests passed</span></div>
+      <div class="check"><strong>215</strong><span>Garmin tests passed</span></div>
+    </div>
+    <p class="note">
+      Go race/vet, production bundles and a standalone Android QA build passed. Deployment and a
+      real Garmin account/watch round trip remain. No live Garmin workouts were sent.
+    </p>
+  </body>
+</html>
