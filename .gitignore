@@ -5,7 +5,7 @@ web/dist/*
 # Exercise media is fetched from an approved host at runtime, not committed.
 /web/public/img/
 /web/public/gif/
-data/
+/data/
 .env
 .superpowers/
 .DS_Store
@@ -28,3 +28,7 @@ web/skills-lock.json
 web/.env.local
 
 /build/
+
+# Retain the Android project's tracked design configuration.
+!apps/android/.impeccable/
+!apps/android/.impeccable/config.json
