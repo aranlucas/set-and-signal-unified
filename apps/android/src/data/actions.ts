@@ -19,8 +19,10 @@ import { notify } from "./notices";
 export const startWorkout = () => {
   if (readHostedDraft()) {
     notify("Resume or discard your planned session in Plan first.");
+
     return false;
   }
+
   const now = Date.now();
 
   return commit((state) => commands.beginWorkout(state, now));

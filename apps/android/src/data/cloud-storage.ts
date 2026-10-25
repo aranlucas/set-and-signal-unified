@@ -144,6 +144,7 @@ export function queueCloudChanges(db: StorageDatabase, uid: string, changes: Clo
         "SELECT value FROM cloud_records WHERE uid=? AND key='field/unit'",
         uid,
       )?.value ?? null;
+
     changed.push({ key: "field/unit", expected: unit, value: unit });
   }
 
@@ -378,12 +379,14 @@ export function stageFivefoldPlan(db: StorageDatabase, state: AppState): void {
 
   changes.push({ key, expected, value: canonical(order) });
   const nextKey = "field/fivefoldNext";
+
   const oldNext =
     db.getFirstSync<ValueRow>(
       "SELECT value FROM cloud_records WHERE uid=? AND key=?",
       identity.uid,
       nextKey,
     )?.value ?? null;
+
   changes.push({ key: nextKey, expected: oldNext, value: canonical(state.next) });
   queueCloudChanges(db, identity.uid, changes);
   db.runSync("DELETE FROM cloud_plan_baseline WHERE uid=?", identity.uid);

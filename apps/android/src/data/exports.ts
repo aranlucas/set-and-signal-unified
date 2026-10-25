@@ -70,7 +70,11 @@ export async function shareTrainingFile(contents: string, name: string): Promise
   const file = new File(Paths.cache, name);
   file.create({ overwrite: true });
   await file.write(contents);
-  if (!(await Sharing.isAvailableAsync())) throw new Error("Sharing is not available");
+
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error("Sharing is not available");
+  }
+
   await Sharing.shareAsync(file.uri, {
     mimeType: "application/json",
     dialogTitle: "Save Set & Signal training",

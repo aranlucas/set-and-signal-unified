@@ -83,7 +83,9 @@
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
       "eslint --fix",
-      "oxfmt --no-error-on-unmatched-pattern"
+      "oxlint --fix",
+      "oxfmt --no-error-on-unmatched-pattern",
+      "sh -c 'pnpm lint'"
     ],
     "*.{json,jsonc,json5,css,scss,md,mdx,yml,yaml,html,toml,vue,svelte,astro,graphql}": [
       "oxfmt --no-error-on-unmatched-pattern"

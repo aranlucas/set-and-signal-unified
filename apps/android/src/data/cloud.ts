@@ -728,8 +728,10 @@ export async function acceptGarminRecording(
   const routine = hostedProfileSchema
     .parse(snapshot.profile)
     .routines.find((candidate) => candidate.id === routineId);
+
   const recorded =
     routine && !matchId ? assignRecordedRoutine(preview.workout, routine) : preview.workout;
+
   const merged = reconcileGarminRecording(known, recorded, matchId);
 
   const before = new Map(
@@ -815,6 +817,7 @@ export function unlinkWatchRecording(workoutId: string, activityId: string): voi
 
   const db = cloudDatabase();
   const uid = session.user.id;
+
   const row = db.getFirstSync<ValueRow>(
     "SELECT value FROM cloud_records WHERE uid=? AND key=?",
     session.user.id,
@@ -828,6 +831,7 @@ export function unlinkWatchRecording(workoutId: string, activityId: string): voi
   const record = z
     .looseObject({ id: z.string(), garminActivityIds: z.array(z.string()).optional() })
     .parse(JSON.parse(row.value));
+
   const [next] = unlinkGarminRecording([record], workoutId, activityId);
   db.withTransactionSync(() => stageWorkout(db, uid, record, canonical(next)));
   publish({

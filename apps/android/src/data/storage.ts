@@ -113,6 +113,7 @@ export function createStorage(
       if (origin === "local" && state.active && !persistedState?.active) {
         freezePlanBaseline(db);
       }
+
       db.runSync(
         "INSERT INTO app_state (id, json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json",
         JSON.stringify({ ...state, history: [] }),
@@ -122,6 +123,7 @@ export function createStorage(
         if (origin === "local") {
           stageLegacyHistory(db, state, persistedHistory);
         }
+
         const old = new Map(persistedHistory.map((session) => [session.id, session]));
         const retained = new Set(state.history.map((session) => session.id));
 
@@ -167,9 +169,11 @@ export function createStorage(
       if (!database) {
         readState();
       }
+
       if (!database) {
         throw new Error("Workout storage is not ready.");
       }
+
       return database;
     },
   };
@@ -214,8 +218,10 @@ function seedState(count: number, now = Date.now()): AppState {
 
 export function cloudDatabase(): StorageDatabase {
   const database = defaultStorage.database?.();
+
   if (!database) {
     throw new Error("Workout storage is not ready.");
   }
+
   return database;
 }
