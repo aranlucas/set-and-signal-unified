@@ -69,7 +69,6 @@ export function reactFunctions(source: string, filename: string): ReactFunctionI
       configFile: false,
       babelrc: false,
       presets: ["@babel/preset-typescript"],
-      parserOpts: { plugins: filename.endsWith(".tsx") ? ["jsx"] : [] },
     }),
     `Babel did not parse ${filename}`,
   );
@@ -107,7 +106,6 @@ export function compile(source: string, filename: string, events?: CompilerEvent
     configFile: false,
     babelrc: false,
     presets: ["@babel/preset-typescript"],
-    parserOpts: { plugins: filename.endsWith(".tsx") ? ["jsx"] : [] },
     plugins: [
       [
         "babel-plugin-react-compiler",
