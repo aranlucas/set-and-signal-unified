@@ -9,6 +9,7 @@ import { performance } from "node:perf_hooks";
 import { z } from "zod";
 import { getProgressOverview } from "./src/domain/progress";
 import { requireValue } from "./tests/support/require-value";
+import { reportCpu } from "./tests/support/cpu-benchmark";
 import {
   initialState,
   logSet,
@@ -71,28 +72,6 @@ for (let i = 0; i < 1000; i++) {
 const cached = process.threadCpuUsage(cachedStart);
 
 const cachedMs = (cached.user + cached.system) / 1000;
-
-function reportCpu<Result>(operation: () => Result, iterations = 200) {
-  const samples: number[] = [];
-
-  for (let i = 0; i < iterations + 20; i++) {
-    const start = process.threadCpuUsage();
-    operation();
-    const cpu = process.threadCpuUsage(start);
-
-    if (i >= 20) {
-      samples.push((cpu.user + cpu.system) / 1000);
-    }
-  }
-
-  const sortedSamples = samples.toSorted((a, b) => a - b);
-
-  return {
-    iterations,
-    p50CpuMs: Number(sortedSamples[Math.ceil(sortedSamples.length * 0.5) - 1].toFixed(3)),
-    p95CpuMs: Number(sortedSamples[Math.ceil(sortedSamples.length * 0.95) - 1].toFixed(3)),
-  };
-}
 
 const measurementState = {
   ...initialState("kg"),
@@ -202,7 +181,9 @@ const maxInventory = {
 
 // No cache: every timed call solves the full maximum inventory and reconstructs
 // its result at the app's maximum kilogram target, including the above option.
-const plateSolver = reportCpu(() => loadPlates(2000, 20, "kg", maxInventory), 1000);
+// Linux CPU accounting can tick in whole milliseconds. Measure 20 uncached
+// solves per sample, then normalize to CPU milliseconds per solve.
+const plateSolver = reportCpu(() => loadPlates(2000, 20, "kg", maxInventory), 1000, 20);
 
 const result = {
   plateSolver,

@@ -41,6 +41,7 @@
         }
       ],
       "expo-document-picker",
+      "expo-sharing",
       [
         "expo-splash-screen",
         {
