@@ -46,7 +46,7 @@ type ExerciseBlockProps = {
 };
 
 const translatedReason = (t: TFunction, why: NonNullable<Prescription["why"]>): string =>
-  t(why.key, why.defaultValue, why.values);
+  t(why.key, why.defaultValue, why.values ?? {});
 
 /* One stepper column over a logged set. `f` names the field on the set; `eff`/`opt` only
    appear on the effort column. */

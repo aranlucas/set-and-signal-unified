@@ -5,5 +5,5 @@ import { i18n } from "@/i18n/i18n.js";
 import type { TranslationKey } from "@/i18n/i18n-types.js";
 
 export function translate(key: TranslationKey, defaultValue: string, values?: TOptions): string {
-  return i18n.t(key, defaultValue, values);
+  return i18n.t(key, defaultValue, values ?? {});
 }

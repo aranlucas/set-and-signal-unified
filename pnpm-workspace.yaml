@@ -13,3 +13,7 @@ allowBuilds:
   "@swc/core": true
   esbuild: true
   workerd: false
+patchedDependencies:
+  # React Compiler 1.0.0 still treats destructuring defaults as LVal nodes.
+  # Babel 8 separates AssignmentPattern: https://babeljs.io/docs/v8-migration-api/
+  babel-plugin-react-compiler@1.0.0: patches/babel-plugin-react-compiler@1.0.0.patch
