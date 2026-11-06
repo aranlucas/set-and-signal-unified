@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as model from "../model.js";
 import type * as training from "../training.js";
 
 import type {
@@ -18,7 +17,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  model: typeof model;
   training: typeof training;
 }>;
 

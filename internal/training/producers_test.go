@@ -18,13 +18,13 @@ func TestResolveTodayTypedHonorsOverrideAndWeeklyFallback(t *testing.T) {
 		DayPlan: map[string]MCPDayPlan{"2026-08-26": {Rest: true}},
 	}
 
-	got := trainingDay(view, "2026-08-26")
+	got := Day(view, "2026-08-26")
 	if !got.Rest || !got.Override || len(got.Sessions) != 0 {
 		t.Fatalf("rest override = %#v", got)
 	}
 
 	view.DayPlan["2026-08-26"] = MCPDayPlan{Sessions: []MCPDaySession{{RoutineID: "missing"}}}
-	got = trainingDay(view, "2026-08-26")
+	got = Day(view, "2026-08-26")
 	if got.Rest || !got.Override || len(got.Sessions) != 1 || got.Sessions[0].RoutineID != "push" {
 		t.Fatalf("invalid override should fall back to week = %#v", got)
 	}
@@ -50,7 +50,7 @@ func TestTrainingDayReturnsMultipleSessions(t *testing.T) {
 	}
 
 	// 2026-09-15 is a Tuesday.
-	tue := trainingDay(view, "2026-09-15")
+	tue := Day(view, "2026-09-15")
 	if tue.Rest || len(tue.Sessions) != 2 {
 		t.Fatalf("tuesday = %#v", tue)
 	}
@@ -61,7 +61,7 @@ func TestTrainingDayReturnsMultipleSessions(t *testing.T) {
 		t.Fatalf("second session = %#v", tue.Sessions[1])
 	}
 
-	thu := trainingDay(view, "2026-09-17")
+	thu := Day(view, "2026-09-17")
 	if thu.Rest || len(thu.Sessions) != 1 || thu.Sessions[0].RoutineID != "hip-rehab" {
 		t.Fatalf("thursday = %#v", thu)
 	}
@@ -75,7 +75,7 @@ func TestBuildTrainingDigestKeepsSessionBoundaries(t *testing.T) {
 			{ID: "fleet-feet-easy", Name: "Fleet Feet easy 3mi", Ex: []MCPExConfig{{ID: "run", Sets: new(1.0)}}},
 		},
 	}
-	got := buildTrainingDigest(view, []MCPDaySession{
+	got := BuildDigest(view, []MCPDaySession{
 		{RoutineID: "hip-rehab"},
 		{RoutineID: "fleet-feet-easy"},
 	}, "2026-09-15")
@@ -118,7 +118,7 @@ func TestBuildTrainingDigestTypedUsesClosedState(t *testing.T) {
 	routine := MCPRoutine{ID: "push", Name: "Push", Ex: []MCPExConfig{config}}
 	view.Routines = []MCPRoutine{routine}
 
-	got := buildTrainingDigest(view, []MCPDaySession{{RoutineID: "push"}}, "2026-08-23")
+	got := BuildDigest(view, []MCPDaySession{{RoutineID: "push"}}, "2026-08-23")
 	if got.Unit != "lb" || got.Today != "2026-08-23" || got.BodyweightGoal == nil || *got.BodyweightGoal != 180 {
 		t.Fatalf("digest metadata = %#v", got)
 	}
@@ -147,7 +147,7 @@ func TestBuildHistoryTypedFiltersNewestFirst(t *testing.T) {
 			{ID: "w3", D: "2026-08-25", Name: "C", Vol: 50, Entries: []MCPWorkoutEntry{{ID: "other", Sets: []MCPLoggedSet{{Done: true, W: new(20.0), R: new(20.0)}}}}},
 		},
 	}
-	got := buildHistory(view, historyQuery{Since: "2026-08-15", Until: "2026-08-25", Limit: 10, ExerciseID: "custom-row"})
+	got := BuildHistory(view, HistoryQuery{Since: "2026-08-15", Until: "2026-08-25", Limit: 10, ExerciseID: "custom-row"})
 	if len(got) != 1 || got[0].ID != "w2" {
 		t.Fatalf("filtered history = %#v", got)
 	}
@@ -161,7 +161,7 @@ func TestBuildHistoryTypedFiltersNewestFirst(t *testing.T) {
 
 func TestTypedExerciseSearchUsesCustomCatalogRows(t *testing.T) {
 	view := TrainingData{CustomEx: []MCPCustomExercise{{ID: "custom-row", N: "Cable Press", BP: "chest", EQ: "cable"}}}
-	got := searchExercises(view, "cable", exercises.SearchFilters{Limit: 5})
+	got := SearchExercises(view, "cable", exercises.SearchFilters{Limit: 5})
 	if len(got) == 0 || got[0].ID != "custom-row" || got[0].N != "Cable Press" {
 		t.Fatalf("custom search = %#v", got)
 	}
@@ -191,7 +191,7 @@ func TestAddAndRemoveDaySessionWithoutWeekReplace(t *testing.T) {
 		},
 		Week: map[string][]MCPDaySession{"2": {{RoutineID: "hip-rehab"}}},
 	}
-	if err := addSessionToDayPlan(&data, "2026-09-15", MCPDaySession{RoutineID: "fleet-feet-easy", Start: new("18:00")}); err != nil {
+	if err := AddSessionToDayPlan(&data, "2026-09-15", MCPDaySession{RoutineID: "fleet-feet-easy", Start: new("18:00")}); err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Week["2"]) != 1 || data.Week["2"][0].RoutineID != "hip-rehab" {
@@ -201,7 +201,7 @@ func TestAddAndRemoveDaySessionWithoutWeekReplace(t *testing.T) {
 	if entry.Rest || len(entry.Sessions) != 2 || entry.Sessions[0].RoutineID != "hip-rehab" || entry.Sessions[1].RoutineID != "fleet-feet-easy" {
 		t.Fatalf("dayPlan after add = %#v", entry)
 	}
-	if err := removeSessionFromDayPlan(&data, "2026-09-15", "fleet-feet-easy", nil); err != nil {
+	if err := RemoveSessionFromDayPlan(&data, "2026-09-15", "fleet-feet-easy", nil); err != nil {
 		t.Fatal(err)
 	}
 	entry = data.DayPlan["2026-09-15"]

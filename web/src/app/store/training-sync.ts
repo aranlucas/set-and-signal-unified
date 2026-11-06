@@ -4,7 +4,7 @@ import { makeFunctionReference } from "convex/server";
 import { api } from "@/shared/lib/api";
 import { parseStoredState, type ParsedAppStatePatch } from "@/shared/lib/schemas";
 import type { AppState } from "@/shared/lib/types";
-import { joinState, splitState } from "../../../convex/model";
+import { joinState, splitState } from "@set-and-signal/training/state";
 
 type CommitValue = { changes: Change[]; operationId?: string };
 

@@ -29,7 +29,7 @@ validate domain fields. No `any` replacement or fabricated assertion was added.
 - The weight Slider callback validates the library's untyped scalar/array input
   before selecting a number. The Convex snapshot callback validates state before
   admitting it.
-- `convex/model.ts`: heterogeneous forward-compatible persisted fields remain
+- `packages/training/src/state.ts`: heterogeneous forward-compatible persisted fields remain
   unknown through splitting/reassembly. The canonical serializer retains its
   object discrimination to avoid cloning values or changing property/getter
   evaluation and canonical conflict bytes. Collection IDs and mutation payloads

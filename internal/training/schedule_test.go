@@ -7,7 +7,7 @@ import (
 
 func TestRemovingFinalDaySessionSurvivesPersistence(t *testing.T) {
 	data := TrainingData{Routines: []MCPRoutine{{ID: "a", Name: "A"}}, Week: WeekSchedule{"2": {{RoutineID: "a"}}}}
-	if err := removeSessionFromDayPlan(&data, "2026-09-15", "a", nil); err != nil {
+	if err := RemoveSessionFromDayPlan(&data, "2026-09-15", "a", nil); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := json.Marshal(data)
@@ -18,10 +18,10 @@ func TestRemovingFinalDaySessionSurvivesPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload empty override: %v; state: %s", err, raw)
 	}
-	if got := trainingDay(reloaded, "2026-09-15"); !got.Rest || len(got.Sessions) != 0 {
+	if got := Day(reloaded, "2026-09-15"); !got.Rest || len(got.Sessions) != 0 {
 		t.Fatalf("removed session returned: %#v", got)
 	}
-	if err := addSessionToDayPlan(&reloaded, "2026-09-15", MCPDaySession{RoutineID: "a"}); err != nil {
+	if err := AddSessionToDayPlan(&reloaded, "2026-09-15", MCPDaySession{RoutineID: "a"}); err != nil {
 		t.Fatal(err)
 	}
 }

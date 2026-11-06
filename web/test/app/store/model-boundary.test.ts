@@ -1,7 +1,7 @@
 import * as validation from "valibot";
 import { jsonValue } from "@/shared/lib/schemas";
 import { describe, expect, it } from "vitest";
-import { canonical, joinState, splitState } from "../../../convex/model";
+import { canonical, joinState, splitState } from "@set-and-signal/training/state";
 
 describe("forward-compatible persistence boundary", () => {
   it("preserves unknown nested fields, record metadata and prototype-named keys", () => {

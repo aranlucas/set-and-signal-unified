@@ -14,6 +14,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
+
 	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
@@ -55,78 +56,78 @@ func mcpUID(ctx context.Context) string {
 	return uid
 }
 
-func (s *Server) searchExercisesTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPSearchExercisesInput) (*mcp.CallToolResult, MCPSearchExercisesOutput, error) {
+func (s *Server) searchExercisesTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPSearchExercisesInput) (*mcp.CallToolResult, training.MCPSearchExercisesOutput, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPSearchExercisesOutput{}, errors.New("server error")
+		return nil, training.MCPSearchExercisesOutput{}, errors.New("server error")
 	}
 	limit := 25
 	if input.Limit != nil {
 		if *input.Limit < 1 || *input.Limit > 100 {
-			return nil, MCPSearchExercisesOutput{}, errors.New("limit must be between 1 and 100")
+			return nil, training.MCPSearchExercisesOutput{}, errors.New("limit must be between 1 and 100")
 		}
 		limit = *input.Limit
 	}
-	rows := searchExercises(view, input.Q, exercises.SearchFilters{BodyPart: input.BP, Equipment: input.EQ, Limit: limit})
-	return nil, MCPSearchExercisesOutput{Exercises: rows}, nil
+	rows := training.SearchExercises(view, input.Q, exercises.SearchFilters{BodyPart: input.BP, Equipment: input.EQ, Limit: limit})
+	return nil, training.MCPSearchExercisesOutput{Exercises: rows}, nil
 }
 
-func (s *Server) getTodayTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPDateInput) (*mcp.CallToolResult, MCPTodayResult, error) {
+func (s *Server) getTodayTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPDateInput) (*mcp.CallToolResult, training.MCPTodayResult, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPTodayResult{}, errors.New("server error")
+		return nil, training.MCPTodayResult{}, errors.New("server error")
 	}
 	iso := ""
 	if input.Iso != nil {
 		iso = *input.Iso
 	}
 	if iso != "" && !training.ValidISODate(iso) {
-		return nil, MCPTodayResult{}, errors.New("date must be YYYY-MM-DD")
+		return nil, training.MCPTodayResult{}, errors.New("date must be YYYY-MM-DD")
 	}
 	if input.Tz != nil && strings.TrimSpace(*input.Tz) == "" {
-		return nil, MCPTodayResult{}, errors.New("timezone must not be empty")
+		return nil, training.MCPTodayResult{}, errors.New("timezone must not be empty")
 	}
 	if iso == "" {
 		tz := ""
 		if input.Tz != nil {
 			tz = *input.Tz
 		}
-		iso = todayISOLocal(tz, time.Now())
+		iso = training.TodayISO(tz, time.Now())
 	}
-	return nil, trainingDay(view, iso), nil
+	return nil, training.Day(view, iso), nil
 }
 
-func (s *Server) getTrainingDigestTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPDateInput) (*mcp.CallToolResult, MCPTrainingDigest, error) {
+func (s *Server) getTrainingDigestTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPDateInput) (*mcp.CallToolResult, training.MCPTrainingDigest, error) {
 	out, err := s.mcpTrainingDigestFor(mcpUID(ctx), input)
 	return nil, out, err
 }
 
-func (s *Server) getRoutinesTool(ctx context.Context, _ *mcp.CallToolRequest, _ MCPEmptyInput) (*mcp.CallToolResult, MCPRoutinesOutput, error) {
+func (s *Server) getRoutinesTool(ctx context.Context, _ *mcp.CallToolRequest, _ MCPEmptyInput) (*mcp.CallToolResult, training.MCPRoutinesOutput, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPRoutinesOutput{}, errors.New("server error")
+		return nil, training.MCPRoutinesOutput{}, errors.New("server error")
 	}
-	return nil, MCPRoutinesOutput{Routines: view.Routines}, nil
+	return nil, training.MCPRoutinesOutput{Routines: view.Routines}, nil
 }
 
-func (s *Server) previewProgramTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPPreviewProgramInput) (*mcp.CallToolResult, MCPProgramPreview, error) {
+func (s *Server) previewProgramTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPPreviewProgramInput) (*mcp.CallToolResult, training.MCPProgramPreview, error) {
 	prepared, err := prepareTypedProgram(input.Routines, input.Week)
 	if err != nil {
-		return nil, MCPProgramPreview{}, err
+		return nil, training.MCPProgramPreview{}, err
 	}
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPProgramPreview{}, errors.New("server error")
+		return nil, training.MCPProgramPreview{}, errors.New("server error")
 	}
 
 	applied := typedApplyProgram(view.Routines, view.Week, prepared, input.Replace)
-	before := MCPProgramState{Routines: slices.Clone(view.Routines), Week: cloneMCPWeek(view.Week)}
-	result := MCPProgramState{Routines: applied.routines, Week: applied.week}
+	before := training.MCPProgramState{Routines: slices.Clone(view.Routines), Week: training.CloneWeekSchedule(view.Week)}
+	result := training.MCPProgramState{Routines: applied.routines, Week: applied.week}
 	revision := new(view.Revision)
-	return nil, MCPProgramPreview{
+	return nil, training.MCPProgramPreview{
 		OK:              true,
 		Replace:         new(input.Replace),
-		Sanitized:       MCPProgramInput{Routines: routinesToInput(prepared.routines), Week: cloneMCPWeek(prepared.week), Replace: input.Replace},
+		Sanitized:       training.MCPProgramInput{Routines: routinesToInput(prepared.routines), Week: training.CloneWeekSchedule(prepared.week), Replace: input.Replace},
 		Proposed:        result,
 		Result:          result,
 		Diff:            typedProgramDiff(before, result),
@@ -135,37 +136,37 @@ func (s *Server) previewProgramTool(ctx context.Context, _ *mcp.CallToolRequest,
 	}, nil
 }
 
-func (s *Server) setProgramTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPSetProgramInput) (*mcp.CallToolResult, MCPSetProgramOutput, error) {
+func (s *Server) setProgramTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPSetProgramInput) (*mcp.CallToolResult, training.MCPSetProgramOutput, error) {
 	prepared, err := prepareTypedProgram(input.Routines, input.Week)
 	if err != nil {
-		return nil, MCPSetProgramOutput{}, err
+		return nil, training.MCPSetProgramOutput{}, err
 	}
 	uid := mcpUID(ctx)
 	if err := s.mutateTypedProgram(uid, prepared, input.Replace, input.ExpectedRevision); err != nil {
-		return nil, MCPSetProgramOutput{}, err
+		return nil, training.MCPSetProgramOutput{}, err
 	}
-	data, err := NewTrainingDataRepository(s.ST).Load(uid)
+	data, err := training.NewTrainingDataRepository(s.ST).Load(uid)
 	if err != nil {
-		return nil, MCPSetProgramOutput{}, errors.New("server error")
+		return nil, training.MCPSetProgramOutput{}, errors.New("server error")
 	}
-	return nil, MCPSetProgramOutput{
-		OK: true, Routines: cloneMCPRoutines(data.Routines), Week: cloneMCPWeek(data.Week), Revision: data.Revision,
+	return nil, training.MCPSetProgramOutput{
+		OK: true, Routines: slices.Clone(data.Routines), Week: training.CloneWeekSchedule(data.Week), Revision: data.Revision,
 	}, nil
 }
 
-func (s *Server) getBodyweightTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPBodyweightFilterInput) (*mcp.CallToolResult, MCPBodyweightOutput, error) {
+func (s *Server) getBodyweightTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPBodyweightFilterInput) (*mcp.CallToolResult, training.MCPBodyweightOutput, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPBodyweightOutput{}, errors.New("server error")
+		return nil, training.MCPBodyweightOutput{}, errors.New("server error")
 	}
 	filter := ""
 	if input.D != nil {
 		filter = *input.D
 	}
 	if filter != "" && !training.ValidISODate(filter) {
-		return nil, MCPBodyweightOutput{}, errors.New("date must be YYYY-MM-DD")
+		return nil, training.MCPBodyweightOutput{}, errors.New("date must be YYYY-MM-DD")
 	}
-	entries := make([]MCPBodyweightEntry, 0, len(view.Bodyweight))
+	entries := make([]training.MCPBodyweightEntry, 0, len(view.Bodyweight))
 	for _, entry := range view.Bodyweight {
 		if filter == "" || entry.D == filter {
 			entries = append(entries, entry)
@@ -175,74 +176,74 @@ func (s *Server) getBodyweightTool(ctx context.Context, _ *mcp.CallToolRequest, 
 	if unit == "" {
 		unit = "kg"
 	}
-	return nil, MCPBodyweightOutput{Unit: unit, Goal: view.TargetW, Bodyweight: entries}, nil
+	return nil, training.MCPBodyweightOutput{Unit: unit, Goal: view.TargetW, Bodyweight: entries}, nil
 }
 
-func (s *Server) logBodyweightTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPLogBodyweightInput) (*mcp.CallToolResult, MCPLogBodyweightOutput, error) {
+func (s *Server) logBodyweightTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPLogBodyweightInput) (*mcp.CallToolResult, training.MCPLogBodyweightOutput, error) {
 	date := ""
 	if input.D != nil {
 		date = *input.D
 	}
 	if input.Tz != nil && strings.TrimSpace(*input.Tz) == "" {
-		return nil, MCPLogBodyweightOutput{}, errors.New("timezone must not be empty")
+		return nil, training.MCPLogBodyweightOutput{}, errors.New("timezone must not be empty")
 	}
 	if date == "" {
 		tz := ""
 		if input.Tz != nil {
 			tz = *input.Tz
 		}
-		date = todayISOLocal(tz, time.Now())
+		date = training.TodayISO(tz, time.Now())
 	}
-	data, err := NewTrainingDataRepository(s.ST).PutBodyweight(mcpUID(ctx), date, input.W)
+	data, err := training.NewTrainingDataRepository(s.ST).PutBodyweight(mcpUID(ctx), date, input.W)
 	if err != nil {
-		return nil, MCPLogBodyweightOutput{}, err
+		return nil, training.MCPLogBodyweightOutput{}, err
 	}
-	return nil, MCPLogBodyweightOutput{Unit: data.Unit, Goal: data.TargetW, OK: true, Date: date}, nil
+	return nil, training.MCPLogBodyweightOutput{Unit: data.Unit, Goal: data.TargetW, OK: true, Date: date}, nil
 }
 
-func (s *Server) getHistoryTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPHistoryInput) (*mcp.CallToolResult, MCPHistoryOutput, error) {
+func (s *Server) getHistoryTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPHistoryInput) (*mcp.CallToolResult, training.MCPHistoryOutput, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPHistoryOutput{}, errors.New("server error")
+		return nil, training.MCPHistoryOutput{}, errors.New("server error")
 	}
 	limit := 20
 	if input.Limit != nil {
 		if *input.Limit < 1 || *input.Limit > 100 {
-			return nil, MCPHistoryOutput{}, errors.New("limit must be between 1 and 100")
+			return nil, training.MCPHistoryOutput{}, errors.New("limit must be between 1 and 100")
 		}
 		limit = *input.Limit
 	}
-	query := historyQuery{Limit: limit}
+	query := training.HistoryQuery{Limit: limit}
 	if input.Since != nil {
 		query.Since = *input.Since
 		if !training.ValidISODate(query.Since) {
-			return nil, MCPHistoryOutput{}, errors.New("since must be YYYY-MM-DD")
+			return nil, training.MCPHistoryOutput{}, errors.New("since must be YYYY-MM-DD")
 		}
 	}
 	if input.Until != nil {
 		query.Until = *input.Until
 		if !training.ValidISODate(query.Until) {
-			return nil, MCPHistoryOutput{}, errors.New("until must be YYYY-MM-DD")
+			return nil, training.MCPHistoryOutput{}, errors.New("until must be YYYY-MM-DD")
 		}
 	}
 	if input.ExerciseID != nil {
 		query.ExerciseID = strings.TrimSpace(*input.ExerciseID)
 		if query.ExerciseID == "" {
-			return nil, MCPHistoryOutput{}, errors.New("exerciseId must not be empty")
+			return nil, training.MCPHistoryOutput{}, errors.New("exerciseId must not be empty")
 		}
 	}
-	return nil, MCPHistoryOutput{History: buildHistory(view, query)}, nil
+	return nil, training.MCPHistoryOutput{History: training.BuildHistory(view, query)}, nil
 }
 
-func (s *Server) getWorkoutsTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPLimitInput) (*mcp.CallToolResult, MCPWorkoutsOutput, error) {
+func (s *Server) getWorkoutsTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPLimitInput) (*mcp.CallToolResult, training.MCPWorkoutsOutput, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPWorkoutsOutput{}, errors.New("server error")
+		return nil, training.MCPWorkoutsOutput{}, errors.New("server error")
 	}
 	limit := 20
 	if input.Limit != nil {
 		if *input.Limit < 1 || *input.Limit > 100 {
-			return nil, MCPWorkoutsOutput{}, errors.New("limit must be between 1 and 100")
+			return nil, training.MCPWorkoutsOutput{}, errors.New("limit must be between 1 and 100")
 		}
 		limit = *input.Limit
 	}
@@ -251,33 +252,33 @@ func (s *Server) getWorkoutsTool(ctx context.Context, _ *mcp.CallToolRequest, in
 	if len(workouts) > limit {
 		workouts = workouts[:limit]
 	}
-	return nil, MCPWorkoutsOutput{Workouts: workouts}, nil
+	return nil, training.MCPWorkoutsOutput{Workouts: workouts}, nil
 }
 
-func (s *Server) logWorkoutTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPLogWorkoutInput) (*mcp.CallToolResult, MCPWorkoutOutput, error) {
-	workout, err := NewTrainingDataRepository(s.ST).PutWorkout(mcpUID(ctx), input.Workout)
+func (s *Server) logWorkoutTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPLogWorkoutInput) (*mcp.CallToolResult, training.MCPWorkoutOutput, error) {
+	workout, err := training.NewTrainingDataRepository(s.ST).PutWorkout(mcpUID(ctx), input.Workout)
 	if err != nil {
-		return nil, MCPWorkoutOutput{}, err
+		return nil, training.MCPWorkoutOutput{}, err
 	}
-	return nil, MCPWorkoutOutput{OK: true, Workout: workout}, nil
+	return nil, training.MCPWorkoutOutput{OK: true, Workout: workout}, nil
 }
 
-func (s *Server) nextWorkoutSuggestionTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPDateInput) (*mcp.CallToolResult, MCPSuggestionOutput, error) {
+func (s *Server) nextWorkoutSuggestionTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPDateInput) (*mcp.CallToolResult, training.MCPSuggestionOutput, error) {
 	digest, err := s.mcpTrainingDigestFor(mcpUID(ctx), input)
 	if err != nil {
-		return nil, MCPSuggestionOutput{}, err
+		return nil, training.MCPSuggestionOutput{}, err
 	}
 	suggestion, code, msg := s.nextWorkoutSuggestionMCP(ctx, digest)
 	if code != 0 {
-		return nil, MCPSuggestionOutput{}, errors.New(msg)
+		return nil, training.MCPSuggestionOutput{}, errors.New(msg)
 	}
 	return nil, suggestion, nil
 }
 
-func (s *Server) getStrengthProgressTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPStrengthProgressInput) (*mcp.CallToolResult, MCPStrengthProgress, error) {
+func (s *Server) getStrengthProgressTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPStrengthProgressInput) (*mcp.CallToolResult, training.MCPStrengthProgress, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPStrengthProgress{}, errors.New("server error")
+		return nil, training.MCPStrengthProgress{}, errors.New("server error")
 	}
 	formula := ""
 	if input.Formula != nil {
@@ -287,61 +288,61 @@ func (s *Server) getStrengthProgressTool(ctx context.Context, _ *mcp.CallToolReq
 		formula = "epley"
 	}
 	if formula != "epley" && formula != "brzycki" && formula != "lombardi" {
-		return nil, MCPStrengthProgress{}, errors.New("formula must be epley, brzycki, or lombardi")
+		return nil, training.MCPStrengthProgress{}, errors.New("formula must be epley, brzycki, or lombardi")
 	}
 	input.ExerciseID = strings.TrimSpace(input.ExerciseID)
 	if input.ExerciseID == "" {
-		return nil, MCPStrengthProgress{}, errors.New("exerciseId must not be empty")
+		return nil, training.MCPStrengthProgress{}, errors.New("exerciseId must not be empty")
 	}
-	return nil, StrengthProgress(view, input.ExerciseID, formula), nil
+	return nil, training.StrengthProgress(view, input.ExerciseID, formula), nil
 }
 
-func (s *Server) getMuscleBalanceTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPMuscleBalanceInput) (*mcp.CallToolResult, MCPMuscleBalance, error) {
+func (s *Server) getMuscleBalanceTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPMuscleBalanceInput) (*mcp.CallToolResult, training.MCPMuscleBalance, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPMuscleBalance{}, errors.New("server error")
+		return nil, training.MCPMuscleBalance{}, errors.New("server error")
 	}
 	days := 30
 	if input.Days != nil {
 		days = *input.Days
 	}
 	if days != 0 && days != 7 && days != 30 && days != 90 {
-		return nil, MCPMuscleBalance{}, errors.New("days must be 0, 7, 30, or 90")
+		return nil, training.MCPMuscleBalance{}, errors.New("days must be 0, 7, 30, or 90")
 	}
 	asOf := ""
 	if input.AsOf != nil {
 		asOf = *input.AsOf
 	}
 	if asOf == "" {
-		asOf = todayISOLocal("", time.Now())
+		asOf = training.TodayISO("", time.Now())
 	} else if !training.ValidISODate(asOf) {
-		return nil, MCPMuscleBalance{}, errors.New("asOf must be YYYY-MM-DD")
+		return nil, training.MCPMuscleBalance{}, errors.New("asOf must be YYYY-MM-DD")
 	}
-	return nil, MuscleBalance(view, asOf, days), nil
+	return nil, training.MuscleBalance(view, asOf, days), nil
 }
 
-func (s *Server) getNextProgressionTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPNextProgressionInput) (*mcp.CallToolResult, MCPProgression, error) {
+func (s *Server) getNextProgressionTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPNextProgressionInput) (*mcp.CallToolResult, training.MCPProgression, error) {
 	input.ExerciseID = strings.TrimSpace(input.ExerciseID)
 	if input.ExerciseID == "" {
-		return nil, MCPProgression{}, errors.New("exerciseId must not be empty")
+		return nil, training.MCPProgression{}, errors.New("exerciseId must not be empty")
 	}
 	if input.RoutineID != nil {
 		trimmed := strings.TrimSpace(*input.RoutineID)
 		if trimmed == "" {
-			return nil, MCPProgression{}, errors.New("routineId must not be empty")
+			return nil, training.MCPProgression{}, errors.New("routineId must not be empty")
 		}
 		input.RoutineID = new(trimmed)
 	}
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPProgression{}, errors.New("server error")
+		return nil, training.MCPProgression{}, errors.New("server error")
 	}
-	var selected MCPRoutine
-	var config MCPExConfig
+	var selected training.MCPRoutine
+	var config training.MCPExConfig
 	if input.RoutineID != nil {
 		selected, err = view.FindRoutine(*input.RoutineID)
 		if err != nil {
-			return nil, MCPProgression{}, err
+			return nil, training.MCPProgression{}, err
 		}
 		found := false
 		for _, candidate := range selected.Ex {
@@ -351,138 +352,138 @@ func (s *Server) getNextProgressionTool(ctx context.Context, _ *mcp.CallToolRequ
 			}
 		}
 		if !found {
-			return nil, MCPProgression{}, fmt.Errorf("exercise %q not found in routine %q", input.ExerciseID, selected.ID)
+			return nil, training.MCPProgression{}, fmt.Errorf("exercise %q not found in routine %q", input.ExerciseID, selected.ID)
 		}
 	} else {
 		ref, lookupErr := view.FindExerciseConfig(input.ExerciseID)
 		if lookupErr != nil {
-			return nil, MCPProgression{}, lookupErr
+			return nil, training.MCPProgression{}, lookupErr
 		}
 		selected, err = view.FindRoutine(ref.RoutineID)
 		if err != nil {
-			return nil, MCPProgression{}, err
+			return nil, training.MCPProgression{}, err
 		}
 		config = ref.Config
 	}
-	return nil, NextProgression(view, config, selected), nil
+	return nil, training.NextProgression(view, config, selected), nil
 }
 
-func (s *Server) getSessionPrescriptionTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPDateInput) (*mcp.CallToolResult, MCPDayPrescription, error) {
+func (s *Server) getSessionPrescriptionTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPDateInput) (*mcp.CallToolResult, training.MCPDayPrescription, error) {
 	view, err := s.loadTrainingData(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPDayPrescription{}, errors.New("server error")
+		return nil, training.MCPDayPrescription{}, errors.New("server error")
 	}
 	iso := ""
 	if input.Iso != nil {
 		iso = *input.Iso
 	}
 	if iso != "" && !training.ValidISODate(iso) {
-		return nil, MCPDayPrescription{}, errors.New("date must be YYYY-MM-DD")
+		return nil, training.MCPDayPrescription{}, errors.New("date must be YYYY-MM-DD")
 	}
 	if input.Tz != nil && strings.TrimSpace(*input.Tz) == "" {
-		return nil, MCPDayPrescription{}, errors.New("timezone must not be empty")
+		return nil, training.MCPDayPrescription{}, errors.New("timezone must not be empty")
 	}
 	if iso == "" {
 		tz := ""
 		if input.Tz != nil {
 			tz = *input.Tz
 		}
-		iso = todayISOLocal(tz, time.Now())
+		iso = training.TodayISO(tz, time.Now())
 	}
-	return nil, sessionPrescription(view, iso), nil
+	return nil, training.SessionPrescription(view, iso), nil
 }
 
-func (s *Server) addDaySessionTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPAddDaySessionInput) (*mcp.CallToolResult, MCPDaySessionsOutput, error) {
+func (s *Server) addDaySessionTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPAddDaySessionInput) (*mcp.CallToolResult, training.MCPDaySessionsOutput, error) {
 	iso := strings.TrimSpace(input.Iso)
 	if !training.ValidISODate(iso) {
-		return nil, MCPDaySessionsOutput{}, errors.New("date must be YYYY-MM-DD")
+		return nil, training.MCPDaySessionsOutput{}, errors.New("date must be YYYY-MM-DD")
 	}
-	repo := NewTrainingDataRepository(s.ST)
-	if err := repo.Mutate(mcpUID(ctx), input.ExpectedRevision, func(data *TrainingData) error {
-		return training.AddSessionToDayPlan(data, iso, MCPDaySession{
+	repo := training.NewTrainingDataRepository(s.ST)
+	if err := repo.Mutate(mcpUID(ctx), input.ExpectedRevision, func(data *training.TrainingData) error {
+		return training.AddSessionToDayPlan(data, iso, training.MCPDaySession{
 			RoutineID: input.RoutineID, Start: input.Start, Label: input.Label,
 		})
 	}); err != nil {
-		return nil, MCPDaySessionsOutput{}, err
+		return nil, training.MCPDaySessionsOutput{}, err
 	}
 	data, err := repo.Load(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPDaySessionsOutput{}, errors.New("server error")
+		return nil, training.MCPDaySessionsOutput{}, errors.New("server error")
 	}
 	sessions, _, rest := training.ResolveDaySessions(data, iso)
-	return nil, MCPDaySessionsOutput{OK: true, Iso: iso, Rest: rest, Sessions: sessions, Revision: data.Revision}, nil
+	return nil, training.MCPDaySessionsOutput{OK: true, Iso: iso, Rest: rest, Sessions: sessions, Revision: data.Revision}, nil
 }
 
-func (s *Server) removeDaySessionTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPRemoveDaySessionInput) (*mcp.CallToolResult, MCPDaySessionsOutput, error) {
+func (s *Server) removeDaySessionTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPRemoveDaySessionInput) (*mcp.CallToolResult, training.MCPDaySessionsOutput, error) {
 	iso := strings.TrimSpace(input.Iso)
 	if !training.ValidISODate(iso) {
-		return nil, MCPDaySessionsOutput{}, errors.New("date must be YYYY-MM-DD")
+		return nil, training.MCPDaySessionsOutput{}, errors.New("date must be YYYY-MM-DD")
 	}
-	repo := NewTrainingDataRepository(s.ST)
-	if err := repo.Mutate(mcpUID(ctx), input.ExpectedRevision, func(data *TrainingData) error {
+	repo := training.NewTrainingDataRepository(s.ST)
+	if err := repo.Mutate(mcpUID(ctx), input.ExpectedRevision, func(data *training.TrainingData) error {
 		return training.RemoveSessionFromDayPlan(data, iso, input.RoutineID, input.Index)
 	}); err != nil {
-		return nil, MCPDaySessionsOutput{}, err
+		return nil, training.MCPDaySessionsOutput{}, err
 	}
 	data, err := repo.Load(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPDaySessionsOutput{}, errors.New("server error")
+		return nil, training.MCPDaySessionsOutput{}, errors.New("server error")
 	}
 	sessions, _, rest := training.ResolveDaySessions(data, iso)
-	return nil, MCPDaySessionsOutput{OK: true, Iso: iso, Rest: rest, Sessions: sessions, Revision: data.Revision}, nil
+	return nil, training.MCPDaySessionsOutput{OK: true, Iso: iso, Rest: rest, Sessions: sessions, Revision: data.Revision}, nil
 }
 
-func (s *Server) logExerciseSetsTool(ctx context.Context, _ *mcp.CallToolRequest, input MCPLogExerciseSetsInput) (*mcp.CallToolResult, MCPLogExerciseSetsOutput, error) {
-	repo := NewTrainingDataRepository(s.ST)
-	var workout MCPWorkout
-	var next MCPProgression
-	if err := repo.Mutate(mcpUID(ctx), nil, func(data *TrainingData) error {
+func (s *Server) logExerciseSetsTool(ctx context.Context, _ *mcp.CallToolRequest, input training.MCPLogExerciseSetsInput) (*mcp.CallToolResult, training.MCPLogExerciseSetsOutput, error) {
+	repo := training.NewTrainingDataRepository(s.ST)
+	var workout training.MCPWorkout
+	var next training.MCPProgression
+	if err := repo.Mutate(mcpUID(ctx), nil, func(data *training.TrainingData) error {
 		var err error
-		workout, next, err = logExerciseSets(data, input, time.Now())
+		workout, next, err = training.LogExerciseSets(data, input, time.Now())
 		return err
 	}); err != nil {
-		return nil, MCPLogExerciseSetsOutput{}, err
+		return nil, training.MCPLogExerciseSetsOutput{}, err
 	}
 	data, err := repo.Load(mcpUID(ctx))
 	if err != nil {
-		return nil, MCPLogExerciseSetsOutput{}, errors.New("server error")
+		return nil, training.MCPLogExerciseSetsOutput{}, errors.New("server error")
 	}
-	return nil, MCPLogExerciseSetsOutput{OK: true, Workout: workout, Next: next, Revision: data.Revision}, nil
+	return nil, training.MCPLogExerciseSetsOutput{OK: true, Workout: workout, Next: next, Revision: data.Revision}, nil
 }
 
-func (s *Server) mcpTrainingDigestFor(uid string, input MCPDateInput) (MCPTrainingDigest, error) {
+func (s *Server) mcpTrainingDigestFor(uid string, input training.MCPDateInput) (training.MCPTrainingDigest, error) {
 	view, err := s.loadTrainingData(uid)
 	if err != nil {
-		return MCPTrainingDigest{}, errors.New("server error")
+		return training.MCPTrainingDigest{}, errors.New("server error")
 	}
 	iso := ""
 	if input.Iso != nil {
 		iso = *input.Iso
 	}
 	if iso != "" && !training.ValidISODate(iso) {
-		return MCPTrainingDigest{}, errors.New("date must be YYYY-MM-DD")
+		return training.MCPTrainingDigest{}, errors.New("date must be YYYY-MM-DD")
 	}
 	if input.Tz != nil && strings.TrimSpace(*input.Tz) == "" {
-		return MCPTrainingDigest{}, errors.New("timezone must not be empty")
+		return training.MCPTrainingDigest{}, errors.New("timezone must not be empty")
 	}
 	if iso == "" {
 		tz := ""
 		if input.Tz != nil {
 			tz = *input.Tz
 		}
-		iso = todayISOLocal(tz, time.Now())
+		iso = training.TodayISO(tz, time.Now())
 	}
-	today := trainingDay(view, iso)
+	today := training.Day(view, iso)
 	if today.Rest || len(today.Sessions) == 0 {
-		return MCPTrainingDigest{}, errors.New("rest day — nothing scheduled")
+		return training.MCPTrainingDigest{}, errors.New("rest day — nothing scheduled")
 	}
-	sessions := make([]MCPDaySession, 0, len(today.Sessions))
+	sessions := make([]training.MCPDaySession, 0, len(today.Sessions))
 	for _, session := range today.Sessions {
-		sessions = append(sessions, MCPDaySession{
+		sessions = append(sessions, training.MCPDaySession{
 			RoutineID: session.RoutineID, Start: session.Start, Label: session.Label,
 		})
 	}
-	return buildTrainingDigest(view, sessions, iso), nil
+	return training.BuildDigest(view, sessions, iso), nil
 }
 
 func (s *Server) buildMCPServer() *mcp.Server {

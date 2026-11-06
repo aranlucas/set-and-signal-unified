@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { expect, it } from "vitest";
 import schema from "../../../convex/schema";
 import { api } from "../../../convex/_generated/api";
-import { canonical } from "../../../convex/model";
+import { canonical } from "@set-and-signal/training/state";
 import { adaptSession, createSessionRoutine } from "@/domain/training/session-planner";
 import { parseStoredState } from "@/shared/lib/schemas";
 

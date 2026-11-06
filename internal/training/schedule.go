@@ -31,7 +31,7 @@ type MCPDayPlan struct {
 	Sessions []MCPDaySession `json:"sessions" jsonschema:"ordered sessions when not a rest day" validate:"required_if=Rest false,dive"`
 }
 
-func cloneDaySessions(sessions []MCPDaySession) []MCPDaySession {
+func CloneDaySessions(sessions []MCPDaySession) []MCPDaySession {
 	if sessions == nil {
 		return nil
 	}
@@ -48,13 +48,13 @@ func cloneDaySessions(sessions []MCPDaySession) []MCPDaySession {
 	return out
 }
 
-func cloneWeekSchedule(week WeekSchedule) WeekSchedule {
+func CloneWeekSchedule(week WeekSchedule) WeekSchedule {
 	if week == nil {
 		return nil
 	}
 	out := make(WeekSchedule, len(week))
 	for day, sessions := range week {
-		out[day] = cloneDaySessions(sessions)
+		out[day] = CloneDaySessions(sessions)
 	}
 	return out
 }
@@ -65,12 +65,12 @@ func cloneDayPlan(plan DayPlanMap) DayPlanMap {
 	}
 	out := make(DayPlanMap, len(plan))
 	for day, entry := range plan {
-		out[day] = MCPDayPlan{Rest: entry.Rest, Sessions: cloneDaySessions(entry.Sessions)}
+		out[day] = MCPDayPlan{Rest: entry.Rest, Sessions: CloneDaySessions(entry.Sessions)}
 	}
 	return out
 }
 
-func daySessionsEqual(a, b []MCPDaySession) bool {
+func DaySessionsEqual(a, b []MCPDaySession) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -99,12 +99,12 @@ func weekSlotSessions(week WeekSchedule, weekday string) []MCPDaySession {
 	if week == nil {
 		return nil
 	}
-	return cloneDaySessions(week[weekday])
+	return CloneDaySessions(week[weekday])
 }
 
-// resolveDaySessions returns the ordered sessions for iso, whether an override
+// ResolveDaySessions returns the ordered sessions for iso, whether an override
 // applied, and whether the day is explicitly rest.
-func resolveDaySessions(view TrainingData, iso string) (sessions []MCPDaySession, override, rest bool) {
+func ResolveDaySessions(view TrainingData, iso string) (sessions []MCPDaySession, override, rest bool) {
 	weekday := weekdayKey(iso)
 	weekSlots := weekSlotSessions(view.Week, weekday)
 	if entry, ok := view.DayPlan[iso]; ok {
@@ -123,7 +123,7 @@ func resolveDaySessions(view TrainingData, iso string) (sessions []MCPDaySession
 		if len(resolved) == 0 && len(entry.Sessions) > 0 {
 			return weekSlots, true, false
 		}
-		return cloneDaySessions(resolved), true, false
+		return CloneDaySessions(resolved), true, false
 	}
 	resolved := make([]MCPDaySession, 0, len(weekSlots))
 	for _, session := range weekSlots {
@@ -134,7 +134,7 @@ func resolveDaySessions(view TrainingData, iso string) (sessions []MCPDaySession
 	return resolved, false, false
 }
 
-func normalizeDaySession(session MCPDaySession) (MCPDaySession, error) {
+func NormalizeDaySession(session MCPDaySession) (MCPDaySession, error) {
 	session.RoutineID = strings.TrimSpace(session.RoutineID)
 	for _, field := range []**string{&session.Start, &session.Label} {
 		if *field != nil {
@@ -160,7 +160,7 @@ func ValidateSchedule(week WeekSchedule, dayPlan DayPlanMap) error {
 	}{week, dayPlan})
 }
 
-func decodeWeekMap(value jsontext.Value) (WeekSchedule, error) {
+func DecodeWeekMap(value jsontext.Value) (WeekSchedule, error) {
 	out := WeekSchedule{}
 	if len(value) == 0 || value.Kind() == 'n' {
 		return out, nil
@@ -171,7 +171,7 @@ func decodeWeekMap(value jsontext.Value) (WeekSchedule, error) {
 	return out, ValidateSchedule(out, nil)
 }
 
-func decodeDayPlanMap(value jsontext.Value) (DayPlanMap, error) {
+func DecodeDayPlanMap(value jsontext.Value) (DayPlanMap, error) {
 	out := DayPlanMap{}
 	if len(value) == 0 || value.Kind() == 'n' {
 		return out, nil
@@ -183,15 +183,15 @@ func decodeDayPlanMap(value jsontext.Value) (DayPlanMap, error) {
 }
 
 func materializeDayPlan(view TrainingData, iso string) MCPDayPlan {
-	sessions, _, rest := resolveDaySessions(view, iso)
+	sessions, _, rest := ResolveDaySessions(view, iso)
 	if rest {
 		return MCPDayPlan{Rest: true}
 	}
-	return MCPDayPlan{Sessions: cloneDaySessions(sessions)}
+	return MCPDayPlan{Sessions: CloneDaySessions(sessions)}
 }
 
-func addSessionToDayPlan(data *TrainingData, iso string, session MCPDaySession) error {
-	normalized, err := normalizeDaySession(session)
+func AddSessionToDayPlan(data *TrainingData, iso string, session MCPDaySession) error {
+	normalized, err := NormalizeDaySession(session)
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func addSessionToDayPlan(data *TrainingData, iso string, session MCPDaySession) 
 	return nil
 }
 
-func removeSessionFromDayPlan(data *TrainingData, iso, routineID string, index *int) error {
+func RemoveSessionFromDayPlan(data *TrainingData, iso, routineID string, index *int) error {
 	routineID = strings.TrimSpace(routineID)
 	if routineID == "" {
 		return fmt.Errorf("routineId must not be empty")
@@ -246,4 +246,8 @@ func removeSessionFromDayPlan(data *TrainingData, iso, routineID string, index *
 	}
 	data.DayPlan[iso] = entry
 	return nil
+}
+
+func ValidISODate(value string) bool {
+	return validation.Validator.Var(value, "datetime=2006-01-02") == nil
 }

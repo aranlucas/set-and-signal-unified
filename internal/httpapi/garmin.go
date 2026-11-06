@@ -6,6 +6,7 @@ import (
 	"regexp"
 
 	"github.com/aranlucas/set-and-signal-unified/internal/garmin"
+
 	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
@@ -157,17 +158,17 @@ func (s *Server) importWorkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Workout MCPWorkout `json:"workout"`
+		Workout training.MCPWorkout `json:"workout"`
 	}
 	if !readJSON(w, r, &body) {
 		return
 	}
-	result, err := NewTrainingDataRepository(s.ST).PutWorkout(user.ID, body.Workout)
+	result, err := training.NewTrainingDataRepository(s.ST).PutWorkout(user.ID, body.Workout)
 	if err != nil {
 		writeErr(w, 400, "Invalid recorded workout: "+err.Error())
 		return
 	}
-	writeJSON(w, 200, MCPWorkoutOutput{OK: true, Workout: result})
+	writeJSON(w, 200, training.MCPWorkoutOutput{OK: true, Workout: result})
 }
 
 func (s *Server) finalizeWorkout(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +186,7 @@ func (s *Server) finalizeWorkout(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "invalid workout id")
 		return
 	}
-	if err := NewTrainingDataRepository(s.ST).FinalizeWorkout(user.ID, body.ID); err != nil {
+	if err := training.NewTrainingDataRepository(s.ST).FinalizeWorkout(user.ID, body.ID); err != nil {
 		serverError(w)
 		return
 	}

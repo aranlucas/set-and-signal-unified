@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"encoding/json/jsontext"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // Keep fixed HTTP response shapes concrete. Open application documents stay
@@ -21,14 +23,14 @@ type userPayload struct {
 }
 
 type routineResponse struct {
-	OK      bool       `json:"ok"`
-	Routine MCPRoutine `json:"routine"`
+	OK      bool                `json:"ok"`
+	Routine training.MCPRoutine `json:"routine"`
 }
 
 type programResponse struct {
-	OK       bool             `json:"ok"`
-	Routines []MCPRoutine     `json:"routines"`
-	Week     *MCPWeekSchedule `json:"week,omitzero"`
+	OK       bool                   `json:"ok"`
+	Routines []training.MCPRoutine  `json:"routines"`
+	Week     *training.WeekSchedule `json:"week,omitzero"`
 }
 
 type bodyweightResponse struct {

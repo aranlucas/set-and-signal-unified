@@ -3,17 +3,18 @@ package httpapi
 import (
 	"encoding/json/v2"
 	"errors"
-	"github.com/aranlucas/set-and-signal-unified/internal/training"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 func TestTrainingDataGraphHasNoInterfaceFields(t *testing.T) {
-	assertMCPStateConcrete(t, reflect.TypeFor[MCPCustomExercise](), "MCPCustomExercise")
-	assertMCPStateConcrete(t, reflect.TypeFor[MCPExWeightHint](), "MCPExWeightHint")
-	assertMCPStateConcrete(t, reflect.TypeFor[MCPExerciseConfigRef](), "MCPExerciseConfigRef")
-	assertMCPStateConcrete(t, reflect.TypeFor[TrainingData](), "TrainingData")
+	assertMCPStateConcrete(t, reflect.TypeFor[training.MCPCustomExercise](), "MCPCustomExercise")
+	assertMCPStateConcrete(t, reflect.TypeFor[training.MCPExWeightHint](), "MCPExWeightHint")
+	assertMCPStateConcrete(t, reflect.TypeFor[training.MCPExerciseConfigRef](), "MCPExerciseConfigRef")
+	assertMCPStateConcrete(t, reflect.TypeFor[training.TrainingData](), "TrainingData")
 }
 
 func assertMCPStateConcrete(t *testing.T, typ reflect.Type, path string) {
@@ -126,13 +127,13 @@ func TestLoadTrainingDataRejectsMalformedJSON(t *testing.T) {
 
 func TestTrainingDataLookupsAreDeterministicAndReportAmbiguity(t *testing.T) {
 	name := "Push"
-	view := TrainingData{Routines: []MCPRoutine{
-		{ID: "r2", Name: name, Ex: []MCPExConfig{{ID: "bench"}}},
-		{ID: "r1", Name: name, Ex: []MCPExConfig{{ID: "bench"}}},
-		{ID: "push-id", Name: "Different", Ex: []MCPExConfig{{ID: "squat"}}},
+	view := training.TrainingData{Routines: []training.MCPRoutine{
+		{ID: "r2", Name: name, Ex: []training.MCPExConfig{{ID: "bench"}}},
+		{ID: "r1", Name: name, Ex: []training.MCPExConfig{{ID: "bench"}}},
+		{ID: "push-id", Name: "Different", Ex: []training.MCPExConfig{{ID: "squat"}}},
 	}}
 
-	if _, err := view.FindRoutine(name); !errors.Is(err, ErrTrainingDataAmbiguous) {
+	if _, err := view.FindRoutine(name); !errors.Is(err, training.ErrTrainingDataAmbiguous) {
 		t.Fatalf("duplicate routine name error = %v", err)
 	} else if !strings.Contains(err.Error(), "r1, r2") {
 		t.Fatalf("routine ambiguity is not deterministic = %v", err)
@@ -141,11 +142,11 @@ func TestTrainingDataLookupsAreDeterministicAndReportAmbiguity(t *testing.T) {
 	if err != nil || routine.ID != "push-id" {
 		t.Fatalf("exact routine id = %#v, %v", routine, err)
 	}
-	if _, err := view.FindRoutine("missing"); !errors.Is(err, ErrTrainingDataNotFound) {
+	if _, err := view.FindRoutine("missing"); !errors.Is(err, training.ErrTrainingDataNotFound) {
 		t.Fatalf("missing routine error = %v", err)
 	}
 
-	if _, err := view.FindExerciseConfig("bench"); !errors.Is(err, ErrTrainingDataAmbiguous) {
+	if _, err := view.FindExerciseConfig("bench"); !errors.Is(err, training.ErrTrainingDataAmbiguous) {
 		t.Fatalf("duplicate exercise error = %v", err)
 	} else if !strings.Contains(err.Error(), "r1, r2") {
 		t.Fatalf("exercise ambiguity is not deterministic = %v", err)
@@ -154,7 +155,7 @@ func TestTrainingDataLookupsAreDeterministicAndReportAmbiguity(t *testing.T) {
 	if err != nil || ref.RoutineID != "push-id" || ref.Config.ID != "squat" {
 		t.Fatalf("unique exercise config = %#v, %v", ref, err)
 	}
-	if _, err := view.FindExerciseConfig(""); !errors.Is(err, ErrTrainingDataNotFound) {
+	if _, err := view.FindExerciseConfig(""); !errors.Is(err, training.ErrTrainingDataNotFound) {
 		t.Fatalf("empty exercise error = %v", err)
 	}
 }

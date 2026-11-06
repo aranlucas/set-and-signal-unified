@@ -289,10 +289,10 @@ func nextTargetFrom(cfg MCPExConfig, prescription MCPProgression) MCPNextTarget 
 	return MCPNextTarget{Sets: filled.Sets, Reps: filled.Reps, Weight: filled.Weight, Sec: filled.Sec}
 }
 
-// sessionPrescription is the coaching read: today's sessions, last working
+// SessionPrescription is the coaching read: today's sessions, last working
 // sets, next target, and why. Warm-ups are excluded from the decision.
-func sessionPrescription(view TrainingData, iso string) MCPDayPrescription {
-	today := trainingDay(view, iso)
+func SessionPrescription(view TrainingData, iso string) MCPDayPrescription {
+	today := Day(view, iso)
 	unit := view.Unit
 	if unit == "" {
 		unit = "lb"
@@ -392,12 +392,12 @@ func resolveLogDate(d, tz *string, now time.Time) (string, error) {
 		if tz != nil {
 			zone = *tz
 		}
-		date = todayISOLocal(zone, now)
+		date = TodayISO(zone, now)
 	}
 	return date, nil
 }
 
-func logExerciseSets(data *TrainingData, input MCPLogExerciseSetsInput, now time.Time) (MCPWorkout, MCPProgression, error) {
+func LogExerciseSets(data *TrainingData, input MCPLogExerciseSetsInput, now time.Time) (MCPWorkout, MCPProgression, error) {
 	exerciseID := strings.TrimSpace(input.ExerciseID)
 	if exerciseID == "" {
 		return MCPWorkout{}, MCPProgression{}, errors.New("exerciseId must not be empty")

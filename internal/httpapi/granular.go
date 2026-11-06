@@ -18,7 +18,7 @@ func (s *Server) postRoutine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Routine MCPRoutineInput `json:"routine"`
+		Routine training.MCPRoutineInput `json:"routine"`
 	}
 	if !readJSON(w, r, &body) {
 		return
@@ -38,9 +38,9 @@ func (s *Server) postRoutines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Routines []MCPRoutineInput `json:"routines"`
-		Week     MCPWeekSchedule   `json:"week"`
-		Replace  bool              `json:"replace"`
+		Routines []training.MCPRoutineInput `json:"routines"`
+		Week     training.WeekSchedule      `json:"week"`
+		Replace  bool                       `json:"replace"`
 	}
 	if !readJSON(w, r, &body) {
 		return
@@ -60,7 +60,7 @@ func writeResult[T any](w http.ResponseWriter, payload T, code int, msg string) 
 }
 
 // applyRoutine is the mutation core of POST /api/routine.
-func (s *Server) applyRoutine(uid string, routine MCPRoutineInput) (routineResponse, int, string) {
+func (s *Server) applyRoutine(uid string, routine training.MCPRoutineInput) (routineResponse, int, string) {
 	rc, err := normalizeRoutine(routine)
 	if err != nil {
 		return routineResponse{}, http.StatusBadRequest, err.Error()
@@ -80,7 +80,7 @@ func (s *Server) applyRoutine(uid string, routine MCPRoutineInput) (routineRespo
 
 // applyProgram batch-upserts routines and optionally sets the week schedule
 // in one state write — the shape AI agents use to install a full program.
-func (s *Server) applyProgram(uid string, routines []MCPRoutineInput, inputWeek MCPWeekSchedule, replace bool) (programResponse, int, string) {
+func (s *Server) applyProgram(uid string, routines []training.MCPRoutineInput, inputWeek training.WeekSchedule, replace bool) (programResponse, int, string) {
 	prepared, err := prepareTypedProgram(routines, inputWeek)
 	if err != nil {
 		return programResponse{}, http.StatusBadRequest, err.Error()
@@ -97,8 +97,8 @@ func (s *Server) applyProgram(uid string, routines []MCPRoutineInput, inputWeek 
 }
 
 // mutateProgram applies a prepared HTTP program atomically.
-func (s *Server) mutateProgram(uid string, prepared typedPreparedProgram, replace bool) (MCPWeekSchedule, error) {
-	var week MCPWeekSchedule
+func (s *Server) mutateProgram(uid string, prepared typedPreparedProgram, replace bool) (training.WeekSchedule, error) {
+	var week training.WeekSchedule
 	err := s.mutateDocument(uid, func(document stateDocument) error {
 		var err error
 		week, err = applyPreparedProgram(document, prepared, replace)
@@ -110,18 +110,18 @@ func (s *Server) mutateProgram(uid string, prepared typedPreparedProgram, replac
 // applyPreparedProgram is intentionally side-effect free beyond document and uses
 // the same replacement, reference-pruning, upsert, and ghost-week rules as
 // the historical /api/routines implementation.
-func applyPreparedProgram(document stateDocument, prepared typedPreparedProgram, replace bool) (MCPWeekSchedule, error) {
+func applyPreparedProgram(document stateDocument, prepared typedPreparedProgram, replace bool) (training.WeekSchedule, error) {
 	routines := document.routines()
 	if replace {
 		routines = storedRoutines{}
-		if err := document.set("week", MCPWeekSchedule{}); err != nil {
+		if err := document.set("week", training.WeekSchedule{}); err != nil {
 			return nil, err
 		}
 		plan, err := training.DecodeDayPlanMap(document["dayPlan"])
 		if err != nil {
-			plan = MCPDayPlanMap{}
+			plan = training.DayPlanMap{}
 		}
-		maps.DeleteFunc(plan, func(_ string, entry MCPDayPlan) bool { return !entry.Rest })
+		maps.DeleteFunc(plan, func(_ string, entry training.MCPDayPlan) bool { return !entry.Rest })
 		if err := document.set("dayPlan", plan); err != nil {
 			return nil, err
 		}
@@ -134,7 +134,7 @@ func applyPreparedProgram(document stateDocument, prepared typedPreparedProgram,
 	if err := document.set("routines", routines); err != nil {
 		return nil, err
 	}
-	week := cloneTypedWeek(prepared.week)
+	week := training.CloneWeekSchedule(prepared.week)
 	if prepared.hasWeek {
 		pruneGhostSessions(week, routines.ids())
 		if err := document.set("week", week); err != nil {
@@ -144,9 +144,9 @@ func applyPreparedProgram(document stateDocument, prepared typedPreparedProgram,
 	return week, nil
 }
 
-func pruneGhostSessions(week MCPWeekSchedule, ids map[string]bool) {
+func pruneGhostSessions(week training.WeekSchedule, ids map[string]bool) {
 	for day, sessions := range week {
-		kept := slices.DeleteFunc(sessions, func(session MCPDaySession) bool { return !ids[session.RoutineID] })
+		kept := slices.DeleteFunc(sessions, func(session training.MCPDaySession) bool { return !ids[session.RoutineID] })
 		if len(kept) == 0 {
 			delete(week, day)
 		} else {
@@ -159,7 +159,7 @@ func pruneRoutineFromSchedule(document stateDocument, id string) error {
 	week, err := training.DecodeWeekMap(document["week"])
 	if err == nil {
 		for day, sessions := range week {
-			kept := slices.DeleteFunc(sessions, func(session MCPDaySession) bool { return session.RoutineID == id })
+			kept := slices.DeleteFunc(sessions, func(session training.MCPDaySession) bool { return session.RoutineID == id })
 			if len(kept) == 0 {
 				delete(week, day)
 			} else {
@@ -176,7 +176,7 @@ func pruneRoutineFromSchedule(document stateDocument, id string) error {
 			if entry.Rest || len(entry.Sessions) == 0 {
 				continue
 			}
-			entry.Sessions = slices.DeleteFunc(entry.Sessions, func(session MCPDaySession) bool { return session.RoutineID == id })
+			entry.Sessions = slices.DeleteFunc(entry.Sessions, func(session training.MCPDaySession) bool { return session.RoutineID == id })
 			if len(entry.Sessions) == 0 {
 				delete(plan, day)
 			} else {
@@ -186,10 +186,6 @@ func pruneRoutineFromSchedule(document stateDocument, id string) error {
 		return document.set("dayPlan", plan)
 	}
 	return nil
-}
-
-func cloneTypedWeek(week MCPWeekSchedule) MCPWeekSchedule {
-	return training.CloneWeekSchedule(week)
 }
 
 // POST /api/routine/delete — removes the routine plus every week/dayPlan
@@ -232,7 +228,7 @@ func (s *Server) postWeek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Week MCPWeekSchedule `json:"week" validate:"required"`
+		Week training.WeekSchedule `json:"week" validate:"required"`
 	}
 	if !readValidatedJSON(w, r, &body) {
 		return
@@ -242,13 +238,13 @@ func (s *Server) postWeek(w http.ResponseWriter, r *http.Request) {
 }
 
 // applyWeek is the mutation core of POST /api/week.
-func (s *Server) applyWeek(uid string, inputWeek MCPWeekSchedule) (okResponse, int, string) {
+func (s *Server) applyWeek(uid string, inputWeek training.WeekSchedule) (okResponse, int, string) {
 	week, err := normalizeWeek(inputWeek)
 	if err != nil {
 		return okResponse{}, http.StatusBadRequest, err.Error()
 	}
 	err = s.mutateDocument(uid, func(document stateDocument) error {
-		next := cloneTypedWeek(week)
+		next := training.CloneWeekSchedule(week)
 		pruneGhostSessions(next, document.routines().ids())
 		return document.set("week", next)
 	})
@@ -266,8 +262,8 @@ func (s *Server) postDayPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Iso  string      `json:"iso" validate:"required,datetime=2006-01-02"`
-		Plan *MCPDayPlan `json:"plan"`
+		Iso  string               `json:"iso" validate:"required,datetime=2006-01-02"`
+		Plan *training.MCPDayPlan `json:"plan"`
 	}
 	if !readValidatedJSON(w, r, &body) {
 		return
@@ -277,8 +273,8 @@ func (s *Server) postDayPlan(w http.ResponseWriter, r *http.Request) {
 }
 
 // applyDayPlan is the mutation core of POST /api/dayplan.
-func (s *Server) applyDayPlan(uid, iso string, planInput *MCPDayPlan) (okResponse, int, string) {
-	var entry MCPDayPlan
+func (s *Server) applyDayPlan(uid, iso string, planInput *training.MCPDayPlan) (okResponse, int, string) {
+	var entry training.MCPDayPlan
 	if planInput != nil {
 		entry = *planInput
 		if !entry.Rest {
@@ -298,7 +294,7 @@ func (s *Server) applyDayPlan(uid, iso string, planInput *MCPDayPlan) (okRespons
 	err := s.mutateDocument(uid, func(document stateDocument) error {
 		plan, err := training.DecodeDayPlanMap(document["dayPlan"])
 		if err != nil {
-			plan = MCPDayPlanMap{}
+			plan = training.DayPlanMap{}
 		}
 		if planInput == nil {
 			delete(plan, iso)
@@ -355,7 +351,7 @@ func (s *Server) applyBodyweight(uid, iso string, weight float64) (bodyweightRes
 			}
 			measurements[index].raw = raw
 		} else {
-			entry := MCPBodyweightEntry{D: iso, W: weight, T: new(time.Now().UnixMilli())}
+			entry := training.MCPBodyweightEntry{D: iso, W: weight, T: new(time.Now().UnixMilli())}
 			raw, err := json.Marshal(entry)
 			if err != nil {
 				return err

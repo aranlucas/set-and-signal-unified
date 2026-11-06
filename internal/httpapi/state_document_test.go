@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 func TestRESTMutationsPreserveClientOwnedJSON(t *testing.T) {
@@ -92,8 +94,8 @@ func TestAdminDrillDownPreservesJSONNumbers(t *testing.T) {
 
 func TestPreparedProgramCanBeRetriedAgainstFreshState(t *testing.T) {
 	prepared := typedPreparedProgram{
-		routines: []MCPRoutine{{ID: "new", Name: "New", Ex: []MCPExConfig{}}},
-		week:     MCPWeekSchedule{"1": {{RoutineID: "concurrent"}}},
+		routines: []training.MCPRoutine{{ID: "new", Name: "New", Ex: []training.MCPExConfig{}}},
+		week:     training.WeekSchedule{"1": {{RoutineID: "concurrent"}}},
 		hasWeek:  true,
 	}
 	first := stateDocument{}

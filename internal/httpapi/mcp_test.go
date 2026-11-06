@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/google/jsonschema-go/jsonschema"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // ---------- task 13: MCP endpoint over streamable HTTP ----------
@@ -176,25 +178,25 @@ func TestMCPContractToolsAndRoundTrip(t *testing.T) {
 		t.Errorf("log_workout input is missing its struct-derived description: %v", workoutProperties["workout"])
 	}
 	inputTypes := map[string]reflect.Type{
-		"search_exercises":         reflect.TypeFor[MCPSearchExercisesInput](),
-		"get_today":                reflect.TypeFor[MCPDateInput](),
-		"get_training_digest":      reflect.TypeFor[MCPDateInput](),
+		"search_exercises":         reflect.TypeFor[training.MCPSearchExercisesInput](),
+		"get_today":                reflect.TypeFor[training.MCPDateInput](),
+		"get_training_digest":      reflect.TypeFor[training.MCPDateInput](),
 		"get_routines":             reflect.TypeFor[MCPEmptyInput](),
-		"preview_program":          reflect.TypeFor[MCPPreviewProgramInput](),
-		"set_program":              reflect.TypeFor[MCPSetProgramInput](),
-		"add_day_session":          reflect.TypeFor[MCPAddDaySessionInput](),
-		"remove_day_session":       reflect.TypeFor[MCPRemoveDaySessionInput](),
-		"get_bodyweight":           reflect.TypeFor[MCPBodyweightFilterInput](),
-		"log_bodyweight":           reflect.TypeFor[MCPLogBodyweightInput](),
-		"get_history":              reflect.TypeFor[MCPHistoryInput](),
-		"get_workouts":             reflect.TypeFor[MCPLimitInput](),
-		"log_workout":              reflect.TypeFor[MCPLogWorkoutInput](),
-		"log_exercise_sets":        reflect.TypeFor[MCPLogExerciseSetsInput](),
-		"next_workout_suggestion":  reflect.TypeFor[MCPDateInput](),
-		"get_strength_progress":    reflect.TypeFor[MCPStrengthProgressInput](),
-		"get_muscle_balance":       reflect.TypeFor[MCPMuscleBalanceInput](),
-		"get_next_progression":     reflect.TypeFor[MCPNextProgressionInput](),
-		"get_session_prescription": reflect.TypeFor[MCPDateInput](),
+		"preview_program":          reflect.TypeFor[training.MCPPreviewProgramInput](),
+		"set_program":              reflect.TypeFor[training.MCPSetProgramInput](),
+		"add_day_session":          reflect.TypeFor[training.MCPAddDaySessionInput](),
+		"remove_day_session":       reflect.TypeFor[training.MCPRemoveDaySessionInput](),
+		"get_bodyweight":           reflect.TypeFor[training.MCPBodyweightFilterInput](),
+		"log_bodyweight":           reflect.TypeFor[training.MCPLogBodyweightInput](),
+		"get_history":              reflect.TypeFor[training.MCPHistoryInput](),
+		"get_workouts":             reflect.TypeFor[training.MCPLimitInput](),
+		"log_workout":              reflect.TypeFor[training.MCPLogWorkoutInput](),
+		"log_exercise_sets":        reflect.TypeFor[training.MCPLogExerciseSetsInput](),
+		"next_workout_suggestion":  reflect.TypeFor[training.MCPDateInput](),
+		"get_strength_progress":    reflect.TypeFor[training.MCPStrengthProgressInput](),
+		"get_muscle_balance":       reflect.TypeFor[training.MCPMuscleBalanceInput](),
+		"get_next_progression":     reflect.TypeFor[training.MCPNextProgressionInput](),
+		"get_session_prescription": reflect.TypeFor[training.MCPDateInput](),
 	}
 	for name, typ := range inputTypes {
 		assertMCPInputSchemaMatchesStruct(t, name, toolByName[name]["inputSchema"].(map[string]any), typ)

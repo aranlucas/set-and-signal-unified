@@ -8,12 +8,20 @@ import (
 	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
 )
 
-// trainingDay resolves a calendar date from the closed MCP state graph.
+// HistoryQuery filters completed workouts.
+type HistoryQuery struct {
+	Since      string
+	Until      string
+	ExerciseID string
+	Limit      int
+}
+
+// Day resolves a calendar date from the closed MCP state graph.
 // Overrides take precedence over the weekly schedule, but invalid overrides
 // intentionally fall back to the weekly slot to match the web application.
-func trainingDay(view TrainingData, iso string) MCPTodayResult {
+func Day(view TrainingData, iso string) MCPTodayResult {
 	if iso == "" {
-		iso = todayISOLocal("", time.Now())
+		iso = TodayISO("", time.Now())
 	}
 	weekday := weekdayKey(iso)
 	out := MCPTodayResult{
@@ -23,7 +31,7 @@ func trainingDay(view TrainingData, iso string) MCPTodayResult {
 		WeekSlots: weekSlotSessions(view.Week, weekday),
 	}
 
-	sessions, override, rest := resolveDaySessions(view, iso)
+	sessions, override, rest := ResolveDaySessions(view, iso)
 	out.Override = override
 	if rest {
 		out.Rest = true
@@ -64,7 +72,7 @@ func findRoutineByID(routines []MCPRoutine, id string) (MCPRoutine, bool) {
 	return MCPRoutine{}, false
 }
 
-func buildTrainingDigest(view TrainingData, sessions []MCPDaySession, today string) MCPTrainingDigest {
+func BuildDigest(view TrainingData, sessions []MCPDaySession, today string) MCPTrainingDigest {
 	unit := view.Unit
 	if unit == "" {
 		unit = "kg"
@@ -156,10 +164,10 @@ func buildTrainingDigest(view TrainingData, sessions []MCPDaySession, today stri
 	}
 }
 
-// buildHistory returns the compact, newest-first history representation
+// BuildHistory returns the compact, newest-first history representation
 // used by MCP. Filtering only changes entries in the selected workout; it does
 // not alter the stored workout or its volume/PR metadata.
-func buildHistory(view TrainingData, q historyQuery) []MCPHistoryRow {
+func BuildHistory(view TrainingData, q HistoryQuery) []MCPHistoryRow {
 	limit := q.Limit
 	if limit <= 0 {
 		limit = 20
@@ -252,7 +260,7 @@ func catalogCustomExercises(view TrainingData) []exercises.Exercise {
 	return out
 }
 
-func searchExercises(view TrainingData, query string, filters exercises.SearchFilters) []MCPExerciseSearchResult {
+func SearchExercises(view TrainingData, query string, filters exercises.SearchFilters) []MCPExerciseSearchResult {
 	hits := exercises.Search(query, catalogCustomExercises(view), filters)
 	out := make([]MCPExerciseSearchResult, 0, len(hits))
 	for _, hit := range hits {

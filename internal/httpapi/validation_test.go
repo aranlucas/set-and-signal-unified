@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 func TestInvalidRequestsLeaveStateUnchanged(t *testing.T) {
@@ -47,12 +49,12 @@ func TestInvalidRequestsLeaveStateUnchanged(t *testing.T) {
 
 func TestProgramValidationSharedByRESTAndMCP(t *testing.T) {
 	e := newTestEnv(t)
-	invalid := MCPRoutineInput{Name: "Push", Ex: []MCPExConfig{{ID: "bench", Weight: new(-1.0)}}}
-	if _, err := prepareTypedProgram([]MCPRoutineInput{invalid}, nil); err == nil || !strings.Contains(err.Error(), "weight") {
+	invalid := training.MCPRoutineInput{Name: "Push", Ex: []training.MCPExConfig{{ID: "bench", Weight: new(-1.0)}}}
+	if _, err := prepareTypedProgram([]training.MCPRoutineInput{invalid}, nil); err == nil || !strings.Contains(err.Error(), "weight") {
 		t.Fatalf("MCP accepted invalid weight: %v", err)
 	}
-	valid := MCPRoutineInput{Name: " Push ", Ex: []MCPExConfig{{ID: " bench ", Weight: new(0.0), Inc: new(0.0), Bodyweight: new(false), Sg: new("superset")}}}
-	prepared, err := prepareTypedProgram([]MCPRoutineInput{valid}, nil)
+	valid := training.MCPRoutineInput{Name: " Push ", Ex: []training.MCPExConfig{{ID: " bench ", Weight: new(0.0), Inc: new(0.0), Bodyweight: new(false), Sg: new("superset")}}}
+	prepared, err := prepareTypedProgram([]training.MCPRoutineInput{valid}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
