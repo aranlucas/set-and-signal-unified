@@ -72,3 +72,12 @@ Pending: independent final review and CI. No local tests/builds have run.
 - Removed remaining HTTP clone forwarders, using slices.Clone and the domain
   clone directly. Updated the persistence-boundary documentation.
 - No behavior tests were removed; final review found no meaningless tests.
+
+### Final review round 2
+
+Independent static re-review found no worthwhile issues remaining. Confirmed the
+prior generated reference, clone wrappers, documentation and comments are fixed.
+Meaningful regressions remain intact. PR CI is the behavioral validation gate;
+no local tests, builds or benchmarks ran. Repository-configured formatting could
+not load without installed workspace dependencies; native default formatting and
+gofmt were applied, and CI will check the complete repository policy.
