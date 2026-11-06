@@ -109,3 +109,15 @@ reload for persistence assertions, and mock the Convex constructor so session
 regressions never open live WebSockets. Existing native selectors were checked
 against current UI. No local tests/builds were run; only installation with
 `--ignore-scripts`, source inspection, formatting and whitespace checks.
+
+### First CI feedback
+
+At head `d3842d3`, web e2e reached save/reload but its broad weight text locator
+matched multiple UI nodes. Scope the check to the recent-weigh-in row inside the
+dialog. Android's application gate rejected the new fixture's module mock and
+style issues. Replace the module mock with the library's supported disabled client
+option, passed through session restoration, and retain only a delayed mutation
+spy. The defective-baseline job also disables its old constructor's transport;
+its sync continuation remains unchanged. Both ordinary and baseline regressions
+therefore use real Convex client lifecycle methods without external WebSockets.
+CI logs: Android job `128211165858`, web job `128211166138` (run `42310716322`).

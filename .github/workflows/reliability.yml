@@ -33,7 +33,8 @@ jobs:
           BASE: 52cefb3
         run: |
           git show "$BASE:internal/push/push.go" > internal/push/push.go
-          git show "$BASE:apps/android/src/data/cloud.ts" > apps/android/src/data/cloud.ts
+          # Disable transport in the old constructor too; this changes no sync behavior.
+          git show "$BASE:apps/android/src/data/cloud.ts" | sed 's/new ConvexClient(credentials.url)/new ConvexClient(credentials.url, { disabled: true })/' > apps/android/src/data/cloud.ts
           set +e
           go test ./internal/push -run '^TestRestTimerDiscardsStaleCallback$' -count=1 > push-baseline.log 2>&1
           push_status=$?

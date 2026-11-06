@@ -15,7 +15,7 @@ import {
   type GarminRecordingPreview,
 } from "@set-and-signal/training/garmin-recording";
 import { useSyncExternalStore } from "react";
-import { ConvexClient } from "convex/browser";
+import { ConvexClient, type ConvexClientOptions } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
@@ -369,7 +369,7 @@ const commitRef = makeFunctionReference<"mutation", CommitInput, null>("training
 
 const snapshotSchema = z.nullable(hostedDocumentSchema);
 
-async function connect(): Promise<void> {
+async function connect(options: ConvexClientOptions = {}): Promise<void> {
   const current = session;
   const started = generation;
 
@@ -388,7 +388,7 @@ async function connect(): Promise<void> {
     return;
   }
 
-  client = new ConvexClient(credentials.url);
+  client = new ConvexClient(credentials.url, options);
   client.setAuth(
     async () => z.object({ token: z.string() }).parse(await cloudApi("/api/convex/token")).token,
   );
@@ -425,7 +425,7 @@ function reportFailure(error: Error) {
   });
 }
 
-export async function restoreCloudSession(): Promise<void> {
+export async function restoreCloudSession(options: ConvexClientOptions = {}): Promise<void> {
   const started = generation;
 
   try {
@@ -443,7 +443,7 @@ export async function restoreCloudSession(): Promise<void> {
       profile: cloudProfile(cloudDatabase(), session.user.id),
       phase: "loading",
     });
-    await connect();
+    await connect(options);
   } catch (error) {
     reportFailure(error instanceof Error ? error : new Error("Synchronization paused"));
   }

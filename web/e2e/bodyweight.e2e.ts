@@ -20,7 +20,9 @@ test("records body weight durably and converts it when units change", async ({
   await app.open("/#/home/bodyweight");
   await browser.reload();
   await expect(screen.getByText("Recent weigh-ins", { exact: true })).toBeVisible();
-  await expect(screen.getByText(`${saved} kg`, { exact: true })).toBeVisible();
+  await expect(
+    browser.locator('[role="dialog"] b').filter({ hasText: `${saved} kg` }),
+  ).toBeVisible();
   await app.open("/#/settings");
   await screen.getByRole("button", { name: "lb", exact: true }).click();
   await app.open("/#/settings");
