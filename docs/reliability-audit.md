@@ -133,3 +133,14 @@ release the mutex before the explicit Wait. A 60-second test timeout now bounds
 the baseline command. This corrects the fixture, preserving all stale-delivery
 and replacement-handle assertions. Evidence: run `42311125012`, baseline job
 `128212660998`; fixed-head timer validation remains pending CI.
+
+### Emulator runner capacity feedback
+
+At head `6c37239`, the baseline reproduction and deterministic web e2e jobs both
+passed (`42312639291`). Android built its release APK, but the emulator could not
+create its default 7.4 GB userdata partition with only 2.3 GB free. The workflow
+now copies the APK outside the build tree, runs native Gradle clean/stop, and
+uses the emulator action's documented `disk-size: 2G` input for this isolated
+single-app fixture. No test gate is skipped. Main CI's web suite passed all 424
+tests before its runner received a shutdown signal (run `42312639345`); the next
+push retries that interrupted validation. Full fixed-head results remain pending.

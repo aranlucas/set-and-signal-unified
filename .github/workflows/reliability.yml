@@ -95,6 +95,13 @@ jobs:
       - name: Build fixture APK
         working-directory: apps/android/android
         run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64
+      - name: Preserve APK and reclaim native build space
+        working-directory: apps/android/android
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/fixture.apk"
+          ./gradlew clean --no-daemon
+          ./gradlew --stop
+          df -h .
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -106,9 +113,10 @@ jobs:
           arch: x86_64
           target: google_apis
           profile: pixel_7
+          disk-size: 2G
           disable-animations: true
           script: |
-            adb install -r apps/android/android/app/build/outputs/apk/release/app-release.apk
+            adb install -r "$RUNNER_TEMP/fixture.apk"
             pnpm --dir apps/android exec e2e run tests/e2e/offline-session.e2e.ts --target android
         env:
           E2E_TELEMETRY_DISABLED: "1"
