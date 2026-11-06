@@ -6,8 +6,9 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"github.com/aranlucas/set-and-signal-unified/internal/garmin"
-	"github.com/aranlucas/set-and-signal-unified/internal/training"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // The product MCP uses the same owner's built-in Garmin connection as web and

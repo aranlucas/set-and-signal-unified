@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
 import schema from "../../../convex/schema";
 import { api } from "../../../convex/_generated/api";
-import { splitState, joinState } from "../../../convex/model";
+import { splitState, joinState } from "@set-and-signal/training/state";
 
 const modules = import.meta.glob("../../../convex/**/*.ts");
 

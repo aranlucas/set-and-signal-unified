@@ -59,12 +59,13 @@ func TestDecodeTrainingDataDocumentBoundary(t *testing.T) {
 
 func TestTrainingDataRepositoryMutationPreservesUnknownFields(t *testing.T) {
 	st, repo := openTrainingRepositoryTest(t)
-	if err := st.WriteState("u1", jsontext.Value(`{"unit":"lb","targetW":80,"settings":{"theme":"dark"},"future":[1,{"x":2}],"routines":[]}`)); err != nil {
+	if err := st.WriteState("u1", jsontext.Value(`{"unit":"lb","targetW":80,"fivefoldNext":"B","futureInteger":9007199254740993,"settings":{"theme":"dark"},"future":[1,{"x":2}],"routines":[]}`)); err != nil {
 		t.Fatal(err)
 	}
 	if err := repo.Mutate("u1", nil, func(data *TrainingData) error {
 		data.Unit = "kg"
 		data.TargetW = nil
+		data.FivefoldNext = ""
 		data.Routines = append(data.Routines, MCPRoutine{ID: "r1", Name: "Pull", Ex: []MCPExConfig{}})
 		return nil
 	}); err != nil {
@@ -85,6 +86,12 @@ func TestTrainingDataRepositoryMutationPreservesUnknownFields(t *testing.T) {
 	}
 	if string(doc["future"]) != `[1,{"x":2}]` {
 		t.Fatalf("unknown future field changed: %s", doc["future"])
+	}
+	if _, ok := doc["fivefoldNext"]; ok {
+		t.Fatalf("cleared next session was retained: %s", doc["fivefoldNext"])
+	}
+	if string(doc["futureInteger"]) != "9007199254740993" {
+		t.Fatalf("unknown integer changed: %s", doc["futureInteger"])
 	}
 	if _, ok := doc["targetW"]; ok {
 		t.Fatalf("cleared optional field was retained: %s", doc["targetW"])

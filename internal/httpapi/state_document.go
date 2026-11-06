@@ -5,6 +5,8 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"slices"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // stateDocument preserves application-owned fields. Mutations decode only
@@ -79,7 +81,7 @@ func (d stateDocument) routines() storedRoutines {
 	return routines
 }
 
-func (r *storedRoutines) upsert(routine MCPRoutine) error {
+func (r *storedRoutines) upsert(routine training.MCPRoutine) error {
 	raw, err := json.Marshal(routine)
 	if err != nil {
 		return err

@@ -1,7 +1,7 @@
 import * as validation from "valibot";
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
-import { canonical, joinState, splitState } from "./model";
+import { canonical, joinState, splitState } from "@set-and-signal/training/state";
 import { safeParse } from "valibot";
 import { appStatePatch } from "../src/shared/lib/schemas";
 import type { MutationCtx, QueryCtx } from "./_generated/server";

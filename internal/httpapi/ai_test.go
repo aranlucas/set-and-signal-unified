@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/aranlucas/set-and-signal-unified/internal/ai"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 func TestNextWorkoutSuggestionMCPUsesClosedOutput(t *testing.T) {
@@ -35,16 +37,16 @@ func TestNextWorkoutSuggestionMCPUsesClosedOutput(t *testing.T) {
 	client := provider.Client()
 
 	s := &Server{AI: &ai.Client{APIKey: "test-key", Model: "test-model", BaseURL: provider.URL, HTTP: client}}
-	digest := MCPTrainingDigest{
+	digest := training.MCPTrainingDigest{
 		Unit:  "kg",
 		Today: "2026-08-28",
-		Sessions: []MCPTrainingDigestSession{{
+		Sessions: []training.MCPTrainingDigestSession{{
 			RoutineID: "strength",
 			Name:      "Strength",
-			Entries:   []MCPDigestExerciseEntry{{ID: "squat", Name: "Back squat", Sets: new(3.0), Reps: new(5.0)}},
+			Entries:   []training.MCPDigestExerciseEntry{{ID: "squat", Name: "Back squat", Sets: new(3.0), Reps: new(5.0)}},
 		}},
-		Bodyweight:   []MCPBodyweightEntry{{D: "2026-08-27", W: 80}},
-		LastWorkouts: []MCPDigestWorkout{},
+		Bodyweight:   []training.MCPBodyweightEntry{{D: "2026-08-27", W: 80}},
+		LastWorkouts: []training.MCPDigestWorkout{},
 	}
 
 	got, code, msg := s.nextWorkoutSuggestionMCP(t.Context(), digest)

@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// todayISOLocal returns YYYY-MM-DD in the given IANA timezone (empty → UTC).
-func todayISOLocal(tz string, now time.Time) string {
+// TodayISO uses the given IANA timezone, falling back to UTC if unavailable.
+func TodayISO(tz string, now time.Time) string {
 	loc := time.UTC
 	if tz != "" {
 		if l, err := time.LoadLocation(tz); err == nil {
@@ -18,18 +18,11 @@ func todayISOLocal(tz string, now time.Time) string {
 	return fmt.Sprintf("%04d-%02d-%02d", t.Year(), int(t.Month()), t.Day())
 }
 
-// weekdayKey returns "0".."6" for Sunday..Saturday of an ISO calendar date (noon local).
+// weekdayKey uses the calendar date independently of the server timezone.
 func weekdayKey(iso string) string {
-	t, err := time.ParseInLocation("2006-01-02", iso, time.Local)
+	t, err := time.Parse("2006-01-02", iso)
 	if err != nil {
-		t, err = time.Parse("2006-01-02", iso)
-		if err != nil {
-			return "0"
-		}
+		return "0"
 	}
-	// Match JS: new Date(`${iso}T12:00:00`) in local — use UTC noon to avoid DST edge flip.
-	t = time.Date(t.Year(), t.Month(), t.Day(), 12, 0, 0, 0, time.UTC)
 	return strconv.Itoa(int(t.Weekday()))
 }
-
-type historyQuery = HistoryQuery

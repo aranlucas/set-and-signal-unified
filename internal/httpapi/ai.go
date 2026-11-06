@@ -9,6 +9,8 @@ import (
 
 	"github.com/aranlucas/set-and-signal-unified/internal/ai"
 	"github.com/aranlucas/set-and-signal-unified/internal/validation"
+
+	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
 // AI workout planning (server.js lines 664–705). GET status is public;
@@ -36,8 +38,8 @@ type aiNextWorkoutRequest struct {
 }
 
 type aiNextWorkoutResponse struct {
-	Suggestion MCPSuggestionOutput `json:"suggestion"`
-	Model      string              `json:"model"`
+	Suggestion training.MCPSuggestionOutput `json:"suggestion"`
+	Model      string                       `json:"model"`
 }
 
 func (s *Server) aiEnabled() bool {
@@ -67,7 +69,7 @@ func (s *Server) postAINextWorkout(w http.ResponseWriter, r *http.Request) {
 // tool: digest size cap → provider chat → JSON extraction → validation. A zero code means success and parsed holds
 // {summary, entries}; otherwise code/msg carry the HTTP-mapped failure so
 // both surfaces answer identically.
-func (s *Server) nextWorkoutSuggestion(ctx context.Context, digest jsontext.Value) (MCPSuggestionOutput, int, string) {
+func (s *Server) nextWorkoutSuggestion(ctx context.Context, digest jsontext.Value) (training.MCPSuggestionOutput, int, string) {
 	return s.nextWorkoutSuggestionJSON(ctx, compactDigestJSON(digest))
 }
 
@@ -75,21 +77,21 @@ func (s *Server) nextWorkoutSuggestion(ctx context.Context, digest jsontext.Valu
 // passes the closed MCPTrainingDigest graph directly, and receives the
 // closed MCPSuggestionOutput graph directly; no generic output decoder or
 // JSON round-trip sits between the AI response and the MCP contract.
-func (s *Server) nextWorkoutSuggestionMCP(ctx context.Context, digest MCPTrainingDigest) (MCPSuggestionOutput, int, string) {
+func (s *Server) nextWorkoutSuggestionMCP(ctx context.Context, digest training.MCPTrainingDigest) (training.MCPSuggestionOutput, int, string) {
 	return s.nextWorkoutSuggestionJSON(ctx, marshalTrainingDigest(digest))
 }
 
 // nextWorkoutSuggestionJSON decodes and validates the provider response into the shared DTO.
-func (s *Server) nextWorkoutSuggestionJSON(ctx context.Context, raw []byte) (MCPSuggestionOutput, int, string) {
+func (s *Server) nextWorkoutSuggestionJSON(ctx context.Context, raw []byte) (training.MCPSuggestionOutput, int, string) {
 	const unavailable = "AI planning is not configured on this instance (set OPENROUTER_API_KEY)"
 	if !s.aiEnabled() {
-		return MCPSuggestionOutput{}, http.StatusServiceUnavailable, unavailable
+		return training.MCPSuggestionOutput{}, http.StatusServiceUnavailable, unavailable
 	}
 
 	// The digest is built client-side from the caller's own logs; cap it so a
 	// runaway client can't turn into a runaway token bill.
 	if len(raw) > 120000 {
-		return MCPSuggestionOutput{}, http.StatusRequestEntityTooLarge, "digest too large"
+		return training.MCPSuggestionOutput{}, http.StatusRequestEntityTooLarge, "digest too large"
 	}
 
 	text, err := s.AI.Chat(ctx, []ai.Message{
@@ -97,21 +99,21 @@ func (s *Server) nextWorkoutSuggestionJSON(ctx context.Context, raw []byte) (MCP
 		{Role: "user", Content: "Training log digest (JSON):\n" + string(raw)},
 	})
 	if err != nil {
-		return MCPSuggestionOutput{}, http.StatusBadGateway, "AI provider error: " + err.Error()
+		return training.MCPSuggestionOutput{}, http.StatusBadGateway, "AI provider error: " + err.Error()
 	}
 
-	var plan MCPSuggestionOutput
+	var plan training.MCPSuggestionOutput
 	if err := json.Unmarshal([]byte(text), &plan, json.RejectUnknownMembers(true)); err != nil {
-		return MCPSuggestionOutput{}, http.StatusBadGateway, "AI reply was not valid JSON — try again"
+		return training.MCPSuggestionOutput{}, http.StatusBadGateway, "AI reply was not valid JSON — try again"
 	}
 	if err := validation.Validator.Struct(plan); err != nil {
-		return MCPSuggestionOutput{}, http.StatusBadGateway, "AI reply failed validation — try again"
+		return training.MCPSuggestionOutput{}, http.StatusBadGateway, "AI reply failed validation — try again"
 	}
 	if plan.Summary == "" && len(plan.Entries) == 0 {
-		return MCPSuggestionOutput{}, http.StatusBadGateway, "AI reply was empty — try again"
+		return training.MCPSuggestionOutput{}, http.StatusBadGateway, "AI reply was empty — try again"
 	}
 	if plan.Entries == nil {
-		plan.Entries = []MCPSuggestionEntry{}
+		plan.Entries = []training.MCPSuggestionEntry{}
 	}
 	for i := range plan.Entries {
 		entry := &plan.Entries[i]
@@ -126,7 +128,7 @@ func (s *Server) nextWorkoutSuggestionJSON(ctx context.Context, raw []byte) (MCP
 
 // marshalTrainingDigest is JSON.stringify for the typed MCP digest. JSON v2
 // emits compact output without HTML escaping or a trailing newline by default.
-func marshalTrainingDigest(digest MCPTrainingDigest) []byte {
+func marshalTrainingDigest(digest training.MCPTrainingDigest) []byte {
 	out, err := json.Marshal(digest)
 	if err != nil {
 		return nil

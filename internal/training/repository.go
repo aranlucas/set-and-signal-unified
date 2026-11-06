@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -229,7 +230,15 @@ func mergeTrainingData(raw jsontext.Value, data TrainingData) (jsontext.Value, e
 	return json.Marshal(doc)
 }
 
-var trainingDataJSONKeys = []string{
-	"unit", "fivefoldNext", "targetW", "bodyweight", "routines", "week", "dayPlan",
-	"exWeights", "workouts", "customEx", "_ts",
-}
+// Derive ownership from the persisted type so clearing a newly added optional
+// field cannot leave its old value behind in the original document.
+var trainingDataJSONKeys = func() []string {
+	keys := make([]string, 0, reflect.TypeFor[TrainingData]().NumField())
+	for field := range reflect.TypeFor[TrainingData]().Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if name != "" && name != "-" {
+			keys = append(keys, name)
+		}
+	}
+	return keys
+}()

@@ -3,17 +3,17 @@
 //
 // The browser drops the lock on its own whenever the document stops being visible (tab
 // switch, app backgrounded, screen locked by hand). A one-shot request therefore works
-// exactly once and then silently dies, which is why `wanted` is kept as our own intent
+// exactly once and then silently dies, which is why `isRequested` is kept as our own intent
 // and the lock is re-acquired on every visibilitychange for as long as it holds.
 import { useEffect } from "react";
 
 export const wakeLockSupported = () => "wakeLock" in navigator;
 
-let sentinel: WakeLockSentinel | null = null; // the live WakeLockSentinel, null when we hold nothing
+let sentinel: WakeLockSentinel | null = null;
 
-let isRequested = false; // do we currently want the screen to stay on?
+let isRequested = false;
 
-let isAcquiring = false; // a request() is in flight — don't stack a second one
+let isAcquiring = false;
 
 async function acquireWakeLock() {
   if (!isRequested || sentinel || isAcquiring || !wakeLockSupported()) {
@@ -33,7 +33,7 @@ async function acquireWakeLock() {
       requestedSentinel.release().catch(() => {});
 
       return;
-    } // released while we were awaiting
+    }
 
     sentinel = requestedSentinel;
     requestedSentinel.addEventListener("release", () => {
@@ -78,7 +78,6 @@ export function releaseWakeLock() {
   }
 }
 
-// Holds the lock for as long as `enabled` stays true.
 export function useWakeLock(enabled: boolean) {
   useEffect((): (() => void) | undefined => {
     if (!enabled) {

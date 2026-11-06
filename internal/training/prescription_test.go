@@ -90,7 +90,7 @@ func TestZeroLoggedSetsFallBackToTargetWeight(t *testing.T) {
 
 func TestPrescribeTodayIsNotZeroWhenHistoryExists(t *testing.T) {
 	view := aptView(MCPWorkout{D: "2026-08-24", Entries: []MCPWorkoutEntry{gobletEntry(155, 8, 8, 8)}})
-	today := trainingDay(view, "2026-08-28")
+	today := Day(view, "2026-08-28")
 	if len(today.Sessions) != 1 || today.Sessions[0].Routine == nil || today.Sessions[0].Routine.ID != "apt-full-body" {
 		t.Fatalf("today = %#v", today)
 	}
@@ -137,7 +137,7 @@ func TestPersistRoutineWorkingWeightsDoesNotWipeProgram(t *testing.T) {
 
 func TestSessionPrescriptionReportsLastAndNext(t *testing.T) {
 	view := aptView(MCPWorkout{D: "2026-08-24", Entries: []MCPWorkoutEntry{gobletEntry(155, 8, 8, 8)}})
-	got := sessionPrescription(view, "2026-08-28")
+	got := SessionPrescription(view, "2026-08-28")
 	if got.Rest || len(got.Sessions) != 1 || got.Sessions[0].RoutineName != "Apartment Full Body" {
 		t.Fatalf("session = %#v", got)
 	}
@@ -161,7 +161,7 @@ func TestSessionPrescriptionReportsLastAndNext(t *testing.T) {
 
 func TestLogExerciseSetsWritesNextWeight(t *testing.T) {
 	data := aptView()
-	workout, next, err := logExerciseSets(&data, MCPLogExerciseSetsInput{
+	workout, next, err := LogExerciseSets(&data, MCPLogExerciseSetsInput{
 		ExerciseID: "1760", D: new("2026-08-24"), RoutineID: new("apt-full-body"),
 		Sets: []MCPLogExerciseSet{{W: new(155.0), R: 8}, {W: new(155.0), R: 8}, {W: new(155.0), R: 8}},
 	}, time.Date(2026, 8, 24, 18, 0, 0, 0, time.UTC))
@@ -184,7 +184,7 @@ func TestLogExerciseSetsWritesNextWeight(t *testing.T) {
 
 func TestLogExerciseSetsRequiresWeightOnLoadedLifts(t *testing.T) {
 	data := aptView()
-	_, _, err := logExerciseSets(&data, MCPLogExerciseSetsInput{
+	_, _, err := LogExerciseSets(&data, MCPLogExerciseSetsInput{
 		ExerciseID: "1760", D: new("2026-08-24"),
 		Sets: []MCPLogExerciseSet{{W: new(0.0), R: 8}, {W: new(0.0), R: 8}, {W: new(0.0), R: 8}},
 	}, time.Now())
@@ -205,7 +205,7 @@ func TestBuildHistoryIncludesLastWeightAndHit(t *testing.T) {
 		ID: "w1", D: "2026-08-24", Name: "Apartment Full Body", Vol: 3720,
 		Entries: []MCPWorkoutEntry{gobletEntry(155, 8, 8, 8)},
 	})
-	got := buildHistory(view, historyQuery{Limit: 10})
+	got := BuildHistory(view, HistoryQuery{Limit: 10})
 	if len(got) != 1 || len(got[0].Entries) != 1 {
 		t.Fatalf("history = %#v", got)
 	}
@@ -252,16 +252,16 @@ func TestLogExerciseSetsSeparatesRepeatedRoutineSessions(t *testing.T) {
 	data.Workouts = nil
 	now := time.Date(2026, 8, 24, 18, 0, 0, 0, time.UTC)
 	input := MCPLogExerciseSetsInput{ExerciseID: "1760", D: new("2026-08-24"), RoutineID: new("apt-full-body"), WorkoutID: new("morning"), Sets: []MCPLogExerciseSet{{W: new(155.0), R: 8}}}
-	if _, _, err := logExerciseSets(&data, input, now); err != nil {
+	if _, _, err := LogExerciseSets(&data, input, now); err != nil {
 		t.Fatal(err)
 	}
 	input.WorkoutID = new("evening")
 	input.Sets = []MCPLogExerciseSet{{W: new(150.0), R: 6}}
-	if _, _, err := logExerciseSets(&data, input, now); err != nil {
+	if _, _, err := LogExerciseSets(&data, input, now); err != nil {
 		t.Fatal(err)
 	}
 	// Retrying the second session corrects that session rather than creating a third.
-	if _, _, err := logExerciseSets(&data, input, now); err != nil {
+	if _, _, err := LogExerciseSets(&data, input, now); err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Workouts) != 2 || data.Workouts[0].ID != "morning" || data.Workouts[1].ID != "evening" {
@@ -271,7 +271,7 @@ func TestLogExerciseSetsSeparatesRepeatedRoutineSessions(t *testing.T) {
 		t.Fatal("session results were merged")
 	}
 	input.D = new("2026-08-25")
-	if _, _, err := logExerciseSets(&data, input, now); err == nil {
+	if _, _, err := LogExerciseSets(&data, input, now); err == nil {
 		t.Fatal("accepted a workout id from another day")
 	}
 }
