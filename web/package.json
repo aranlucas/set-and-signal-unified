@@ -57,6 +57,7 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@e2e-dev/web": "0.15.5",
     "@shadcn/lint": "^0.2.4",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.6",
@@ -64,6 +65,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
     "convex-test": "^0.0.66",
+    "e2e": "0.23.0",
     "i18next-cli": "^1.82.0",
     "oxfmt": "^0.75.0",
     "oxlint": "^1.90.0",

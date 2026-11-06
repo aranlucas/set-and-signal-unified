@@ -32,3 +32,5 @@ web/.env.local
 # Retain the Android project's tracked design configuration.
 !apps/android/.impeccable/
 !apps/android/.impeccable/config.json
+
+web/.e2e/

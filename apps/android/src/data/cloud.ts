@@ -489,6 +489,11 @@ export function synchronize(): Promise<void> {
       );
 
       for (const change of batch.changes) {
+        // A completed request must not continue with a different account's credentials.
+        if (generation !== started) {
+          return;
+        }
+
         if (change.key.startsWith("workouts/") && change.value !== null) {
           // Preserve completion order and finish progression before acknowledging this batch.
           // oxlint-disable-next-line eslint/no-await-in-loop -- Preserve the preceding completion before applying the next revision.
@@ -497,6 +502,10 @@ export function synchronize(): Promise<void> {
             body: JSON.stringify({ id: change.key.slice(9) }),
           });
         }
+      }
+
+      if (generation !== started) {
+        return;
       }
 
       acknowledgeBatch(cloudDatabase(), current.user.id, batch.seq);
