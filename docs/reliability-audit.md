@@ -121,3 +121,15 @@ spy. The defective-baseline job also disables its old constructor's transport;
 its sync continuation remains unchanged. Both ordinary and baseline regressions
 therefore use real Convex client lifecycle methods without external WebSockets.
 CI logs: Android job `128211165858`, web job `128211166138` (run `42310716322`).
+
+### Baseline reproduction feedback
+
+At head `3d1541e`, CI confirmed both Android baseline tests fail at the intended
+no-further-request assertion (4 requests instead of 2/3 after switching). The Go
+baseline fixture instead timed out: `synctest.Sleep` includes an implicit Wait,
+which waited on the callback while the fixture held its mutex. Use `time.Sleep`
+inside the synctest bubble to advance virtual time without that implicit Wait;
+release the mutex before the explicit Wait. A 60-second test timeout now bounds
+the baseline command. This corrects the fixture, preserving all stale-delivery
+and replacement-handle assertions. Evidence: run `42311125012`, baseline job
+`128212660998`; fixed-head timer validation remains pending CI.

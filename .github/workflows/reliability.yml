@@ -36,7 +36,7 @@ jobs:
           # Disable transport in the old constructor too; this changes no sync behavior.
           git show "$BASE:apps/android/src/data/cloud.ts" | sed 's/new ConvexClient(credentials.url)/new ConvexClient(credentials.url, { disabled: true })/' > apps/android/src/data/cloud.ts
           set +e
-          go test ./internal/push -run '^TestRestTimerDiscardsStaleCallback$' -count=1 > push-baseline.log 2>&1
+          go test ./internal/push -run '^TestRestTimerDiscardsStaleCallback$' -count=1 -timeout=60s > push-baseline.log 2>&1
           push_status=$?
           pnpm --dir apps/android exec vitest run tests/cloud-generation.test.ts > android-baseline.log 2>&1
           android_status=$?

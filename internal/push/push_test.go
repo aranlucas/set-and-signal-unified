@@ -627,7 +627,9 @@ func TestRestTimerDiscardsStaleCallback(t *testing.T) {
 				h.fake.captureSeam(h.push)
 				h.push.ScheduleRestTimer("u1", 1)
 				h.push.mu.Lock()
-				synctest.Sleep(time.Second)
+				// time.Sleep uses the bubble clock without synctest.Sleep's
+				// implicit Wait, which would wait on our locked callback.
+				time.Sleep(time.Second)
 				var replacement *time.Timer
 				if replace {
 					replacement = time.NewTimer(time.Hour)
