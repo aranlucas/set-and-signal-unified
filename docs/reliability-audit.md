@@ -144,3 +144,14 @@ uses the emulator action's documented `disk-size: 2G` input for this isolated
 single-app fixture. No test gate is skipped. Main CI's web suite passed all 424
 tests before its runner received a shutdown signal (run `42312639345`); the next
 push retries that interrupted validation. Full fixed-head results remain pending.
+
+### Repeated main-CI runner shutdown
+
+The `e78fb7d` main CI job (`42315449809/128226822103`) again received a runner
+shutdown signal with four gates unfinished; its web tests passed all 424 tests.
+This was not an assertion failure or the configured 15-minute timeout (the job
+ran seven minutes). Logs do not prove the host shutdown cause. As a bounded
+resource-contention mitigation, run the same race/vet/modernization/lint/web gates
+sequentially instead of concurrently launching three Go compilation/analysis
+trees alongside typed lint and Vitest. Allow 30 minutes for sequential execution.
+All gates and assertions remain intact; success still requires fresh CI evidence.
