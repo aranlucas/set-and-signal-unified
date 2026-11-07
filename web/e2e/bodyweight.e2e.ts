@@ -23,6 +23,7 @@ test("records body weight durably and converts it when units change", async ({
     storedProfile,
     JSON.parse(await browser.evaluate(() => localStorage.getItem("gym_state_v1") ?? "{}")),
   );
+
   const saved = v.parse(v.number(), before.bodyweight.at(-1)?.w);
 
   expect(saved).toBeGreaterThan(0);
@@ -42,6 +43,7 @@ test("records body weight durably and converts it when units change", async ({
     storedProfile,
     JSON.parse(await browser.evaluate(() => localStorage.getItem("gym_state_v1") ?? "{}")),
   );
+
   const weight = v.parse(v.number(), converted.bodyweight.at(-1)?.w);
 
   expect(converted.unit).toBe("lb");
