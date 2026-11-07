@@ -155,3 +155,12 @@ resource-contention mitigation, run the same race/vet/modernization/lint/web gat
 sequentially instead of concurrently launching three Go compilation/analysis
 trees alongside typed lint and Vitest. Allow 30 minutes for sequential execution.
 All gates and assertions remain intact; success still requires fresh CI evidence.
+
+### Sequential CI result
+
+At `a6c2824`, all Go packages passed race tests, vet and modernization checks in
+CI (`42316302688/128229625382`), including the timer regression. The remaining
+failure was the new e2e file's lint policy: unchecked type assertions and missing
+blank lines. Replace assertions with the existing Valibot runtime validation for
+stored profile/unit/bodyweight data; preserve all journey assertions. Fresh CI is
+still required for the complete head.
