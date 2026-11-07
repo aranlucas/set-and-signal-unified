@@ -615,3 +615,42 @@ func TestReminderKeepsRemainingSessionsAndHonorsEmptyOverride(t *testing.T) {
 		})
 	}
 }
+
+// A fired AfterFunc cannot be stopped, but cancellation/replacement must
+// still invalidate its callback while it waits to acquire the service lock.
+func TestRestTimerDiscardsStaleCallback(t *testing.T) {
+	for _, replace := range []bool{false, true} {
+		t.Run(fmt.Sprint(replace), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				h := newHarness(t)
+				h.addUser(t, "u1", "seam-u1")
+				h.fake.captureSeam(h.push)
+				h.push.ScheduleRestTimer("u1", 1)
+				h.push.mu.Lock()
+				// time.Sleep uses the bubble clock without synctest.Sleep's
+				// implicit Wait, which would wait on our locked callback.
+				time.Sleep(time.Second)
+				var replacement *time.Timer
+				if replace {
+					replacement = time.NewTimer(time.Hour)
+					defer replacement.Stop()
+					h.push.timers["u1"] = replacement
+				} else {
+					delete(h.push.timers, "u1")
+				}
+				h.push.mu.Unlock()
+				synctest.Wait()
+				if got := h.fake.count(); got != 0 {
+					t.Fatalf("stale timer delivered %d alerts", got)
+				}
+				h.push.mu.Lock()
+				got := h.push.timers["u1"]
+				h.push.mu.Unlock()
+				if got != replacement {
+					t.Fatal("stale callback removed replacement timer")
+				}
+				h.push.CancelRestTimer("u1")
+			})
+		})
+	}
+}

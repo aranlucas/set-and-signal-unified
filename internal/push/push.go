@@ -201,12 +201,18 @@ func (p *Service) ScheduleRestTimer(uid string, sec int) {
 	if t := p.timers[uid]; t != nil {
 		t.Stop()
 	}
-	p.timers[uid] = time.AfterFunc(time.Duration(sec)*time.Second, func() {
+	var timer *time.Timer
+	timer = time.AfterFunc(time.Duration(sec)*time.Second, func() {
 		p.mu.Lock()
+		if p.timers[uid] != timer {
+			p.mu.Unlock()
+			return
+		}
 		delete(p.timers, uid)
 		p.mu.Unlock()
 		p.SendTo(uid, "Rest over 💪", "Time for your next set.", "rest-timer")
 	})
+	p.timers[uid] = timer
 }
 
 // CancelRestTimer disarms the pending rest timer, if any.

@@ -1,0 +1,131 @@
+name: Reliability regressions
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reliability-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  baseline:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e
+        with:
+          runtime: "node@24"
+          require-lockfile: true
+      - name: Verify regressions reject defective baseline
+        env:
+          BASE: 52cefb3
+        run: |
+          git show "$BASE:internal/push/push.go" > internal/push/push.go
+          # Disable transport in the old constructor too; this changes no sync behavior.
+          git show "$BASE:apps/android/src/data/cloud.ts" | sed 's/new ConvexClient(credentials.url)/new ConvexClient(credentials.url, { disabled: true })/' > apps/android/src/data/cloud.ts
+          set +e
+          go test ./internal/push -run '^TestRestTimerDiscardsStaleCallback$' -count=1 -timeout=60s > push-baseline.log 2>&1
+          push_status=$?
+          pnpm --dir apps/android exec vitest run tests/cloud-generation.test.ts > android-baseline.log 2>&1
+          android_status=$?
+          set -e
+          cat push-baseline.log android-baseline.log
+          test "$push_status" -ne 0
+          test "$android_status" -ne 0
+          grep -q 'stale timer delivered' push-baseline.log
+          grep -q 'AssertionError' android-baseline.log
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: defective-baseline-evidence
+          path: "*-baseline.log"
+
+  web:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e
+        with:
+          runtime: "node@24"
+          require-lockfile: true
+      - name: Build supported offline demo
+        run: pnpm --dir web build
+        env:
+          VITE_DEMO: "1"
+      - run: pnpm --dir web exec e2e-web install chromium --with-deps
+      - run: pnpm --dir web exec e2e run
+        env:
+          E2E_TELEMETRY_DISABLED: "1"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: web-e2e-evidence
+          path: web/.e2e
+          include-hidden-files: true
+
+  android:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e
+        with:
+          runtime: "node@24"
+          require-lockfile: true
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Generate native project
+        working-directory: apps/android
+        run: pnpm exec expo prebuild --platform android --no-install
+      - name: Build fixture APK
+        working-directory: apps/android/android
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64
+      - name: Preserve APK and reclaim native build space
+        working-directory: apps/android/android
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/fixture.apk"
+          ./gradlew clean --no-daemon
+          ./gradlew --stop
+          df -h .
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_7
+          disk-size: 2G
+          disable-animations: true
+          script: |
+            adb install -r "$RUNNER_TEMP/fixture.apk"
+            pnpm --dir apps/android exec e2e run tests/e2e/offline-session.e2e.ts --target android
+        env:
+          E2E_TELEMETRY_DISABLED: "1"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: android-e2e-evidence
+          path: apps/android/.e2e
+          include-hidden-files: true
