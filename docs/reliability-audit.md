@@ -164,3 +164,13 @@ failure was the new e2e file's lint policy: unchecked type assertions and missin
 blank lines. Replace assertions with the existing Valibot runtime validation for
 stored profile/unit/bodyweight data; preserve all journey assertions. Fresh CI is
 still required for the complete head.
+
+### Hosted CI paused at user's request
+
+The user requested that PR #4 consume no more GitHub minutes. The repository is
+private and has no registered self-hosted runners. Requested cancellation of the
+two active hosted runs (`42317949938`, `42317949951`), marked the PR draft, and
+added draft guards to each reliability job to match the existing main/application
+CI behavior. Tests and assertions remain present; skipped draft jobs are not
+validation evidence and the PR is not ready to merge. Completing validation
+requires a self-hosted CI runner or a user override of the prior CI-only policy.

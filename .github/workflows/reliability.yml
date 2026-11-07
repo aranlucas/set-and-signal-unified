@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   baseline:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -53,6 +53,7 @@ jobs:
           path: "*-baseline.log"
 
   web:
+    if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -77,6 +78,7 @@ jobs:
           include-hidden-files: true
 
   android:
+    if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
