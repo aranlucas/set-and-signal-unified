@@ -174,3 +174,12 @@ added draft guards to each reliability job to match the existing main/applicatio
 CI behavior. Tests and assertions remain present; skipped draft jobs are not
 validation evidence and the PR is not ready to merge. Completing validation
 requires a self-hosted CI runner or a user override of the prior CI-only policy.
+
+### Public-repository validation resumed
+
+The user explicitly authorized making `aranlucas/set-and-signal-unified` public
+so standard public GitHub-hosted runners can complete validation without drawing
+private-repository compute usage. Repository visibility was changed and verified
+as PUBLIC. Add `ready_for_review` to reliability workflow triggers so returning
+PR #4 from draft starts the same gated regressions as the other CI workflows.
+The temporary pause is lifted; no assertions or gates are removed.
