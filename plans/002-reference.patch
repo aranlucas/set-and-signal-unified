@@ -1,0 +1,482 @@
+diff --git i/internal/httpapi/granular.go w/internal/httpapi/granular.go
+index d9f4a32..d22c7be 100644
+--- i/internal/httpapi/granular.go
++++ w/internal/httpapi/granular.go
+@@ -404,7 +404,17 @@ func (s *Server) applySettings(uid string, patch *settingsPatch) (settingsRespon
+ 		return settingsResponse{}, http.StatusBadRequest, "no recognized settings in patch"
+ 	}
+ 	applied := slices.Sorted(maps.Keys(document))
+-	err = s.mutateDocument(uid, func(state stateDocument) error { maps.Copy(state, document); return nil })
++	err = s.mutateDocument(uid, func(state stateDocument) error {
++		for key, value := range document {
++			// The web accepts only listed values for these; removing an empty one restores its default.
++			if string(value) == `""` && slices.Contains([]string{"theme", "accent", "gifSize"}, key) {
++				delete(state, key)
++			} else {
++				state[key] = value
++			}
++		}
++		return nil
++	})
+ 	if err != nil {
+ 		return settingsResponse{}, http.StatusInternalServerError, "server error"
+ 	}
+@@ -412,7 +422,8 @@ func (s *Server) applySettings(uid string, patch *settingsPatch) (settingsRespon
+ }
+ 
+ // Pointer fields distinguish an omitted setting from explicit false, zero or
+-// an empty string. Empty strings clear presentation preferences.
++// an empty string. Empty strings clear presentation preferences. Enumerated
++// values mirror the web state schema (accents: web/src/shared/lib/accents.ts).
+ type settingsPatch struct {
+ 	Unit      *string  `json:"unit,omitzero" validate:"omitempty,oneof=kg lb"`
+ 	Effort    *string  `json:"effort,omitzero" validate:"omitempty,oneof=none rir rpe"`
+@@ -421,7 +432,7 @@ type settingsPatch struct {
+ 	Sound     *bool    `json:"sound,omitzero"`
+ 	KeepAwake *bool    `json:"keepAwake,omitzero"`
+ 	Lang      *string  `json:"lang,omitzero" validate:"omitempty,max=24"`
+-	Theme     *string  `json:"theme,omitzero" validate:"omitempty,max=24"`
+-	Accent    *string  `json:"accent,omitzero" validate:"omitempty,max=24"`
+-	GIFSize   *string  `json:"gifSize,omitzero" validate:"omitempty,max=24"`
++	Theme     *string  `json:"theme,omitzero" validate:"omitempty,max=24,eq=|oneof=dark light"`
++	Accent    *string  `json:"accent,omitzero" validate:"omitempty,max=24,eq=|oneof=lime sky orange violet pink red teal gold"`
++	GIFSize   *string  `json:"gifSize,omitzero" validate:"omitempty,max=24,eq=|oneof=full mini"`
+ }
+diff --git i/internal/httpapi/granular_test.go w/internal/httpapi/granular_test.go
+index 61adea5..cf39f8a 100644
+--- i/internal/httpapi/granular_test.go
++++ w/internal/httpapi/granular_test.go
+@@ -4,6 +4,7 @@ import (
+ 	"encoding/json/jsontext"
+ 	"encoding/json/v2"
+ 	"net/http"
++	"reflect"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -103,10 +104,12 @@ func TestRoutineResponsePreservesSanitizedFields(t *testing.T) {
+ 	if entry["weight"] != float64(0) || entry["inc"] != float64(0) || entry["side"] != true || entry["prog"] != "off" || entry["bodyweight"] != false {
+ 		t.Fatalf("sanitized fields = %v", entry)
+ 	}
+-	for _, key := range []string{"sets", "unknown"} {
+-		if _, present := entry[key]; present {
+-			t.Fatalf("unexpected %s in sanitized entry: %v", key, entry)
+-		}
++	// An omitted set count gets the web default, because the web cannot load a planned exercise without one.
++	if entry["sets"] != float64(3) {
++		t.Fatalf("sets = %v, want the web default 3", entry["sets"])
++	}
++	if _, present := entry["unknown"]; present {
++		t.Fatalf("unexpected unknown in sanitized entry: %v", entry)
+ 	}
+ 	stored := e.getState("cookie")["routines"].([]any)[0].(map[string]any)
+ 	if storedEntry := stored["ex"].([]any)[0].(map[string]any); len(storedEntry) != len(entry) || storedEntry["weight"] != float64(0) {
+@@ -371,6 +374,45 @@ func TestBodyweightRejectsNumericDate(t *testing.T) {
+ 
+ // ---------- settings ----------
+ 
++// The web only loads listed presentation values, so clearing one removes it
++// and lets the app fall back to its default instead of storing "".
++func TestSettingsPatchClearsPresentationPreferences(t *testing.T) {
++	e := newTestEnv(t)
++	e.post("/api/settings", `{"settings":{"theme":"dark","accent":"teal","gifSize":"mini","lang":"de"}}`, "cookie")
++	response, _ := e.post("/api/settings", `{"settings":{"theme":"","accent":"","gifSize":"","lang":""}}`, "cookie")
++	if response.StatusCode != http.StatusOK {
++		t.Fatalf("clear status = %d", response.StatusCode)
++	}
++	st := e.getState("cookie")
++	for _, key := range []string{"theme", "accent", "gifSize"} {
++		if value, ok := st[key]; ok {
++			t.Errorf("%s = %#v, want it removed", key, value)
++		}
++	}
++	if st["lang"] != "" {
++		t.Errorf("lang = %#v, want the empty automatic choice kept", st["lang"])
++	}
++}
++
++func TestRoutineExercisesWithoutSetsGetTheWebDefault(t *testing.T) {
++	e := newTestEnv(t)
++	response, _ := e.post("/api/routine", `{"routine":{"name":"Mixed","ex":[{"id":"bench"},{"id":"3220"},{"id":"squat","sets":5}]}}`, "cookie")
++	if response.StatusCode != http.StatusOK {
++		t.Fatalf("status = %d", response.StatusCode)
++	}
++	routines, _ := e.getState("cookie")["routines"].([]any)
++	if len(routines) != 1 {
++		t.Fatalf("routines = %#v", routines)
++	}
++	var sets []any
++	for _, exercise := range routines[0].(map[string]any)["ex"].([]any) {
++		sets = append(sets, exercise.(map[string]any)["sets"])
++	}
++	if !reflect.DeepEqual(sets, []any{3.0, 1.0, 5.0}) {
++		t.Fatalf("stored set counts = %v, want strength 3, cardio 1, explicit 5", sets)
++	}
++}
++
+ func TestSettingsPatchPreservesClearingValues(t *testing.T) {
+ 	e := newTestEnv(t)
+ 
+diff --git i/internal/httpapi/program_preview.go w/internal/httpapi/program_preview.go
+index 61448e2..48c24f5 100644
+--- i/internal/httpapi/program_preview.go
++++ w/internal/httpapi/program_preview.go
+@@ -69,6 +69,10 @@ func normalizeRoutine(input training.MCPRoutineInput) (training.MCPRoutine, erro
+ 	}
+ 	for i := range routine.Ex {
+ 		entry := &routine.Ex[i]
++		// The web app requires a set count on every planned exercise.
++		if entry.Sets == nil {
++			entry.Sets = new(training.DefaultExerciseSets(*entry))
++		}
+ 		for _, field := range []**float64{&entry.Sets, &entry.Reps, &entry.Weight, &entry.Sec, &entry.Min, &entry.Speed, &entry.Inc, &entry.RepsMin, &entry.RepsMax} {
+ 			if *field != nil {
+ 				*field = new(roundHundredths(**field))
+diff --git i/internal/httpapi/validation_test.go w/internal/httpapi/validation_test.go
+index 398118f..db7103c 100644
+--- i/internal/httpapi/validation_test.go
++++ w/internal/httpapi/validation_test.go
+@@ -31,6 +31,9 @@ func TestInvalidRequestsLeaveStateUnchanged(t *testing.T) {
+ 		{"settings range", "/api/settings", `{"settings":{"sound":false,"restSec":601}}`, "restSec"},
+ 		{"settings enum", "/api/settings", `{"settings":{"unit":"stone"}}`, "unit"},
+ 		{"settings length", "/api/settings", `{"settings":{"theme":"` + strings.Repeat("x", 25) + `"}}`, "theme"},
++		{"settings theme outside web values", "/api/settings", `{"settings":{"theme":"system"}}`, "theme"},
++		{"settings accent outside web values", "/api/settings", `{"settings":{"accent":"blue"}}`, "accent"},
++		{"settings media size outside web values", "/api/settings", `{"settings":{"gifSize":"large"}}`, "gifSize"},
+ 		{"settings numeric string", "/api/settings", `{"settings":{"targetW":"80"}}`, "bad json"},
+ 		{"unknown nested field", "/api/routine", `{"routine":{"name":"Push","ex":[{"id":"bench","unknown":true}]}}`, "bad json"},
+ 	} {
+diff --git i/internal/training/prescription.go w/internal/training/prescription.go
+index 97483bc..745e881 100644
+--- i/internal/training/prescription.go
++++ w/internal/training/prescription.go
+@@ -363,6 +363,56 @@ func validateLoadedWorkingSets(workout MCPWorkout) error {
+ 	return nil
+ }
+ 
++// The web app rejects a whole hosted profile when one stored record misses a
++// field its state schema requires, so server writes complete or reject them.
++
++// DefaultExerciseSets matches the web's defaultConfig for a newly added exercise.
++func DefaultExerciseSets(cfg MCPExConfig) float64 {
++	if progressionMode(progressionConfigFromMCP(cfg)) == "cardio" {
++		return 1
++	}
++	return 3
++}
++
++// completeLoggedSet maps a set onto the web's reps, time, or cardio shape.
++// Reps and timed sets record bodyweight-only work as weight 0, as the web does.
++func completeLoggedSet(set MCPLoggedSet) (MCPLoggedSet, error) {
++	switch {
++	case set.Min != nil || set.Speed != nil:
++		if set.Min == nil || set.Speed == nil {
++			return set, errors.New("a cardio set needs both min and speed")
++		}
++	case set.R != nil || set.Sec != nil:
++		if set.W == nil {
++			set.W = new(0.0)
++		}
++	default:
++		return set, errors.New("a set needs r, sec, or min and speed")
++	}
++	return set, nil
++}
++
++func completeWorkoutRecords(workout *MCPWorkout) error {
++	workout.Entries = slices.Clone(workout.Entries)
++	for i := range workout.Entries {
++		entry := &workout.Entries[i]
++		entry.Sets = slices.Clone(entry.Sets)
++		for j := range entry.Sets {
++			set, err := completeLoggedSet(entry.Sets[j])
++			if err != nil {
++				return fmt.Errorf("set %d of %s: %w", j+1, entry.ID, err)
++			}
++			entry.Sets[j] = set
++		}
++		if entry.Target != nil && entry.Target.Sets == nil {
++			target := cloneExConfig(*entry.Target)
++			target.Sets = new(float64(max(1, len(entry.Sets))))
++			entry.Target = &target
++		}
++	}
++	return nil
++}
++
+ func workoutVolumeOf(workout MCPWorkout) float64 {
+ 	vol := 0.0
+ 	for _, entry := range workout.Entries {
+@@ -441,7 +491,11 @@ func LogExerciseSets(data *TrainingData, input MCPLogExerciseSetsInput, now time
+ 		if set.Done != nil {
+ 			done = *set.Done
+ 		}
+-		loggedSet := MCPLoggedSet{Done: done, W: cloneFloat(set.W), R: new(set.R)}
++		weight := 0.0
++		if set.W != nil {
++			weight = *set.W
++		}
++		loggedSet := MCPLoggedSet{Done: done, W: new(weight), R: new(set.R)}
+ 		logged = append(logged, loggedSet)
+ 	}
+ 	if cfg.Sets == nil {
+diff --git i/internal/training/prescription_test.go w/internal/training/prescription_test.go
+index b6b1a0c..a1b680a 100644
+--- i/internal/training/prescription_test.go
++++ w/internal/training/prescription_test.go
+@@ -182,6 +182,22 @@ func TestLogExerciseSetsWritesNextWeight(t *testing.T) {
+ 	}
+ }
+ 
++func TestLogExerciseSetsRecordsBodyweightRepsWithZeroWeight(t *testing.T) {
++	data := aptView()
++	workout, _, err := LogExerciseSets(&data, MCPLogExerciseSetsInput{
++		ExerciseID: "0662", D: new("2026-08-24"),
++		Sets: []MCPLogExerciseSet{{R: 10}, {R: 8}},
++	}, time.Date(2026, 8, 24, 18, 0, 0, 0, time.UTC))
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, set := range workout.Entries[0].Sets {
++		if set.W == nil || *set.W != 0 {
++			t.Fatalf("push-up set stored without the weight the web requires: %+v", set)
++		}
++	}
++}
++
+ func TestLogExerciseSetsRequiresWeightOnLoadedLifts(t *testing.T) {
+ 	data := aptView()
+ 	_, _, err := LogExerciseSets(&data, MCPLogExerciseSetsInput{
+diff --git i/internal/training/repository.go w/internal/training/repository.go
+index 6c9a08f..72e4543 100644
+--- i/internal/training/repository.go
++++ w/internal/training/repository.go
+@@ -134,6 +134,9 @@ func (r *TrainingDataRepository) PutWorkout(uid string, workout MCPWorkout) (MCP
+ 	if err := validation.Validator.Struct(workout); err != nil {
+ 		return MCPWorkout{}, err
+ 	}
++	if err := completeWorkoutRecords(&workout); err != nil {
++		return MCPWorkout{}, err
++	}
+ 
+ 	if err := validateLoadedWorkingSets(workout); err != nil {
+ 		return MCPWorkout{}, err
+diff --git i/internal/training/repository_test.go w/internal/training/repository_test.go
+index 20a0936..d918542 100644
+--- i/internal/training/repository_test.go
++++ w/internal/training/repository_test.go
+@@ -200,6 +200,57 @@ func TestTrainingDataRepositoryPutWorkoutUpsertsTypedWorkout(t *testing.T) {
+ 	}
+ }
+ 
++// The web state schema requires a weight on reps and timed sets and a set
++// count on targets; one stored record without them hides the whole profile.
++func TestPutWorkoutStoresSetsTheWebCanLoad(t *testing.T) {
++	st, repo := openTrainingRepositoryTest(t)
++	workout := MCPWorkout{ID: "w1", D: "2026-09-01", Name: "Push", Entries: []MCPWorkoutEntry{
++		{ID: "0662", Sets: []MCPLoggedSet{{Done: true, R: new(10.0)}}, Target: &MCPExConfig{ID: "0662"}},
++		{ID: "plank", Sets: []MCPLoggedSet{{Done: true, Sec: new(45.0)}, {Done: true, Sec: new(40.0)}}, Target: &MCPExConfig{ID: "plank", Mode: new("time"), Sets: new(2.0)}},
++	}}
++	if _, err := repo.PutWorkout("u1", workout); err != nil {
++		t.Fatal(err)
++	}
++	raw, err := st.ReadState("u1")
++	if err != nil {
++		t.Fatal(err)
++	}
++	var state struct {
++		Workouts []struct {
++			Entries []struct {
++				Sets   []map[string]any `json:"sets"`
++				Target map[string]any   `json:"target"`
++			} `json:"entries"`
++		} `json:"workouts"`
++	}
++	if err := json.Unmarshal(raw, &state); err != nil {
++		t.Fatal(err)
++	}
++	entries := state.Workouts[0].Entries
++	if entries[0].Sets[0]["w"] != 0.0 || entries[1].Sets[0]["w"] != 0.0 || entries[1].Sets[1]["w"] != 0.0 {
++		t.Fatalf("bodyweight sets stored without a weight: %s", raw)
++	}
++	if entries[0].Target["sets"] != 1.0 {
++		t.Fatalf("target stored without a set count: %s", raw)
++	}
++	if workout.Entries[0].Sets[0].W != nil || workout.Entries[0].Target.Sets != nil {
++		t.Fatal("PutWorkout changed the caller's workout")
++	}
++}
++
++func TestPutWorkoutRejectsSetsWithoutAWebShape(t *testing.T) {
++	st, repo := openTrainingRepositoryTest(t)
++	for _, set := range []MCPLoggedSet{{Done: true}, {Done: true, W: new(20.0)}, {Done: true, Min: new(20.0)}} {
++		workout := MCPWorkout{ID: "w1", D: "2026-09-01", Entries: []MCPWorkoutEntry{{ID: "3220", Sets: []MCPLoggedSet{set}}}}
++		if _, err := repo.PutWorkout("u1", workout); err == nil {
++			t.Errorf("accepted set %+v", set)
++		}
++	}
++	if raw, _ := st.ReadState("u1"); string(raw) != "null" {
++		t.Fatalf("rejected workouts were stored: %s", raw)
++	}
++}
++
+ func TestTrainingMutationPreservesCustomExerciseSnapshot(t *testing.T) {
+ 	st, repo := openTrainingRepositoryTest(t)
+ 	if err := st.WriteState("u1", jsontext.Value(`{"workouts":[{"id":"w1","d":"2026-09-01","start":1,"end":2,"name":"Custom","entries":[{"id":"deleted","sets":[],"muscleSnapshot":{"n":"Cable Press","bp":"chest","muscleWeights":{"chest":1,"triceps":0.5}}}],"prs":[],"vol":0}]}`)); err != nil {
+diff --git i/web/convex/training.ts w/web/convex/training.ts
+index c825719..4b16002 100644
+--- i/web/convex/training.ts
++++ w/web/convex/training.ts
+@@ -37,6 +37,40 @@ export const snapshot = query({
+   },
+ });
+ 
++// Browsers load the whole snapshot through appStatePatch, so one record it
++// rejects hides the entire profile on every device. Browser commits and server
++// replacements therefore admit only records that schema accepts.
++function checkRecord(key: string, encoded: string) {
++  const value: unknown = JSON.parse(encoded);
++
++  if (canonical(value) !== encoded) throw new ConvexError("Invalid record encoding");
++  const slash = key.indexOf("/");
++  const kind = key.slice(0, slash);
++  const id = key.slice(slash + 1);
++
++  if (kind === "order") {
++    if (
++      !["workouts", "routines", "customEx"].includes(id) ||
++      !Array.isArray(value) ||
++      value.some((item) => !validation.is(validation.string(), item)) ||
++      new Set(value).size !== value.length
++    )
++      throw new ConvexError("Invalid order");
++
++    return;
++  }
++
++  if (kind === "field" && ["workouts", "routines", "customEx"].includes(id))
++    throw new ConvexError("Use record changes");
++  const patch = kind === "field" ? { [id]: value } : { [kind]: [value] };
++
++  if (
++    !safeParse(appStatePatch, patch).success ||
++    (kind !== "field" && !validation.is(validation.object({ id: validation.literal(id) }), value))
++  )
++    throw new ConvexError(`Invalid training record: ${key}`);
++}
++
+ const change = v.object({
+   key: v.string(),
+   expected: v.union(v.string(), v.null()),
+@@ -85,31 +119,7 @@ export const commit = mutation({
+ 
+       if (current !== change.expected) throw new ConvexError({ code: "CONFLICT", key: change.key });
+ 
+-      if (change.value !== null) {
+-        const value = JSON.parse(change.value);
+-
+-        if (canonical(value) !== change.value) throw new ConvexError("Invalid record encoding");
+-        const slash = change.key.indexOf("/");
+-        const kind = change.key.slice(0, slash);
+-        const id = change.key.slice(slash + 1);
+-
+-        if (kind === "order") {
+-          if (
+-            !["workouts", "routines", "customEx"].includes(id) ||
+-            !Array.isArray(value) ||
+-            value.some((item) => !validation.is(validation.string(), item)) ||
+-            new Set(value).size !== value.length
+-          )
+-            throw new ConvexError("Invalid order");
+-        } else {
+-          if (kind === "field" && ["workouts", "routines", "customEx"].includes(id))
+-            throw new ConvexError("Use record changes");
+-          const patch = kind === "field" ? { [id]: value } : { [kind]: [value] };
+-
+-          if (!safeParse(appStatePatch, patch).success || (kind !== "field" && value?.id !== id))
+-            throw new ConvexError("Invalid training record");
+-        }
+-      }
++      if (change.value !== null) checkRecord(change.key, change.value);
+ 
+       pending.push({ change, row });
+     }
+@@ -154,6 +164,10 @@ export const replace = mutation({
+     if (!value || Array.isArray(value) || !validation.is(validation.object({}), value))
+       throw new ConvexError("State must be an object");
+     const next = new Map(splitState(value).map((row) => [row.key, row.value]));
++    const stored = new Map(records.map((row) => [row.key, row.value]));
++
++    // Unchanged legacy records stay as they are; every new or edited one must load in a browser.
++    for (const [key, value] of next) if (stored.get(key) !== value) checkRecord(key, value);
+ 
+     for (const row of records) {
+       const value = next.get(row.key);
+diff --git i/web/test/app/store/convex.test.ts w/web/test/app/store/convex.test.ts
+index 9096bdb..d215ed1 100644
+--- i/web/test/app/store/convex.test.ts
++++ w/web/test/app/store/convex.test.ts
+@@ -17,6 +17,18 @@ function setup() {
+   };
+ }
+ 
++function pushUps(sets: object[]) {
++  return {
++    id: "w1",
++    d: "2026-09-01",
++    start: 1,
++    end: 2,
++    name: "Push",
++    entries: [{ id: "0662", sets }],
++    vol: 0,
++  };
++}
++
+ describe("Convex training authority", () => {
+   it("isolates users and rejects anonymous and browser snapshot replacements", async () => {
+     const { t, alice, bob, browser } = setup();
+@@ -113,6 +125,44 @@ describe("Convex training authority", () => {
+     expect(await alice.query(api.training.snapshot, {})).not.toHaveProperty("restSec");
+   });
+ 
++  it("rejects server replacements a browser could not load, without blocking on legacy records", async () => {
++    const { t, alice, browser } = setup();
++
++    const logged = pushUps([{ done: true, w: 0, r: 10 }]);
++    await alice.mutation(api.training.replace, {
++      state: JSON.stringify({ unit: "kg", workouts: [logged] }),
++      expected: null,
++    });
++    await expect(
++      alice.mutation(api.training.replace, {
++        state: JSON.stringify({ unit: "lb", workouts: [pushUps([{ done: true, r: 10 }])] }),
++        expected: null,
++      }),
++    ).rejects.toThrow("Invalid training record: workouts/w1");
++    await expect(
++      alice.mutation(api.training.replace, {
++        state: JSON.stringify({ unit: "kg", theme: "system", workouts: [logged] }),
++        expected: null,
++      }),
++    ).rejects.toThrow("Invalid training record: field/theme");
++    expect(await alice.query(api.training.snapshot, {})).toMatchObject({
++      unit: "kg",
++      workouts: [logged],
++    });
++    expect(await browser.query(api.training.snapshot, {})).not.toHaveProperty("theme");
++
++    // Records stored before this check existed must not block unrelated server edits,
++    // such as the progression update after an Android workout is finalized.
++    await t.run(async (ctx) => {
++      await ctx.db.insert("records", { owner: "alice", key: "field/theme", value: '"system"' });
++    });
++    await alice.mutation(api.training.replace, {
++      state: JSON.stringify({ unit: "lb", theme: "system", workouts: [logged] }),
++      expected: null,
++    });
++    expect(await alice.query(api.training.snapshot, {})).toMatchObject({ unit: "lb" });
++  });
++
+   it("round trips record order and rejects duplicate record identities", () => {
+     const state = {
+       workouts: [
