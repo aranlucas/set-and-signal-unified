@@ -13,7 +13,7 @@ import (
 	"github.com/aranlucas/set-and-signal-unified/internal/store"
 )
 
-func TestPasskeyResumeCompletesBoundPKCEFlowOnce(t *testing.T) {
+func TestPasskeyResumeCompletesBoundPKCEFlowOnceAfterConsent(t *testing.T) {
 	st, err := store.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,27 @@ func TestPasskeyResumeCompletesBoundPKCEFlowOnce(t *testing.T) {
 	if got := attempt(false); got.Code != 401 {
 		t.Fatalf("anonymous resume: %d", got.Code)
 	}
-	completed := attempt(true)
+	resumed := attempt(true)
+	if resumed.Code != 302 || strings.Contains(resumed.Header().Get("Location"), "code=") {
+		t.Fatalf("resume issued a code without approval: %d %s", resumed.Code, resumed.Header().Get("Location"))
+	}
+	signedIn := func(r *http.Request) *http.Request {
+		cookie, _ := sessions.Make(user.ID, user.SV)
+		r.AddCookie(&http.Cookie{Name: "gymsid", Value: cookie})
+		return r
+	}
+	page := httptest.NewRecorder()
+	s.consentPage(page, signedIn(httptest.NewRequest("GET", "https://product.example"+resumed.Header().Get("Location"), nil)))
+	consent, _ := url.Parse(resumed.Header().Get("Location"))
+	token := consentToken.FindStringSubmatch(page.Body.String())
+	if page.Code != 200 || token == nil {
+		t.Fatalf("consent page after resume: %d %s", page.Code, page.Body.String())
+	}
+	form := url.Values{"state": {consent.Query().Get("state")}, "token": {token[1]}, "decision": {"allow"}}
+	approval := httptest.NewRequest("POST", "https://product.example/oauth/consent", strings.NewReader(form.Encode()))
+	approval.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	completed := httptest.NewRecorder()
+	s.consentDecision(completed, signedIn(approval))
 	u, _ := url.Parse(completed.Header().Get("Location"))
 	if completed.Code != 302 || u.Scheme != "fivefold" || u.Query().Get("state") != "native-state" || u.Query().Get("code") == "" {
 		t.Fatalf("incorrect native redirect: %d %s", completed.Code, completed.Header().Get("Location"))

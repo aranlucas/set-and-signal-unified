@@ -40,7 +40,8 @@ type Server struct {
 	Sess *auth.Sessions
 
 	mu        sync.Mutex
-	logins    map[string]loginPending // state → pending authorize after IdP
+	logins    map[string]loginPending   // state → pending authorize after IdP
+	consents  map[string]consentPending // state → signed-in request awaiting approval
 	providers map[string]Provider
 }
 
@@ -62,6 +63,7 @@ func New(cfg config.Config, st *store.Store, sess *auth.Sessions) *Server {
 		ST:        st,
 		Sess:      sess,
 		logins:    map[string]loginPending{},
+		consents:  map[string]consentPending{},
 		providers: map[string]Provider{},
 	}
 	for _, p := range configuredProviders(cfg) {
@@ -106,6 +108,8 @@ func (s *Server) Mount(r chi.Router) {
 	r.Get("/oauth/authorize", s.authorize)
 	r.Get("/oauth/login", s.loginPage)
 	r.Get("/oauth/resume", s.resumeSession)
+	r.Get("/oauth/consent", s.consentPage)
+	r.Method(http.MethodPost, "/oauth/consent", http.NewCrossOriginProtection().Handler(http.HandlerFunc(s.consentDecision)))
 	r.Get("/oauth/web/{provider}", s.webLoginStart)
 	r.Get("/oauth/callback/{provider}", s.oidcCallback)
 	r.Post("/oauth/token", s.token)

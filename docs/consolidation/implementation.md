@@ -31,7 +31,10 @@ remains available on web; the native planned-session recorder states its
 strength-only scope before starting an unsupported routine.
 
 Native sign-in uses the product's existing OAuth authorization-code + PKCE flow
-in the system browser, including passkey-only deployments. Application session
+in the system browser, including passkey-only deployments. Client registration
+is open, so every client, Android included, gets an authorization code only
+after the signed-in user approves an `/oauth/consent` page. The page names the
+client, where the code will be sent and the requested access. Application session
 material is stored with Expo SecureStore. Convex tokens are issued for the same
 product owner, and cached records, drafts and queued operations are partitioned
 by that owner.

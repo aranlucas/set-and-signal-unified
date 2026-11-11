@@ -58,8 +58,20 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		scope = ScopeAll
 	}
 
+	pending := loginPending{
+		ClientID:            clientID,
+		RedirectURI:         redirectURI,
+		State:               state,
+		CodeChallenge:       challenge,
+		CodeChallengeMethod: method,
+		Scope:               scope,
+		Resource:            resource,
+		Exp:                 time.Now().Add(loginTTL),
+	}
+	// A signed-in browser still has to approve the client: a cross-site link
+	// carries the session cookie, and anyone can register a redirect URI.
 	if u := s.sessionUser(r); u != nil {
-		s.issueCodeRedirect(w, r, u, clientID, redirectURI, state, challenge, method, scope, resource)
+		s.beginConsent(w, r, u, pending)
 		return
 	}
 
@@ -70,16 +82,7 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 	}
 	loginState := base64.RawURLEncoding.EncodeToString(raw)
 	s.mu.Lock()
-	s.logins[loginState] = loginPending{
-		ClientID:            clientID,
-		RedirectURI:         redirectURI,
-		State:               state,
-		CodeChallenge:       challenge,
-		CodeChallengeMethod: method,
-		Scope:               scope,
-		Resource:            resource,
-		Exp:                 time.Now().Add(loginTTL),
-	}
+	s.logins[loginState] = pending
 	s.mu.Unlock()
 
 	http.Redirect(w, r, "/oauth/login?state="+url.QueryEscape(loginState), http.StatusFound)
@@ -107,13 +110,19 @@ func (s *Server) issueCodeRedirect(w http.ResponseWriter, r *http.Request, u *st
 		return
 	}
 
+	s.clientRedirect(w, r, redirectURI, state, "code", code)
+}
+
+// clientRedirect returns an authorization response (RFC 6749 §4.1.2) with the
+// issuer identifier (RFC 9207) to the client's registered redirect URI.
+func (s *Server) clientRedirect(w http.ResponseWriter, r *http.Request, redirectURI, state, key, value string) {
 	ru, err := url.Parse(redirectURI)
 	if err != nil {
 		http.Error(w, "server_error", http.StatusInternalServerError)
 		return
 	}
 	qv := ru.Query()
-	qv.Set("code", code)
+	qv.Set(key, value)
 	if state != "" {
 		qv.Set("state", state)
 	}
@@ -224,8 +233,7 @@ func (s *Server) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, next, http.StatusFound)
 		return
 	}
-	s.issueCodeRedirect(w, r, u, pending.ClientID, pending.RedirectURI, pending.State,
-		pending.CodeChallenge, pending.CodeChallengeMethod, pending.Scope, pending.Resource)
+	s.beginConsent(w, r, u, pending)
 }
 
 // GET /oauth/web/{provider} — browser sign-in for the SPA (sets gymsid, no MCP code).
@@ -270,8 +278,8 @@ func pkceS256(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
-// resumeSession completes an already-pending PKCE authorization after the SPA
-// signs the user in with an existing or newly registered passkey.
+// resumeSession continues an already-pending PKCE authorization to the consent
+// page after the SPA signs the user in with an existing or newly registered passkey.
 func (s *Server) resumeSession(w http.ResponseWriter, r *http.Request) {
 	user := s.sessionUser(r)
 	if user == nil {
@@ -289,5 +297,5 @@ func (s *Server) resumeSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Authorization expired; start again", http.StatusBadRequest)
 		return
 	}
-	s.issueCodeRedirect(w, r, user, pending.ClientID, pending.RedirectURI, pending.State, pending.CodeChallenge, pending.CodeChallengeMethod, pending.Scope, pending.Resource)
+	s.beginConsent(w, r, user, pending)
 }
