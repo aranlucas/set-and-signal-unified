@@ -11,10 +11,10 @@ require (
 	github.com/google/jsonschema-go v0.4.3
 	github.com/invopop/jsonschema v0.14.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	github.com/openai/openai-go/v3 v3.91.1
+	github.com/openai/openai-go/v3 v3.97.0
 	github.com/pressly/goose/v3 v3.29.0
-	golang.org/x/oauth2 v0.37.0
-	modernc.org/sqlite v1.61.1
+	golang.org/x/oauth2 v0.38.0
+	modernc.org/sqlite v1.62.0
 )
 
 require (
@@ -54,7 +54,7 @@ require (
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	modernc.org/libc v1.79.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )

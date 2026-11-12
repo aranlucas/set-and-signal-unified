@@ -22,31 +22,31 @@
     "format:check": "oxfmt --check"
   },
   "dependencies": {
-    "@garmin/fitsdk": "21.218.0",
+    "@garmin/fitsdk": "21.221.0",
     "@modelcontextprotocol/hono": "2.0.2",
     "@modelcontextprotocol/server": "2.4.0",
     "@set-and-signal/training": "workspace:*",
-    "hono": "4.13.16",
-    "jose": "^6.2.15",
+    "hono": "4.13.17",
+    "jose": "^6.2.16",
     "standardwebhooks": "^1.1.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@aranlucas/oxforge": "0.3.0",
-    "@cloudflare/vite-plugin": "2.0.0-beta.v.9",
-    "@cloudflare/vitest-plugin": "1.4.12",
+    "@aranlucas/oxforge": "0.3.1",
+    "@cloudflare/vite-plugin": "2.0.0-beta.v.12",
+    "@cloudflare/vitest-plugin": "1.6.0",
     "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "26.6.6",
-    "cf": "1.0.0-beta.26",
+    "cf": "1.0.0-beta.28",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
-    "oxfmt": "0.75.0",
-    "oxlint": "1.90.0",
-    "oxlint-tsgolint": "7.0.2005",
-    "portless": "0.15.13",
-    "typescript": "7.1.0-dev.20261102.1",
-    "vite": "8.3.5",
-    "vitest": "5.0.5"
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2006",
+    "portless": "0.17.0",
+    "typescript": "7.1.0-dev.20261109.1",
+    "vite": "8.3.7",
+    "vitest": "5.1.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [
