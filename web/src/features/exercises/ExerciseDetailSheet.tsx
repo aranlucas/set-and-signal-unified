@@ -211,8 +211,6 @@ export function ExerciseDetail({
         onClick={() =>
           void close().then((): undefined => {
             openAddToRoutine(exercise);
-
-            return undefined;
           })
         }
       >
@@ -226,8 +224,6 @@ export function ExerciseDetail({
             onClick={() =>
               void close().then((): undefined => {
                 openCustom(customExercise);
-
-                return undefined;
               })
             }
           >
@@ -240,8 +236,6 @@ export function ExerciseDetail({
             onClick={() =>
               void close().then((): undefined => {
                 onDelete?.();
-
-                return undefined;
               })
             }
           >

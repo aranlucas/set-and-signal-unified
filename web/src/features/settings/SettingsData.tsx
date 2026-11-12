@@ -111,8 +111,6 @@ export function SettingsData({ user, requestConfirmation, onOpenSheet }: Setting
             }),
           );
         }
-
-        return undefined;
       })
       .catch((cause: unknown) =>
         toast(

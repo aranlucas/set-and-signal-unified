@@ -313,18 +313,16 @@ export function Calendar({
               if (!ws) {
                 onDayOverride?.(iso);
 
-                return undefined;
+                return;
               }
 
               if (ws.length === 1) {
                 onWorkoutDetail?.(ws[0]);
 
-                return undefined;
+                return;
               }
 
               onCalendarDay?.(iso, ws);
-
-              return undefined;
             })
             .catch(console.error);
         }}

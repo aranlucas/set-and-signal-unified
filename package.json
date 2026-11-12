@@ -28,14 +28,14 @@
     "check:shared": "pnpm --filter @set-and-signal/training typecheck && pnpm --filter @set-and-signal/training test"
   },
   "devDependencies": {
-    "@aranlucas/oxforge": "^0.3.0",
+    "@aranlucas/oxforge": "^0.3.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
-    "oxfmt": "^0.75.0",
-    "oxlint": "^1.90.0",
-    "oxlint-tsgolint": "^7.0.2005",
-    "portless": "0.15.13",
-    "vitest": "^5.0.5"
+    "oxfmt": "^0.78.0",
+    "oxlint": "^1.93.0",
+    "oxlint-tsgolint": "^7.0.2006",
+    "portless": "0.17.0",
+    "vitest": "^5.1.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": [

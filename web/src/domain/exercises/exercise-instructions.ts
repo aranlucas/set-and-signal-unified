@@ -141,8 +141,6 @@ export function useExerciseInstructions(
         if (active) {
           setLoaded({ requestKey, result });
         }
-
-        return undefined;
       })
       .catch(() => {
         if (active) {
