@@ -7,7 +7,7 @@ export default defineConfig({
       {
         plugins: [
           cloudflareTest({
-            experimental: { newConfig: true },
+            config: true,
             miniflare: {
               bindings: {
                 GARMIN_PUSH_TOKEN: "test-only-delivery-credential-with-at-least-32-characters",

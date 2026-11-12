@@ -228,7 +228,7 @@ it("records compiled component invocations for the 10,000-session interaction ba
     await fresh();
 
     // Each measured tab has a fresh root and follows the same navigation order.
-    const previousTab = index > 0 ? tabs[index - 1] : undefined;
+    const previousTab = tabs[index - 1];
 
     if (previousTab) {
       await interact(() => click(host("NavigationBarItem", (node) => text(node) === previousTab)));

@@ -664,8 +664,6 @@ export function ExConfigSheet({
             onClick={() =>
               void close().then((): undefined => {
                 openCustom(customExercise);
-
-                return undefined;
               })
             }
           >
@@ -680,8 +678,6 @@ export function ExConfigSheet({
             onClick={() =>
               void close().then((): undefined => {
                 onDelete();
-
-                return undefined;
               })
             }
           >

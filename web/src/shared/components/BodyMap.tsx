@@ -66,8 +66,6 @@ function useBodyPaths(): BodyPaths | null {
         if (isMounted) {
           setBodyPaths(loadedPaths);
         }
-
-        return undefined;
       })
       .catch(() => {});
 

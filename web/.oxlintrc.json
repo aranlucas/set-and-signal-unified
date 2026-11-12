@@ -19,6 +19,7 @@
     }
   },
   "rules": {
+    "promise/always-return": ["error", { "ignoreLastCallback": true }],
     "eslint/no-unused-vars": [
       "error",
       {

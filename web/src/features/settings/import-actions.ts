@@ -17,14 +17,14 @@ export function importFromApp(file: File, onParsed: (parsed: ParsedImport) => vo
       } catch {
         toast(translate("import.couldNotReadFile", "Could not read that file"));
 
-        return undefined;
+        return;
       }
 
       if ("error" in parsed) {
         if (parsed.error === "empty") {
           toast(translate("import.fileEmpty", "That file is empty"));
 
-          return undefined;
+          return;
         }
 
         toast(
@@ -34,7 +34,7 @@ export function importFromApp(file: File, onParsed: (parsed: ParsedImport) => vo
           ),
         );
 
-        return undefined;
+        return;
       }
 
       if (
@@ -42,12 +42,10 @@ export function importFromApp(file: File, onParsed: (parsed: ParsedImport) => vo
       ) {
         toast(translate("import.nothingImportFile", "Nothing to import from that file"));
 
-        return undefined;
+        return;
       }
 
       onParsed(parsed);
-
-      return undefined;
     })
     .catch(() => toast(translate("import.couldNotReadFile", "Could not read that file")));
 }
