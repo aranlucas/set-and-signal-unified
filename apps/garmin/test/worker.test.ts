@@ -234,7 +234,14 @@ it("isolates account resources across HTTP callers and rechecks a disconnected l
   config.AUTH.accessToken.mockResolvedValue(null);
   const disconnected = await accountRequest("resources/read", config, aliceToken);
   expect(disconnected.status).toBe(401);
+  expect(disconnected.headers.get("WWW-Authenticate")).toContain('error="invalid_token"');
+  expect(disconnected.headers.get("WWW-Authenticate")).toContain("Reconnect Garmin in Auth");
   expect(await disconnected.text()).toBe("");
+
+  config.AUTH.accessToken.mockRejectedValue(new Error("fixture broker unavailable"));
+  const unavailable = await accountRequest("resources/read", config, aliceToken);
+  expect(unavailable.status).toBe(500);
+  expect(unavailable.headers.get("WWW-Authenticate")).toBeNull();
 });
 
 it("advertises shared Auth and rejects unauthenticated, legacy-key and retired issuer access", async () => {
@@ -244,10 +251,18 @@ it("advertises shared Auth and rejects unauthenticated, legacy-key and retired i
     scopes_supported: ["garmin:access"],
   });
 
-  for (const init of [{}, { headers: { Authorization: "Bearer old-personal-key" } }]) {
+  for (const { init, error } of [
+    { init: {}, error: "" },
+    {
+      init: { headers: { Authorization: "bearer old-personal-key" } },
+      error: ', error="invalid_token"',
+    },
+  ]) {
     const r = await send("/mcp", init);
     expect(r.status).toBe(401);
-    expect(r.headers.get("WWW-Authenticate")).toContain("resource_metadata=");
+    expect(r.headers.get("WWW-Authenticate")).toBe(
+      `Bearer resource_metadata="${base}/.well-known/oauth-protected-resource/mcp", scope="garmin:access"${error}`,
+    );
   }
 
   for (const path of [
@@ -386,7 +401,7 @@ it.each([
     fields: { aud: "https://auth.aranlucas.workers.dev" },
     status: 401,
   },
-  { name: "missing Garmin scope", fields: { scope: "email" }, status: 401 },
+  { name: "missing Garmin scope", fields: { scope: "email" }, status: 403 },
   { name: "wrong issuer", fields: { iss: "https://other.example" }, status: 401 },
   { name: "expired subject lifetime", fields: { exp: 1 }, status: 401 },
 ])("checks Auth exchange-shaped tokens with $name", async ({ fields, status }) => {
@@ -438,7 +453,7 @@ it.each([
   expect((await response.text()).includes('"list_garmin_summaries"')).toBe(status === 200);
 });
 
-it("fails closed for wrong audience, issuer, scope, expiry and disconnected accounts", async () => {
+it("distinguishes invalid Auth tokens from insufficient scope before calling the broker", async () => {
   const config = bindings(null);
   vi.stubGlobal(
     "fetch",
@@ -447,12 +462,12 @@ it("fails closed for wrong audience, issuer, scope, expiry and disconnected acco
     ),
   );
 
-  for (const fields of [
-    { aud: "https://other.example/mcp" },
-    { iss: "https://other.example" },
-    { scope: "mcp:tools" },
-    { exp: 1 },
-    {},
+  for (const { fields, status, error } of [
+    { fields: { aud: "https://other.example/mcp" }, status: 401, error: "invalid_token" },
+    { fields: { iss: "https://other.example" }, status: 401, error: "invalid_token" },
+    { fields: { scope: "mcp:tools" }, status: 403, error: "insufficient_scope" },
+    { fields: { scope: undefined }, status: 403, error: "insufficient_scope" },
+    { fields: { exp: 1 }, status: 401, error: "invalid_token" },
   ]) {
     const token = await new SignJWT({
       sub: "auth-alice",
@@ -466,10 +481,12 @@ it("fails closed for wrong audience, issuer, scope, expiry and disconnected acco
       .setProtectedHeader({ alg: "RS256", kid: "fixture" })
       .sign(privateKey);
 
-    expect(
-      (await send("/mcp", { headers: { Authorization: `Bearer ${token}` } }, config)).status,
-    ).toBe(401);
+    const response = await send("/mcp", { headers: { Authorization: `Bearer ${token}` } }, config);
+    expect(response.status).toBe(status);
+    expect(response.headers.get("WWW-Authenticate")).toContain(`error="${error}"`);
   }
+
+  expect(config.AUTH.accessToken).not.toHaveBeenCalled();
 });
 
 it.each([

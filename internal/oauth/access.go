@@ -46,7 +46,7 @@ func (s *Server) parseAccessToken(raw string) (*accessClaims, error) {
 			return nil, fmt.Errorf("unexpected alg")
 		}
 		return s.Sess.Secret, nil
-	}, jwt.WithAudience(s.ResourceURI()), jwt.WithIssuer(s.Issuer()))
+	}, jwt.WithAudience(s.ResourceURI()), jwt.WithIssuer(s.Issuer()), jwt.WithExpirationRequired())
 	if err != nil {
 		return nil, err
 	}

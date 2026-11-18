@@ -10,7 +10,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/jsonschema-go/jsonschema"
 
 	"github.com/aranlucas/set-and-signal-unified/internal/training"
@@ -524,22 +526,101 @@ func TestMCPCookiesRejected(t *testing.T) {
 	}
 }
 
-func TestOAuthMetadata(t *testing.T) {
+func TestMCPBearerChallenges(t *testing.T) {
 	e := newTestEnv(t)
-	resp, err := e.client.Get(e.url + "/.well-known/oauth-protected-resource")
+	meta := map[string]any{
+		"io.modelcontextprotocol/protocolVersion":    "2026-07-28",
+		"io.modelcontextprotocol/clientInfo":         map[string]any{"name": "test-client", "version": "1"},
+		"io.modelcontextprotocol/clientCapabilities": map[string]any{},
+	}
+	listTools := map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": map[string]any{"_meta": meta}}
+	sign := func(scope string, expiry *jwt.NumericDate) string {
+		t.Helper()
+		token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub": "u1", "iss": testOrigin, "aud": testOrigin + "/mcp", "scope": scope, "exp": expiry,
+		}).SignedString(e.sess.Secret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return token
+	}
+	for _, tc := range []struct {
+		name, authorization, authError string
+		status                         int
+	}{
+		{"missing", "", "", http.StatusUnauthorized},
+		{"other scheme", "Basic other", "", http.StatusUnauthorized},
+		{"invalid", "bearer not-a-token", "invalid_token", http.StatusUnauthorized},
+		{"expired", "Bearer " + sign("workset", jwt.NewNumericDate(time.Now().Add(-time.Hour))), "invalid_token", http.StatusUnauthorized},
+		{"missing expiration", "Bearer " + sign("workset", nil), "invalid_token", http.StatusUnauthorized},
+		{"insufficient scope", "Bearer " + sign("openid", jwt.NewNumericDate(time.Now().Add(time.Hour))), "insufficient_scope", http.StatusForbidden},
+		{"workset only", "Bearer " + sign("workset", jwt.NewNumericDate(time.Now().Add(time.Hour))), "", http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, _ := e.rpc(t, http.MethodPost, "/mcp", listTools,
+				map[string]string{"Authorization": tc.authorization, "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list"})
+			if resp.StatusCode != tc.status {
+				t.Errorf("status = %d, want %d", resp.StatusCode, tc.status)
+			}
+			want := `Bearer resource_metadata="` + testOrigin + `/.well-known/oauth-protected-resource", scope="workset"`
+			if tc.authError != "" {
+				want += `, error="` + tc.authError + `"`
+			}
+			if tc.status == http.StatusOK {
+				if got := resp.Header.Get("WWW-Authenticate"); got != "" {
+					t.Errorf("authenticated request got a challenge: %q", got)
+				}
+				return
+			}
+			if got := resp.Header.Values("WWW-Authenticate"); !slices.Equal(got, []string{want}) {
+				t.Errorf("WWW-Authenticate = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestMCPTokenLookupFailureDoesNotChallenge(t *testing.T) {
+	e := newTestEnv(t)
+	if err := e.st.DB.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, e.url+"/mcp", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+e.bearer)
+	resp, err := e.client.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != 200 {
-		t.Fatalf("PRM status %d", resp.StatusCode)
+	if challenge := resp.Header.Get("WWW-Authenticate"); resp.StatusCode != http.StatusInternalServerError || challenge != "" {
+		t.Fatalf("status = %d, WWW-Authenticate = %q", resp.StatusCode, challenge)
 	}
-	var prm map[string]any
-	if err := json.UnmarshalRead(resp.Body, &prm); err != nil {
-		t.Fatal(err)
-	}
-	if prm["resource"] != testOrigin+"/mcp" {
-		t.Fatalf("resource = %v", prm["resource"])
+}
+
+func TestOAuthMetadata(t *testing.T) {
+	e := newTestEnv(t)
+	for _, path := range []string{"/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"} {
+		t.Run(path, func(t *testing.T) {
+			resp, err := e.client.Get(e.url + path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = resp.Body.Close() }()
+			var prm struct {
+				Resource string   `json:"resource"`
+				Issuers  []string `json:"authorization_servers"`
+				Scopes   []string `json:"scopes_supported"`
+			}
+			if err := json.UnmarshalRead(resp.Body, &prm); err != nil {
+				t.Fatal(err)
+			}
+			if resp.StatusCode != http.StatusOK || prm.Resource != testOrigin+"/mcp" ||
+				!slices.Equal(prm.Issuers, []string{testOrigin}) || !slices.Equal(prm.Scopes, []string{"workset"}) {
+				t.Fatalf("metadata = %d %+v", resp.StatusCode, prm)
+			}
+		})
 	}
 
 	resp2, err := e.client.Get(e.url + "/.well-known/oauth-authorization-server")
@@ -556,5 +637,10 @@ func TestOAuthMetadata(t *testing.T) {
 	}
 	if as["registration_endpoint"] != testOrigin+"/oauth/register" {
 		t.Fatalf("register = %v", as["registration_endpoint"])
+	}
+	if resp2.StatusCode != http.StatusOK || as["issuer"] != testOrigin || as["token_endpoint"] != testOrigin+"/oauth/token" ||
+		!reflect.DeepEqual(as["grant_types_supported"], []any{"authorization_code", "refresh_token"}) ||
+		!reflect.DeepEqual(as["code_challenge_methods_supported"], []any{"S256"}) {
+		t.Fatalf("authorization metadata = %d %v", resp2.StatusCode, as)
 	}
 }

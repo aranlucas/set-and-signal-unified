@@ -14,7 +14,7 @@ func (s *Server) protectedResourceMetadata(w http.ResponseWriter, _ *http.Reques
 		ResourceName           string   `json:"resource_name"`
 	}{
 		Resource: s.ResourceURI(), AuthorizationServers: []string{s.Issuer()},
-		ScopesSupported:        []string{ScopeOpenID, ScopeRead, "offline_access"},
+		ScopesSupported:        []string{ScopeRead},
 		BearerMethodsSupported: []string{"header"}, ResourceName: s.Cfg.RPName,
 	})
 }

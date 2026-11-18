@@ -5,13 +5,17 @@ export const GARMIN_SCOPE = "garmin:access";
 
 const keySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
-const claims = z.object({ sub: z.string().min(1).max(255), scope: z.string() });
+const claims = z.object({ sub: z.string().min(1).max(255), scope: z.string().optional() });
 
-export async function authenticate(request: Request, env: Env) {
-  const authorization = request.headers.get("Authorization");
+type Authentication =
+  | { userId: string }
+  | { error: "missing_token" | "invalid_token" | "insufficient_scope" };
 
-  if (!authorization?.startsWith("Bearer ")) {
-    return null;
+export async function authenticate(request: Request, env: Env): Promise<Authentication> {
+  const token = /^Bearer\s+(\S+)$/i.exec(request.headers.get("Authorization") ?? "")?.[1];
+
+  if (!token) {
+    return { error: "missing_token" };
   }
 
   let keys = keySets.get(env.AUTH_ISSUER);
@@ -22,7 +26,7 @@ export async function authenticate(request: Request, env: Env) {
   }
 
   try {
-    const { payload } = await jwtVerify(authorization.slice(7), keys, {
+    const { payload } = await jwtVerify(token, keys, {
       issuer: env.AUTH_ISSUER,
       audience: new URL("/mcp", env.PUBLIC_URL).href,
       algorithms: ["RS256"],
@@ -31,9 +35,11 @@ export async function authenticate(request: Request, env: Env) {
 
     const identity = claims.parse(payload);
 
-    return identity.scope.split(/\s+/).includes(GARMIN_SCOPE) ? identity.sub : null;
+    return identity.scope?.split(/\s+/).includes(GARMIN_SCOPE)
+      ? { userId: identity.sub }
+      : { error: "insufficient_scope" };
   } catch {
-    return null;
+    return { error: "invalid_token" };
   }
 }
 

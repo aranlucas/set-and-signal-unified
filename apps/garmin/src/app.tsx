@@ -84,27 +84,39 @@ app.post("/garmin/push/:credential", (c) =>
 app.post("/garmin/disconnect", (c) => purgeUser(c.req.raw, c.env));
 
 app.all("/mcp", async (c) => {
-  const userId = await authenticate(c.req.raw, c.env);
+  const identity = await authenticate(c.req.raw, c.env);
+  const challenge = `Bearer resource_metadata="${c.env.PUBLIC_URL}/.well-known/oauth-protected-resource/mcp", scope="${GARMIN_SCOPE}"`;
 
-  const unauthorized = () =>
+  const reject = (status: 401 | 403, details = "") =>
     new Response(null, {
-      status: 401,
+      status,
       headers: {
-        "WWW-Authenticate": `Bearer resource_metadata="${c.env.PUBLIC_URL}/.well-known/oauth-protected-resource/mcp", scope="${GARMIN_SCOPE}"`,
+        "WWW-Authenticate": challenge + details,
         "Cache-Control": "no-store",
       },
     });
 
-  if (!userId) {
-    return unauthorized();
+  if ("error" in identity) {
+    if (identity.error === "missing_token") {
+      return reject(401);
+    }
+
+    return reject(
+      identity.error === "insufficient_scope" ? 403 : 401,
+      `, error="${identity.error}"`,
+    );
   }
 
+  const { userId } = identity;
   // SAFETY: AUTH is the private GarminTokens Worker entrypoint; its reply is schema-checked below.
   const broker = c.env.AUTH as AuthBroker;
   const credential = garminCredential.safeParse(await broker.accessToken(userId));
 
   if (!credential.success || credential.data.expiresAt <= Date.now()) {
-    return unauthorized();
+    return reject(
+      401,
+      ', error="invalid_token", error_description="Reconnect Garmin in Auth and try again."',
+    );
   }
 
   const { accessToken, garminUserId } = credential.data;

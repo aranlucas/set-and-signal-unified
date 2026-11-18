@@ -3,6 +3,7 @@ package oauth
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -165,7 +166,10 @@ func (s *Server) VerifyBearer(token string) (*mcpauth.TokenInfo, error) {
 		return nil, mcpauth.ErrInvalidToken
 	}
 	u, err := s.ST.UserByID(claims.Subject)
-	if err != nil || u == nil || u.Disabled {
+	if err != nil {
+		return nil, errors.New("token verification unavailable")
+	}
+	if u == nil || u.Disabled {
 		return nil, mcpauth.ErrInvalidToken
 	}
 	scopes := strings.Fields(claims.Scope)
