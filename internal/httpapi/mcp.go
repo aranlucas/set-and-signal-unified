@@ -14,7 +14,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/aranlucas/set-and-signal-unified/internal/exercises"
-
+	"github.com/aranlucas/set-and-signal-unified/internal/oauth"
 	"github.com/aranlucas/set-and-signal-unified/internal/training"
 )
 
@@ -523,7 +523,36 @@ func (s *Server) mcpHandler() http.Handler {
 	if s.OAuth != nil {
 		metaURL = s.OAuth.ResourceMetadataURL()
 	}
-	return mcpauth.RequireBearerToken(s.verifyMCPToken, &mcpauth.RequireBearerTokenOptions{ResourceMetadataURL: metaURL})(handler)
+	authenticated := mcpauth.RequireBearerToken(s.verifyMCPToken, &mcpauth.RequireBearerTokenOptions{
+		ResourceMetadataURL: metaURL,
+		Scopes:              []string{oauth.ScopeRead},
+	})(handler)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authenticated.ServeHTTP(&mcpAuthResponse{ResponseWriter: w, authorization: r.Header.Get("Authorization")}, r)
+	})
+}
+
+// mcpAuthResponse adds the RFC 6750 error to the SDK's discovery challenge.
+type mcpAuthResponse struct {
+	http.ResponseWriter
+	authorization string
+}
+
+func (w *mcpAuthResponse) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w *mcpAuthResponse) WriteHeader(status int) {
+	if challenge := w.Header().Get("WWW-Authenticate"); strings.HasPrefix(challenge, "Bearer ") {
+		switch status {
+		case http.StatusUnauthorized:
+			// Match the SDK's bearer parsing. Missing credentials get discovery alone.
+			if fields := strings.Fields(w.authorization); len(fields) == 2 && strings.EqualFold(fields[0], "Bearer") {
+				w.Header().Set("WWW-Authenticate", challenge+`, error="invalid_token"`)
+			}
+		case http.StatusForbidden:
+			w.Header().Set("WWW-Authenticate", challenge+`, error="insufficient_scope"`)
+		}
+	}
+	w.ResponseWriter.WriteHeader(status)
 }
 
 func (s *Server) mcpServer() *mcp.Server {
