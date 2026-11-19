@@ -3,6 +3,8 @@
 [`railway.go`](railway.go) declares the production Set & Signal project: one
 Railpack-built Go service and the persistent SQLite volume mounted at `/data`.
 Railway-generated domains remain attached but are not managed by the IaC API.
+The live `opengym2` production service deploys from `aranlucas/set-and-signal`
+on `main`. This repository holds the declaration for a future cutover.
 
 The root [`railpack.json`](../railpack.json) installs Node 24 and pnpm 12.6.0,
 uses the Go version from `go.mod`, builds the `web` workspace, and embeds its
@@ -17,7 +19,6 @@ its data. Those names are infrastructure identifiers, not product branding.
 
 - Go 1.27.1+ (aligned with the application toolchain)
 - A current Railway CLI with Go IaC support (verified with 5.62.1)
-- Access to the linked Railway project and its `production` environment
 
 The declaration uses the [Railway Go SDK](https://github.com/railwayapp/railway-go-sdk)
 in its own Go module. Install dependencies and check it:
@@ -30,14 +31,8 @@ go vet ./...
 cd ..
 ```
 
-Always review a plan before applying it:
-
-```bash
-railway link
-railway environment production
-railway config plan
-railway config apply
-```
+For trial plans before cutover, use a separate Railway project and a
+non-production environment.
 
 `OPENROUTER_API_KEY` uses `railway.Preserve()`: Railway retains the value already stored
 in the environment and never writes it to this repository. Before applying the
@@ -51,14 +46,19 @@ together.
 
 ## GitHub Actions
 
-[The Railway workflow](../.github/workflows/railway-config.yml) checks the Go
-module and saves a plan for pull requests that change `.railway/`. When the pull
-request merges, it applies that reviewed plan artifact. A changed environment
-or a different `.railway/` tree causes the apply to fail and requires a new plan.
-Fork pull requests run the Go checks but skip authenticated plan and apply jobs.
+[The Railway workflow](../.github/workflows/railway-config.yml) runs the Go
+declaration checks for ready pull requests that change `.railway/` or the
+workflow. The check summary shows whether authenticated jobs are enabled.
+Dependabot PRs touching those paths require manual review in either mode.
 
-Set the repository secret `RAILWAY_TOKEN` to a Railway project token scoped to
-production. The workflow grants the permissions required by the
+Leave the `RAILWAY_PRODUCTION_ENABLED` Actions repository variable unset during
+migration. At a deliberate production cutover, configure the production-scoped
+`RAILWAY_TOKEN` Actions secret and set `RAILWAY_PRODUCTION_ENABLED` to `true`.
+Trigger a fresh PR run and review the authenticated plan before merging. The
+plan fails if authentication fails. Apply on merge requires the pinned plan
+artifact. A missing plan, a changed environment, or a different `.railway/`
+tree causes apply to fail. Fork PRs continue to run declaration checks only.
+The workflow grants the permissions required by the
 [Railway Config Action](https://github.com/railwayapp/config), including OIDC
 for Railway bot comments when the Railway GitHub App is installed.
 
