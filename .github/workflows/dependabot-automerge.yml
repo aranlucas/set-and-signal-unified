@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Merge Dependabot PR after CI passes
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -30,6 +31,14 @@ jobs:
             --jq ".[] | select(.author.login == \"app/dependabot\" and .headRefOid == \"$HEAD_SHA\") | .number")
           if [ -z "$pr" ]; then
             echo "No open Dependabot PR at $HEAD_SHA; nothing to merge."
+            exit 0
+          fi
+          # Keep this path check aligned with the Railway config workflow's trigger.
+          changed_paths=$(gh api --paginate --slurp "repos/$GH_REPO/pulls/$pr/files?per_page=100" |
+            jq -r 'add | if length >= 3000 then error("Cannot verify all changed paths")
+              else .[] | .filename, (.previous_filename // empty) end')
+          if grep -Eq '^(\.railway/|\.github/workflows/railway-config\.yml$)' <<< "$changed_paths"; then
+            echo "Dependabot PR #$pr changes Railway configuration and requires manual review." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           gh pr merge "$pr" --squash --delete-branch --match-head-commit "$HEAD_SHA"

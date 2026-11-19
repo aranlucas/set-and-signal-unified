@@ -27,6 +27,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Summarize Railway configuration mode
+        env:
+          PRODUCTION_ENABLED: ${{ vars.RAILWAY_PRODUCTION_ENABLED == 'true' }}
+          SAME_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          if [ "$PRODUCTION_ENABLED" != true ]; then
+            echo 'Production plan and apply are disabled. This migration repository runs declaration checks only until RAILWAY_PRODUCTION_ENABLED is set to true at cutover.' >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$SAME_REPOSITORY" != true ]; then
+            echo 'Production mode is enabled. Fork pull requests run declaration checks only.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Production mode is enabled. Review the authenticated plan before merging. Apply on merge requires the pinned plan.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -40,7 +52,7 @@ jobs:
 
   plan:
     needs: check
-    if: ${{ github.event.action != 'closed' &&
+    if: ${{ vars.RAILWAY_PRODUCTION_ENABLED == 'true' && github.event.action != 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
@@ -63,7 +75,8 @@ jobs:
           package-manager: none
 
   apply:
-    if: ${{ github.event.action == 'closed' && github.event.pull_request.merged &&
+    if: ${{ vars.RAILWAY_PRODUCTION_ENABLED == 'true' &&
+      github.event.action == 'closed' && github.event.pull_request.merged &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
