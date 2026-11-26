@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "typescript": "7.1.0-dev.20261116.1",
-    "vitest": "5.1.0"
+    "typescript": "7.1.0-dev.20261123.1",
+    "vitest": "5.1.1"
   }
 }
